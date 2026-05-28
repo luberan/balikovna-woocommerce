@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege default for all jobs.
+permissions:
+  contents: read
+
 jobs:
   php-lint:
     name: PHP ${{ matrix.php }} syntax lint
