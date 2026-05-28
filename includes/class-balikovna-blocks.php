@@ -11,7 +11,6 @@
 
 namespace Balikovna_WC;
 
-use Automattic\WooCommerce\Blocks\Package;
 use Automattic\WooCommerce\StoreApi\StoreApi;
 use Automattic\WooCommerce\StoreApi\Schemas\ExtendSchema;
 

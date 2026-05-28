@@ -8,10 +8,10 @@
  * License:     GPL-2.0-or-later
  * Text Domain: balikovna-wc
  * Domain Path: /languages
- * Requires PHP: 7.4
- * Requires at least: 6.0
- * WC requires at least: 7.0
- * WC tested up to: 9.4
+ * Requires PHP: 8.5
+ * Requires at least: 7.0
+ * WC requires at least: 10.8
+ * WC tested up to: 10.8
  *
  * @package Balikovna_WC
  */

@@ -6,8 +6,11 @@
 	var useState = wp.element.useState;
 	var useEffect = wp.element.useEffect;
 	var registerPlugin = wp.plugins.registerPlugin;
-	var ExperimentalOrderShippingPackages =
-		( wc && wc.blocksCheckout && wc.blocksCheckout.ExperimentalOrderShippingPackages ) || null;
+	var SlotComponent =
+		( wc && wc.blocksCheckout && (
+			wc.blocksCheckout.OrderShippingPackages ||
+			wc.blocksCheckout.ExperimentalOrderShippingPackages
+		) ) || null;
 	var extensionCartUpdate =
 		( wc && wc.blocksCheckout && wc.blocksCheckout.extensionCartUpdate ) || null;
 	var useSelect = ( wp.data && wp.data.useSelect ) || function () { return null; };
@@ -135,11 +138,11 @@
 		);
 	}
 
-	if ( ExperimentalOrderShippingPackages ) {
+	if ( SlotComponent ) {
 		registerPlugin( 'balikovna-wc', {
 			render: function () {
 				return el(
-					ExperimentalOrderShippingPackages,
+					SlotComponent,
 					null,
 					el( Picker, null )
 				);
