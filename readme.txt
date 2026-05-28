@@ -5,7 +5,7 @@ Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.5
 Stable tag: 1.0.0
-License: GPLv2 or later
+License: GPLv3 or later
 
 Integrace České pošty (Balíkovna, Balík Do ruky, Balík Na poštu) do WooCommerce: shipping metody, výběr výdejního místa přes oficiální widget, ukládání k objednávce, e-maily, admin a CSV export pro Podání Online.
 

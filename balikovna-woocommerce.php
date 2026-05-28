@@ -5,7 +5,7 @@
  * Description: Integrace České pošty - Balíkovna do WooCommerce. Výběr výdejního místa v košíku, uložení k objednávce, zobrazení v adminu a emailech, CSV export pro Podání Online.
  * Version:     1.0.0
  * Author:      Lukáš Beran
- * License:     GPL-2.0-or-later
+ * License:     GPL-3.0-or-later
  * Text Domain: balikovna-wc
  * Domain Path: /languages
  * Requires PHP: 8.5

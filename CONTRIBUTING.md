@@ -60,4 +60,4 @@ phpcs --standard=WordPress includes/ balikovna-woocommerce.php
 
 ## Licence
 
-Příspěvkem souhlasíte, že váš kód bude šířen pod stejnou licencí jako celý projekt – **GPL-2.0-or-later**.
+Příspěvkem souhlasíte, že váš kód bude šířen pod stejnou licencí jako celý projekt – **GPL-3.0-or-later**.

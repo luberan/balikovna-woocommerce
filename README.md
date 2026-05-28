@@ -43,4 +43,4 @@ Open-source WooCommerce plugin pro integraci služeb **České pošty** – Bal�
 
 ## Licence
 
-GPL-2.0-or-later. Loga České pošty / Balíkovny jsou majetkem Česká pošta, s.p.
+GPL-3.0-or-later. Loga České pošty / Balíkovny jsou majetkem Česká pošta, s.p.
