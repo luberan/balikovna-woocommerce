@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Bezpečnostní zranitelnost
+    url: https://github.com/luberan/balikovna-woocommerce/security/advisories/new
+    about: Bezpečnostní problémy hlaste prosím privátně (viz SECURITY.md).
+  - name: Dotaz / diskuse
+    url: https://github.com/luberan/balikovna-woocommerce/discussions
+    about: Pro obecné dotazy použijte Discussions.

@@ -1,0 +1,87 @@
+name: Bug report
+description: Nahlásit chybu v pluginu
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Díky za nahlášení! Bezpečnostní problémy prosím **nehlaste zde** – viz [SECURITY.md](../../security/policy).
+  - type: textarea
+    id: description
+    attributes:
+      label: Popis problému
+      description: Co se děje a co byste místo toho očekávali?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Kroky k reprodukci
+      placeholder: |
+        1. Přidám produkt do košíku
+        2. V checkoutu zvolím Balíkovnu
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: wp-version
+    attributes:
+      label: Verze WordPress
+      placeholder: "6.6.2"
+    validations:
+      required: true
+  - type: input
+    id: wc-version
+    attributes:
+      label: Verze WooCommerce
+      placeholder: "9.4.1"
+    validations:
+      required: true
+  - type: input
+    id: php-version
+    attributes:
+      label: Verze PHP
+      placeholder: "8.2"
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Verze pluginu Balíkovna for WooCommerce
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: checkout-type
+    attributes:
+      label: Typ checkoutu
+      options:
+        - Klasický (shortcode)
+        - Block Checkout
+        - Obojí / nejisté
+    validations:
+      required: true
+  - type: dropdown
+    id: hpos
+    attributes:
+      label: HPOS (High-Performance Order Storage)
+      options:
+        - Zapnuto
+        - Vypnuto
+        - Nevím
+  - type: textarea
+    id: theme-plugins
+    attributes:
+      label: Téma a další checkout/shipping pluginy
+      placeholder: Storefront, Yoast, ...
+  - type: textarea
+    id: console
+    attributes:
+      label: Výpis z konzole prohlížeče
+      description: Pokud je problém v checkoutu, zapněte `WP_DEBUG` a vložte výpisy `[Balíkovna] ...`.
+      render: shell
+  - type: textarea
+    id: logs
+    attributes:
+      label: PHP error log (volitelně)
+      render: shell

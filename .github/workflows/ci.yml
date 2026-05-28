@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  php-lint:
+    name: PHP ${{ matrix.php }} syntax lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.0", "8.1", "8.2", "8.3"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: PHP syntax check
+        run: |
+          find . -type f -name "*.php" \
+            -not -path "./vendor/*" \
+            -not -path "./node_modules/*" \
+            -print0 | xargs -0 -n1 -P4 php -l
+
+  phpcs:
+    name: WordPress Coding Standards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer, cs2pr
+          coverage: none
+      - name: Install PHPCS + WPCS
+        run: |
+          composer global require --dev \
+            squizlabs/php_codesniffer \
+            wp-coding-standards/wpcs \
+            phpcompatibility/phpcompatibility-wp \
+            dealerdirect/phpcodesniffer-composer-installer
+          echo "$(composer global config bin-dir --absolute --quiet)" >> $GITHUB_PATH
+      - name: Run PHPCS
+        run: |
+          phpcs --standard=WordPress --extensions=php \
+            --ignore=vendor,node_modules \
+            --report=checkstyle \
+            includes/ balikovna-woocommerce.php | cs2pr
+        continue-on-error: true
