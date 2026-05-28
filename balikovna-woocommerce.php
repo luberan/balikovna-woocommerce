@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Balíkovna for WooCommerce
- * Plugin URI:  https://github.com/your-org/balikovna-woocommerce
+ * Plugin URI:  https://github.com/luberan/balikovna-woocommerce
  * Description: Integrace České pošty - Balíkovna do WooCommerce. Výběr výdejního místa v košíku, uložení k objednávce, zobrazení v adminu a emailech, CSV export pro Podání Online.
  * Version:     1.0.0
  * Author:      Lukáš Beran
