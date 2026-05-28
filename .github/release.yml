@@ -1,0 +1,40 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+      - dependencies
+    authors:
+      - dependabot
+
+  categories:
+    - title: "🚀 Nové funkce"
+      labels:
+        - feature
+        - enhancement
+
+    - title: "🐛 Opravy chyb"
+      labels:
+        - bug
+        - fix
+
+    - title: "🔧 Kompatibilita"
+      labels:
+        - compatibility
+
+    - title: "📚 Dokumentace"
+      labels:
+        - documentation
+
+    - title: "🛠 Vývoj a CI"
+      labels:
+        - ci
+        - build
+        - chore
+
+    - title: "🌍 Lokalizace"
+      labels:
+        - i18n
+
+    - title: "Ostatní změny"
+      labels:
+        - "*"
