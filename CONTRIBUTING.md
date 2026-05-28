@@ -22,7 +22,7 @@ Otevřete issue typu „Feature request" s popisem use-case a alternativ, které
 
 1. Forkněte repozitář a vytvořte větev z `main` (`git checkout -b feat/short-name`).
 2. Držte se WordPress coding standards (PSR-12 pro nové soubory je také OK, ale dodržujte styl okolního kódu).
-3. PHP kód cílí na **PHP 7.4+** (testováno proti aktuální stabilní větvi 8.5), WordPress 7.0+, WooCommerce 10.8+.
+3. PHP kód cílí na **PHP 7.4+** (testováno proti aktuální stabilní větvi 8.5), WordPress 6.0+, WooCommerce 10.8+.
 4. Žádné nové runtime závislosti bez diskuse v issue.
 5. Texty viditelné uživateli vždy přes `__()` / `_e()` s textdomain `balikovna-wc` a po přidání spusťte regeneraci POT:
    ```
