@@ -37,8 +37,6 @@ add_action(
 add_action(
 	'plugins_loaded',
 	function () {
-		load_plugin_textdomain( 'balikovna-wc', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
-
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			add_action(
 				'admin_notices',
@@ -51,5 +49,13 @@ add_action(
 
 		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-plugin.php';
 		Balikovna_WC\Plugin::instance()->init();
+	}
+);
+
+// WordPress 6.7+ vyžaduje načtení textdomény nejdříve na hooku `init`.
+add_action(
+	'init',
+	function () {
+		load_plugin_textdomain( 'balikovna-wc', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 	}
 );
