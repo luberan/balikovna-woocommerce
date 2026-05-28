@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-zip:
+    name: Build plugin ZIP and attach to release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build plugin ZIP
+        run: |
+          # Stage the plugin into a folder named exactly like the plugin slug
+          # (no version suffix) so WordPress can update it in place.
+          PLUGIN_SLUG="balikovna-woocommerce"
+          mkdir -p "build/${PLUGIN_SLUG}"
+
+          # Files and folders to ship.
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.gitignore' \
+            --exclude='build' \
+            --exclude='node_modules' \
+            --exclude='vendor' \
+            --exclude='tests' \
+            --exclude='CONTRIBUTING.md' \
+            --exclude='SECURITY.md' \
+            --exclude='*.zip' \
+            ./ "build/${PLUGIN_SLUG}/"
+
+          cd build
+          zip -r "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
+          ls -la
+
+      - name: Upload ZIP to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            "build/balikovna-woocommerce.zip" --clobber
