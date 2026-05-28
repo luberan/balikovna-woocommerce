@@ -19,6 +19,18 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 	/** @var array Cache konfigurace služby. */
 	protected $service = array();
 
+	/** @var string Fixní cena dopravy (z instance settings). */
+	protected $cost = '';
+
+	/** @var string Typ ceny: `flat` nebo `weight`. */
+	protected $cost_type = 'flat';
+
+	/** @var string Váhová tabulka (řádky `max_kg|cena`). */
+	protected $weight_table = '';
+
+	/** @var string Práh košíku pro dopravu zdarma (prázdné = vypnuto). */
+	protected $free_shipping_min = '';
+
 	public function __construct( $instance_id = 0 ) {
 		$this->id           = static::$service_id;
 		$this->instance_id  = absint( $instance_id );
