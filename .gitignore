@@ -1,0 +1,49 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors / IDE
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-*
+*.swp
+*.swo
+*~
+
+# PHP / Composer
+/vendor/
+composer.lock
+composer.phar
+
+# Node / build
+/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.parcel-cache/
+.cache/
+
+# Tests / coverage
+/.phpunit.result.cache
+/coverage/
+/tests/_output/
+
+# WordPress dev artifacts
+wp-cli.local.yml
+*.log
+
+# Plugin build artifacts
+/build/
+/dist/
+*.zip
+*.tar.gz
+
+# Translations - keep .pot, ship compiled .mo only on release
+/languages/*.mo
+
+# Local env
+.env
+.env.local

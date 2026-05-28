@@ -1,0 +1,12 @@
+#: Auto-generated POT template. To regenerate, use WP-CLI:
+#:   wp i18n make-pot . languages/balikovna-wc.pot --domain=balikovna-wc
+#:
+msgid ""
+msgstr ""
+"Project-Id-Version: Balíkovna for WooCommerce 1.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/lukasberan/balikovna-woocommerce/issues\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Domain: balikovna-wc\n"
