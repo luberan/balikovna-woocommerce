@@ -3,7 +3,7 @@ Contributors: lukasberan
 Tags: woocommerce, shipping, balikovna, ceska-posta, pickup
 Requires at least: 7.0
 Tested up to: 7.0
-Requires PHP: 8.5
+Requires PHP: 7.4
 Stable tag: 1.0.0
 License: GPLv3 or later
 
