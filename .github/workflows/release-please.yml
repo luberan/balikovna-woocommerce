@@ -85,3 +85,35 @@ jobs:
         run: |
           gh release upload "${{ needs.release-please.outputs.tag_name }}" \
             "build/balikovna-woocommerce.zip" --clobber
+
+      - name: Sync readme.txt changelog back to main
+        # Plugin Update Checker fetches readme.txt from the main branch (not
+        # from the installed ZIP) to render "View version details" in WP
+        # admin. Without this commit, users would always see only v1.0.0
+        # changelog in WP admin even though the ZIP itself has full history.
+        run: |
+          set -e
+          # Re-check out main so we commit on top of the latest state
+          # (release-please has already pushed its bump commit).
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+
+          if [ ! -f CHANGELOG.md ]; then
+            echo "CHANGELOG.md missing on main, nothing to sync"
+            exit 0
+          fi
+
+          python3 .github/scripts/changelog-to-readme.py \
+            CHANGELOG.md readme.txt
+
+          if git diff --quiet readme.txt; then
+            echo "readme.txt is already in sync, nothing to commit"
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add readme.txt
+          git commit -m "docs: sync readme.txt changelog with ${{ needs.release-please.outputs.tag_name }} [skip ci]"
+          git push origin main
