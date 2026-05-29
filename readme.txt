@@ -52,6 +52,9 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
+= 1.26.1 =
+* 📚 Dokumentace: switch release badge to badgen (shields.io token pool errors)
+
 = 1.26.0 =
 * 🚀 Nové funkce: add Balíkovna 'Balík na adresu' shipping method (NA)
 
