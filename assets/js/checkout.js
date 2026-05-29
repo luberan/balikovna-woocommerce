@@ -75,21 +75,30 @@
 		}
 	}
 
-	// NOTE: Skutečný formát postMessage z widgetu zatím není veřejně dokumentován.
-	// Tato funkce zkouší obvyklé varianty; po obdržení specifikace od ČP se zúží.
+	// Oficiální payload widgetu ČP (dle podporaobchodu@cpost.cz, 2026-05):
+	// { message: 'pickResult', id: 'B15033', point: { id, zip, name, street,
+	//   municipality_name, municipality_district_name, country, type, subtype,
+	//   coor_x_wgs84, coor_y_wgs84, ... } }
 	function normalizePoint(data) {
 		if (!data || typeof data !== 'object') return null;
-		var src = data.point || data.location || data.detail || data;
-		var id = src.id || src.code || src.zipCode || src.PSC || src.postCode;
-		var name = src.name || src.title || src.NAZEV;
-		if (!id || !name) return null;
+		if (data.message !== 'pickResult' || !data.point) return null;
+		var p = data.point;
+		if (!p.id || !p.name) return null;
+		var city = String(p.municipality_name || '').trim();
+		if (p.municipality_district_name && p.municipality_district_name !== city) {
+			city = city + ' - ' + p.municipality_district_name;
+		}
 		return {
-			id: String(id),
-			name: String(name),
-			street: String(src.street || src.address || src.ULICE || ''),
-			city: String(src.city || src.OBEC || ''),
-			zip: String(src.zip || src.psc || src.PSC || ''),
-			country: String(src.country || 'CZ')
+			id: String(p.id),
+			zip: String(p.zip || ''),
+			name: String(p.name),
+			street: String(p.street || '').trim(),
+			city: city.trim(),
+			country: String(p.country || 'CZ'),
+			type: String(p.type || ''),
+			subtype: String(p.subtype || ''),
+			lat: p.coor_y_wgs84 ? String(p.coor_y_wgs84) : '',
+			lng: p.coor_x_wgs84 ? String(p.coor_x_wgs84) : ''
 		};
 	}
 

@@ -36,7 +36,12 @@ Integrace České pošty (Balíkovna, Balík Do ruky, Balík Na poštu) do WooCo
 * `balikovna_wc_export_headers` - hlavičky CSV exportu.
 * `balikovna_wc_export_row` - úprava řádku exportu (`$row, $order, $point, $service_id`).
 * `balikovna_wc_cod_methods` - seznam payment method ID považovaných za dobírku.
+* `balikovna_wc_default_subject` - default Subjekt v CSV (`F` = fyzická, `P` = právnická).
 * `balikovna_wc_debug` - vynucený diagnostický mód i bez `WP_DEBUG`.
+
+== CSV pro Podání Online ==
+
+Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce A-O) potvrzené podporou ČP. Pro zásilky typu **NB (Balíkovna)** se ve sloupci Ulice vyplní literál `Balíkova` a do PSČ unikátní ID balíkovny - dle pokynů ČP. Sloupec **Služby** (např. `7+45+S+41`) je defaultně prázdný - doplňte přes filtr `balikovna_wc_export_row` dle vaší konfigurace.
 
 == Roadmap ==
 

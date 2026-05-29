@@ -210,7 +210,7 @@ class Checkout {
 	}
 
 	public static function sanitize_point( array $point ) {
-		$keys = array( 'id', 'name', 'street', 'city', 'zip', 'country' );
+		$keys = array( 'id', 'name', 'street', 'city', 'zip', 'country', 'type', 'subtype', 'lat', 'lng' );
 		$out  = array();
 		foreach ( $keys as $k ) {
 			$out[ $k ] = isset( $point[ $k ] ) ? sanitize_text_field( (string) $point[ $k ] ) : '';

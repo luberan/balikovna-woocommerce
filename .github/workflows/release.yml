@@ -26,12 +26,16 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='.gitignore' \
+            --exclude='.release-please-config.json' \
+            --exclude='.release-please-manifest.json' \
             --exclude='build' \
             --exclude='node_modules' \
             --exclude='vendor' \
             --exclude='tests' \
             --exclude='CONTRIBUTING.md' \
             --exclude='SECURITY.md' \
+            --exclude='CHANGELOG.md' \
+            --exclude='Balikovna.postman_collection.json' \
             --exclude='*.zip' \
             ./ "build/${PLUGIN_SLUG}/"
 

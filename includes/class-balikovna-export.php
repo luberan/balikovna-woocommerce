@@ -59,30 +59,33 @@ class Export {
 
 		$out = fopen( 'php://output', 'w' );
 
+		// Hlavičky odpovídají importní šabloně Podání Online (sloupce A-O)
+		// dle podpory ČP (podporaobchodu@cpost.cz, 2026-05).
 		$headers = apply_filters(
 			'balikovna_wc_export_headers',
 			array(
-				'Příjmení/Firma',
-				'Jméno',
-				'Ulice',
-				'Č.p.',
-				'Obec',
-				'PSČ',
-				'Stát',
-				'Telefon',
-				'E-mail',
-				'Hmotnost (kg)',
-				'Cena dobírky',
-				'Měna',
-				'Reference odesílatele',
-				'Kód služby',
-				'Kód výdejního místa',
-				'Název výdejního místa',
-				'Poznámka',
+				'Příjmení/Firma',     // A
+				'Jméno',              // B
+				'Ulice + č.p.',       // C  (pro NB: literál "Balíkova")
+				'PSČ',                // D  (pro NB: ID balíkovny)
+				'Město',              // E  (pro NB: prázdné)
+				'Hmotnost (kg)',      // F
+				'Udaná cena',         // G
+				'Cena dobírky',       // H
+				'Služby',             // I  (např. "7+45+S+41")
+				'Variabilní symbol',  // J
+				'Telefon',            // K
+				'E-mail',             // L
+				'Typ zásilky',        // M  (NB / DR / NP)
+				'Subjekt',            // N  (F = fyzická, P = právnická)
+				'Počet VK',           // O  (počet balíků)
 			)
 		);
 
 		$this->fputcsv_cp1250( $out, $headers );
+
+		$cod_methods   = (array) apply_filters( 'balikovna_wc_cod_methods', array( 'cod' ) );
+		$default_subj  = (string) apply_filters( 'balikovna_wc_default_subject', 'F' );
 
 		foreach ( $order_ids as $id ) {
 			$order = wc_get_order( $id );
@@ -112,26 +115,39 @@ class Export {
 				continue;
 			}
 
-			$is_cod = in_array( $order->get_payment_method(), apply_filters( 'balikovna_wc_cod_methods', array( 'cod' ) ), true );
+			$service_code = (string) ( $service['service_code'] ?? '' );
+			$is_cod       = in_array( $order->get_payment_method(), $cod_methods, true );
+
+			// Adresa: pro Balíkovnu (NB) speciální formát dle ČP,
+			// pro ostatní služby standardní adresa zákazníka.
+			if ( 'NB' === $service_code ) {
+				$street_col = 'Balíkova';
+				$zip_col    = $point['id'] ?? '';
+				$city_col   = '';
+			} else {
+				$street1 = $order->get_shipping_address_1() ?: $order->get_billing_address_1();
+				$street2 = $order->get_shipping_address_2() ?: $order->get_billing_address_2();
+				$street_col = trim( $street1 . ' ' . $street2 );
+				$zip_col    = $order->get_shipping_postcode() ?: $order->get_billing_postcode();
+				$city_col   = $order->get_shipping_city() ?: $order->get_billing_city();
+			}
 
 			$row = array(
-				$order->get_shipping_last_name() ?: $order->get_billing_last_name(),
-				$order->get_shipping_first_name() ?: $order->get_billing_first_name(),
-				$order->get_shipping_address_1() ?: $order->get_billing_address_1(),
-				$order->get_shipping_address_2() ?: $order->get_billing_address_2(),
-				$order->get_shipping_city() ?: $order->get_billing_city(),
-				$order->get_shipping_postcode() ?: $order->get_billing_postcode(),
-				$order->get_shipping_country() ?: $order->get_billing_country() ?: 'CZ',
-				$order->get_billing_phone(),
-				$order->get_billing_email(),
-				$this->calc_weight( $order ),
-				$is_cod ? wc_format_decimal( $order->get_total(), 2 ) : '',
-				$order->get_currency(),
-				$order->get_order_number(),
-				$service['service_code'] ?? '',
-				$point['id'] ?? '',
-				$point['name'] ?? '',
-				$order->get_customer_note(),
+				$order->get_shipping_last_name() ?: $order->get_billing_last_name(), // A
+				$order->get_shipping_first_name() ?: $order->get_billing_first_name(), // B
+				$street_col,                                                          // C
+				$zip_col,                                                             // D
+				$city_col,                                                            // E
+				$this->calc_weight( $order ),                                         // F
+				wc_format_decimal( $order->get_total(), 2 ),                          // G  Udaná cena
+				$is_cod ? wc_format_decimal( $order->get_total(), 2 ) : '',           // H  Dobírka
+				'',                                                                   // I  Služby - prázdné, doplnit přes filtr
+				$order->get_order_number(),                                           // J  Variabilní symbol
+				$order->get_billing_phone(),                                          // K
+				$order->get_billing_email(),                                          // L
+				$service_code,                                                        // M
+				$default_subj,                                                        // N
+				1,                                                                    // O  Počet VK
 			);
 
 			$row = apply_filters( 'balikovna_wc_export_row', $row, $order, $point, $service_id );

@@ -28,21 +28,21 @@ class Services {
 					'label'        => __( 'Balíkovna', 'balikovna-wc' ),
 					'description'  => __( 'Doručení na výdejní místo Balíkovna (Česká pošta).', 'balikovna-wc' ),
 					'pickup'       => 'BALIKOVNY',
-					'service_code' => 'NP',
+					'service_code' => 'NB', // Na Balíkovnu (dle CSV šablony Podání Online).
 					'logo'         => 'logo-balikovna.svg',
 				),
 				'cp_do_ruky'  => array(
 					'label'        => __( 'Balík Do ruky', 'balikovna-wc' ),
 					'description'  => __( 'Doručení balíku na adresu zákazníka (Česká pošta).', 'balikovna-wc' ),
 					'pickup'       => false,
-					'service_code' => 'DR',
+					'service_code' => 'DR', // Do Ruky.
 					'logo'         => 'logo-cp.svg',
 				),
 				'cp_na_postu' => array(
 					'label'        => __( 'Balík Na poštu', 'balikovna-wc' ),
 					'description'  => __( 'Doručení na vybranou pobočku České pošty.', 'balikovna-wc' ),
 					'pickup'       => 'POSTY',
-					'service_code' => 'NB',
+					'service_code' => 'NP', // Na Poštu.
 					'logo'         => 'logo-cp.svg',
 				),
 			)
