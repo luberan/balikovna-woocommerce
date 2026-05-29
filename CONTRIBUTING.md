@@ -49,7 +49,7 @@ define( 'WP_DEBUG', true );
 
 PHP syntax check (běží i v CI):
 ```
-find . -name "*.php" -not -path "./vendor/*" -print0 | xargs -0 -n1 php -l
+find . -name "*.php" -not -path "./vendor/*" -not -path "./includes/lib/*" -print0 | xargs -0 -n1 php -l
 ```
 
 Volitelně PHPCS s WordPress Coding Standards:

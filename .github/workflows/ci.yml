@@ -29,6 +29,7 @@ jobs:
         run: |
           find . -type f -name "*.php" \
             -not -path "./vendor/*" \
+            -not -path "./includes/lib/*" \
             -not -path "./node_modules/*" \
             -print0 | xargs -0 -n1 -P4 php -l
 
@@ -54,7 +55,7 @@ jobs:
       - name: Run PHPCS
         run: |
           phpcs --standard=WordPress --extensions=php \
-            --ignore=vendor,node_modules \
+            --ignore=vendor,node_modules,includes/lib \
             --report=checkstyle \
             includes/ balikovna-woocommerce.php | cs2pr
         continue-on-error: true

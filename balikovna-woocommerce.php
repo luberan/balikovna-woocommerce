@@ -35,6 +35,19 @@ add_action(
 	}
 );
 
+// Auto-updates from GitHub Releases via Plugin Update Checker
+// (YahnisElsts/plugin-update-checker, MIT). Stahuje vždy release asset
+// `balikovna-woocommerce.zip` (vyrobený workflowem .github/workflows/release.yml),
+// ne auto-generated "Source code (zip)".
+require_once BALIKOVNA_WC_PATH . 'includes/lib/plugin-update-checker/plugin-update-checker.php';
+$balikovna_wc_update_checker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+	'https://github.com/luberan/balikovna-woocommerce/',
+	__FILE__,
+	'balikovna-woocommerce'
+);
+$balikovna_wc_update_checker->setBranch( 'main' );
+$balikovna_wc_update_checker->getVcsApi()->enableReleaseAssets( '/^balikovna-woocommerce\.zip$/i' );
+
 add_action(
 	'plugins_loaded',
 	function () {

@@ -24,6 +24,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 - **HPOS** ready (High-Performance Order Storage), kompatibilní s Cart/Checkout blocks
 - **Diagnostický mód** (`WP_DEBUG` nebo filtr) – do konzole loguje přijaté `postMessage` payloady widgetu
 - Logo služby ČP v shipping metodě (klasický checkout)
+- **Automatické aktualizace** z GitHub Releases (knihovna [Plugin Update Checker](https://github.com/YahnisElsts/plugin-update-checker), MIT) – v admin Pluginy se nové verze zobrazují jako u pluginů z wordpress.org
 - Připraveno pro **i18n** (`languages/balikovna-wc.pot`)
 
 ## Kompatibilita

@@ -19,6 +19,7 @@ Integrace České pošty (Balíkovna, Balík Do ruky, Balík Na poštu) do WooCo
 * Sloupec **Balíkovna** v přehledu objednávek (HPOS i klasické).
 * Hromadná akce **Export Balíkovna (CSV Podání Online)** v přehledu objednávek - CSV ve Windows-1250, středník jako oddělovač, sloupec s kódem služby.
 * HPOS ready, kompatibilní s `cart_checkout_blocks`.
+* **Automatické aktualizace** z GitHub Releases (Plugin Update Checker, MIT) - po první instalaci se další verze zobrazují v WP admin → Aktualizace stejně jako u pluginů z wordpress.org.
 * **Diagnostický mód**: při zapnutém `WP_DEBUG` se do konzole prohlížeče logují přijaté `postMessage` zprávy z widgetu (vhodné pro vývoj a ladění integrace).
 * Připraveno pro **i18n** (`languages/balikovna-wc.pot`).
 
