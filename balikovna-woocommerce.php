@@ -61,6 +61,45 @@ add_action(
 			if ( $api && method_exists( $api, 'enableReleaseAssets' ) ) {
 				$api->enableReleaseAssets( '/^balikovna-woocommerce\.zip$/i' );
 			}
+
+			// PUC by default uses the GitHub release body (just notes for the
+			// single released version) as the changelog shown in "View version
+			// details". Prefer the full == Changelog == section from the
+			// readme.txt that ships with the installed ZIP — it contains the
+			// complete history rendered by the release workflow.
+			add_filter(
+				'puc_request_info_result-balikovna-woocommerce',
+				function ( $pluginInfo ) {
+					if ( ! is_object( $pluginInfo ) ) {
+						return $pluginInfo;
+					}
+					$readme_path = BALIKOVNA_WC_PATH . 'readme.txt';
+					if ( ! is_readable( $readme_path ) ) {
+						return $pluginInfo;
+					}
+					$readme = file_get_contents( $readme_path );
+					if ( ! $readme || ! preg_match( '/^==\s*Changelog\s*==\s*$(.*?)(?=^==\s|\z)/sm', $readme, $m ) ) {
+						return $pluginInfo;
+					}
+					$body = trim( $m[1] );
+					// Convert the WP readme syntax (`= 1.2.3 =` / `* item`) into
+					// simple HTML for the modal.
+					$body = preg_replace( '/^=\s*([^=]+?)\s*=\s*$/m', '<h4>$1</h4>', $body );
+					$body = preg_replace_callback(
+						'/(?:^\*\s+.+(?:\r?\n|$))+/m',
+						function ( $block ) {
+							$items = preg_replace( '/^\*\s+(.+)$/m', '<li>$1</li>', rtrim( $block[0] ) );
+							return "<ul>{$items}</ul>\n";
+						},
+						$body
+					);
+					if ( ! isset( $pluginInfo->sections ) || ! is_array( $pluginInfo->sections ) ) {
+						$pluginInfo->sections = array();
+					}
+					$pluginInfo->sections['changelog'] = $body;
+					return $pluginInfo;
+				}
+			);
 		} catch ( \Throwable $e ) {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( '[Balíkovna] update checker init failed: ' . $e->getMessage() );
