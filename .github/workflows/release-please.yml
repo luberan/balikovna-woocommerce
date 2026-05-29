@@ -46,21 +46,25 @@ jobs:
           mkdir -p "build/${PLUGIN_SLUG}"
 
           rsync -a \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='.gitignore' \
-            --exclude='.release-please-config.json' \
-            --exclude='.release-please-manifest.json' \
-            --exclude='build' \
-            --exclude='node_modules' \
-            --exclude='vendor' \
-            --exclude='tests' \
-            --exclude='CONTRIBUTING.md' \
-            --exclude='SECURITY.md' \
-            --exclude='CHANGELOG.md' \
-            --exclude='Balikovna.postman_collection.json' \
+            --exclude='/.git' \
+            --exclude='/.github' \
+            --exclude='/.gitignore' \
+            --exclude='/.release-please-config.json' \
+            --exclude='/.release-please-manifest.json' \
+            --exclude='/build' \
+            --exclude='/node_modules' \
+            --exclude='/vendor' \
+            --exclude='/tests' \
+            --exclude='/CONTRIBUTING.md' \
+            --exclude='/SECURITY.md' \
+            --exclude='/CHANGELOG.md' \
+            --exclude='/Balikovna.postman_collection.json' \
             --exclude='*.zip' \
             ./ "build/${PLUGIN_SLUG}/"
+
+          # Sanity check: bundled PUC's vendor/ (Parsedown) MUST be included.
+          test -f "build/${PLUGIN_SLUG}/includes/lib/plugin-update-checker/vendor/Parsedown.php" \
+            || (echo "::error::Parsedown.php missing from ZIP" && exit 1)
 
           cd build
           zip -r "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
