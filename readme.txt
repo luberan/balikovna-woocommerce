@@ -52,6 +52,10 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
+= 1.3.4 =
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
 = 1.3.3 =
 * 🐛 Opravy chyb: do not break block checkout when picker not yet selected
 * 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
