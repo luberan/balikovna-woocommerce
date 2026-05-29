@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.2.0...v1.2.1) (2026-05-29)
+
+
+### 🐛 Opravy chyb
+
+* **ci:** build release ZIP in the same workflow as release-please ([a8d9fc7](https://github.com/luberan/balikovna-woocommerce/commit/a8d9fc73da29661f5d302c66c987dc2b2b7d3f3d))
+
 ## [1.2.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.1.0...v1.2.0) (2026-05-29)
 
 
