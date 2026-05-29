@@ -41,7 +41,7 @@ Integrace České pošty (Balíkovna, Balík Do ruky, Balík Na poštu) do WooCo
 
 == CSV pro Podání Online ==
 
-Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce A-O) potvrzené podporou ČP. Pro zásilky typu **NB (Balíkovna)** se ve sloupci Ulice vyplní literál `Balíkova` a do PSČ unikátní ID balíkovny - dle pokynů ČP. Sloupec **Služby** (např. `7+45+S+41`) je defaultně prázdný - doplňte přes filtr `balikovna_wc_export_row` dle vaší konfigurace.
+Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce A-O) potvrzené podporou ČP. Pro zásilky typu **NB (Balíkovna)** se ve sloupci Ulice vyplní literál `Balíkova` a do PSČ unikátní ID balíkovny - dle pokynů ČP. Sloupec **Služby** (např. `7+45+S+41`) se naplní z nastavení konkrétní shipping metody (WooCommerce → Nastavení → Doprava → zóna → editace metody → pole „Kódy služeb ČP"). Lze také přepsat přes filtr `balikovna_wc_export_row`.
 
 == Roadmap ==
 

@@ -94,14 +94,15 @@ class Export {
 			}
 
 			// Zjisti, která ČP služba je u objednávky použita.
-			$service_id = (string) $order->get_meta( '_balikovna_service' );
-			if ( ! $service_id ) {
-				// Fallback: zkus odvodit z shipping_method.
-				foreach ( $order->get_shipping_methods() as $m ) {
-					if ( Services::get( $m->get_method_id() ) ) {
-						$service_id = $m->get_method_id();
-						break;
-					}
+			$service_id    = (string) $order->get_meta( '_balikovna_service' );
+			$service_codes = '';
+			foreach ( $order->get_shipping_methods() as $m ) {
+				if ( ! $service_id && Services::get( $m->get_method_id() ) ) {
+					$service_id = $m->get_method_id();
+				}
+				$codes = $m->get_meta( 'balikovna_service_codes' );
+				if ( $codes ) {
+					$service_codes = (string) $codes;
 				}
 			}
 			$service = $service_id ? Services::get( $service_id ) : null;
@@ -141,7 +142,7 @@ class Export {
 				$this->calc_weight( $order ),                                         // F
 				wc_format_decimal( $order->get_total(), 2 ),                          // G  Udaná cena
 				$is_cod ? wc_format_decimal( $order->get_total(), 2 ) : '',           // H  Dobírka
-				'',                                                                   // I  Služby - prázdné, doplnit přes filtr
+				$service_codes,                                                       // I  Služby (z nastavení shipping metody)
 				$order->get_order_number(),                                           // J  Variabilní symbol
 				$order->get_billing_phone(),                                          // K
 				$order->get_billing_email(),                                          // L

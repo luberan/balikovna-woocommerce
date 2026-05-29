@@ -31,6 +31,9 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 	/** @var string Práh košíku pro dopravu zdarma (prázdné = vypnuto). */
 	protected $free_shipping_min = '';
 
+	/** @var string Kódy služeb ČP pro Podání Online (sloupec I v CSV, např. "7+45+S+41"). */
+	protected $service_codes = '';
+
 	public function __construct( $instance_id = 0 ) {
 		$this->id           = static::$service_id;
 		$this->instance_id  = absint( $instance_id );
@@ -57,6 +60,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		$this->cost_type         = $this->get_option( 'cost_type', 'flat' );
 		$this->weight_table      = $this->get_option( 'weight_table', "5|79\n10|119\n15|159" );
 		$this->free_shipping_min = $this->get_option( 'free_shipping_min', '' );
+		$this->service_codes     = $this->get_option( 'service_codes', '' );
 
 		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
 	}
@@ -110,6 +114,12 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 				'default'     => '',
 				'desc_tip'    => true,
 			),
+			'service_codes'     => array(
+				'title'       => __( 'Kódy služeb ČP (CSV sloupec I)', 'balikovna-wc' ),
+				'type'        => 'text',
+				'description' => __( 'Při exportu pro Podání Online se použije jako hodnota sloupce „Služby“. Formát dle označení služeb ve vaší smlouvě s ČP, např. <code>7+45+S+41</code>. Prázdné = nevyplnit.', 'balikovna-wc' ),
+				'default'     => '',
+			),
 		);
 	}
 
@@ -122,10 +132,13 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 
 		$this->add_rate(
 			array(
-				'id'      => $this->get_rate_id(),
-				'label'   => $this->title,
-				'cost'    => $cost,
-				'package' => $package,
+				'id'        => $this->get_rate_id(),
+				'label'     => $this->title,
+				'cost'      => $cost,
+				'package'   => $package,
+				'meta_data' => array(
+					'balikovna_service_codes' => $this->service_codes,
+				),
 			)
 		);
 	}
