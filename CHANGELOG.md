@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.1...v1.3.2) (2026-05-29)
+
+
+### 🐛 Opravy chyb
+
+* override changelog modal with local readme.txt history ([5901ee4](https://github.com/luberan/balikovna-woocommerce/commit/5901ee477117bdcd870fc890aa240c85914fd37c))
+
+
+### 📚 Dokumentace
+
+* sync readme.txt changelog with v1.3.1 [skip ci] ([943209c](https://github.com/luberan/balikovna-woocommerce/commit/943209c4b812108dece064a298276751bdd2bf37))
+
 ## [1.3.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.0...v1.3.1) (2026-05-29)
 
 
