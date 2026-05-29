@@ -52,6 +52,10 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
+= 1.3.2 =
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+
 = 1.3.1 =
 * 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
 * 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
