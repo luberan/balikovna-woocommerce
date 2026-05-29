@@ -52,5 +52,37 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
-= 1.0.0 =
-* První vydání. Balíkovna, Balík Do ruky, Balík Na poštu.
+= 1.3.1 =
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+
+= 1.3.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+
+= 1.2.2 =
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+
+= 1.2.1 =
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+
+= 1.2.0 =
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+
+= 1.1.0 =
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
