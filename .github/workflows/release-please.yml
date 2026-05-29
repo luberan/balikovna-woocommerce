@@ -32,35 +32,10 @@ jobs:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # Squash-merge the release PR right away by performing a git merge with
-      # the PAT (not via `gh pr merge`, which produces a commit attributed to
-      # the GitHub web UI bot and therefore re-hits the anti-loop). Pushing
-      # with the PAT identity DOES trigger a fresh workflow run, which then
-      # publishes the GitHub Release and runs build-zip.
-      - name: Auto-merge release PR
-        if: steps.release.outputs.pr
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-        run: |
-          set -e
-          PR_NUMBER=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.number')
-          PR_BRANCH=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.headBranchName')
-          PR_TITLE=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.title')
-          echo "Merging release PR #$PR_NUMBER ($PR_BRANCH)"
-
-          git clone \
-            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" repo
-          cd repo
-          git config user.name 'release-please[bot]'
-          git config user.email 'release-please[bot]@users.noreply.github.com'
-
-          git checkout main
-          git merge --squash "origin/$PR_BRANCH"
-          git commit -m "$PR_TITLE (#$PR_NUMBER)"
-          git push origin main
-
-          # Clean up the release branch.
-          git push origin --delete "$PR_BRANCH" || true
+      # NOTE: Release PRs are NOT auto-merged. Custom git+PAT merging bypasses
+      # GitHub's PR "merged" state, which release-please requires to create
+      # the tag/release — leading to an infinite loop of new release PRs.
+      # Merge the release PR manually in the GitHub UI (squash & merge).
 
   build-zip:
     name: Build plugin ZIP and attach to release
