@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.5](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.4...v1.3.5) (2026-05-29)
+
+
+### 📚 Dokumentace
+
+* sync readme.txt changelog with v1.3.4 [skip ci] ([aa075f1](https://github.com/luberan/balikovna-woocommerce/commit/aa075f1b2c1898d632ed1feaf21bec468427ce64))
+
+
+### 🛠 CI
+
+* auto-merge release-please PR via PAT for fully unattended releases ([c7f7a9b](https://github.com/luberan/balikovna-woocommerce/commit/c7f7a9bd523efbedd41c9ca65b405bb3785b8ebe))
+
 ## [1.3.4](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.3...v1.3.4) (2026-05-29)
 
 
