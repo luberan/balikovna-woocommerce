@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.1.0...v1.2.0) (2026-05-29)
+
+
+### 🚀 Nové funkce
+
+* GitHub-driven auto-updates via Plugin Update Checker ([e29f487](https://github.com/luberan/balikovna-woocommerce/commit/e29f487efd4589f1c7d197be79e3411d56af4fa2))
+
 ## [1.1.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.0.0...v1.1.0) (2026-05-29)
 
 
