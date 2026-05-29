@@ -37,16 +37,38 @@ add_action(
 
 // Auto-updates from GitHub Releases via Plugin Update Checker
 // (YahnisElsts/plugin-update-checker, MIT). Stahuje vždy release asset
-// `balikovna-woocommerce.zip` (vyrobený workflowem .github/workflows/release.yml),
+// `balikovna-woocommerce.zip` (vyrobený workflowem release-please),
 // ne auto-generated "Source code (zip)".
-require_once BALIKOVNA_WC_PATH . 'includes/lib/plugin-update-checker/plugin-update-checker.php';
-$balikovna_wc_update_checker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
-	'https://github.com/luberan/balikovna-woocommerce/',
-	__FILE__,
-	'balikovna-woocommerce'
+add_action(
+	'plugins_loaded',
+	function () {
+		$puc = BALIKOVNA_WC_PATH . 'includes/lib/plugin-update-checker/plugin-update-checker.php';
+		if ( ! is_readable( $puc ) ) {
+			return;
+		}
+		require_once $puc;
+		if ( ! class_exists( '\YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
+			return;
+		}
+		try {
+			$checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+				'https://github.com/luberan/balikovna-woocommerce/',
+				BALIKOVNA_WC_FILE,
+				'balikovna-woocommerce'
+			);
+			$checker->setBranch( 'main' );
+			$api = $checker->getVcsApi();
+			if ( $api && method_exists( $api, 'enableReleaseAssets' ) ) {
+				$api->enableReleaseAssets( '/^balikovna-woocommerce\.zip$/i' );
+			}
+		} catch ( \Throwable $e ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[Balíkovna] update checker init failed: ' . $e->getMessage() );
+			}
+		}
+	},
+	5
 );
-$balikovna_wc_update_checker->setBranch( 'main' );
-$balikovna_wc_update_checker->getVcsApi()->enableReleaseAssets( '/^balikovna-woocommerce\.zip$/i' );
 
 add_action(
 	'plugins_loaded',
