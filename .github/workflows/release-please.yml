@@ -22,6 +22,11 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
+          # Use a PAT so events created by this action (PR merges, tag pushes)
+          # DO trigger subsequent workflow runs. With the default GITHUB_TOKEN,
+          # the merge commit of the release PR wouldn't re-run this workflow,
+          # which is the step that creates the tag/release.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           # Configuration is read from .release-please-config.json and
           # .release-please-manifest.json in the repo root.
           config-file: .release-please-config.json
