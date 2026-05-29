@@ -28,11 +28,14 @@
 	//   municipality_name, municipality_district_name, country, type, subtype,
 	//   coor_x_wgs84, coor_y_wgs84, ... } }
 	function normalizePoint( data ) {
-		if ( ! data || typeof data !== 'object' ) return null;
-		if ( data.message !== 'pickResult' || ! data.point ) return null;
-		var p = data.point;
-		if ( ! p.id || ! p.name ) return null;
-		var city = String( p.municipality_name || '' ).trim();
+		if ( ! data ) return null;
+		if ( typeof data === 'string' ) {
+			try { data = JSON.parse( data ); } catch ( e ) { return null; }
+		}
+		if ( typeof data !== 'object' ) return null;
+		var p = data.point || ( data.id && data.name ? data : null );
+		if ( ! p || ! p.id || ! p.name ) return null;
+		var city = String( p.municipality_name || p.city || '' ).trim();
 		if ( p.municipality_district_name && p.municipality_district_name !== city ) {
 			city = city + ' - ' + p.municipality_district_name;
 		}

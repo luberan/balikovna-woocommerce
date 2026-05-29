@@ -83,6 +83,10 @@ class Blocks {
 				'city'    => array( 'type' => 'string' ),
 				'zip'     => array( 'type' => 'string' ),
 				'country' => array( 'type' => 'string' ),
+				'type'    => array( 'type' => 'string' ),
+				'subtype' => array( 'type' => 'string' ),
+				'lat'     => array( 'type' => 'string' ),
+				'lng'     => array( 'type' => 'string' ),
 			),
 		);
 		return array(
@@ -101,7 +105,7 @@ class Blocks {
 			return;
 		}
 
-		$pickup_ids = Services::pickup_ids();
+		$pickup_ids  = Services::pickup_ids();
 		$applies_sid = null;
 		foreach ( $order->get_shipping_methods() as $m ) {
 			foreach ( $pickup_ids as $sid ) {
@@ -116,15 +120,18 @@ class Blocks {
 		}
 
 		$point = Checkout::sanitize_point( $payload['point'] );
+		// Don't throw on empty selection here — this callback runs on every
+		// cart/checkout update, not just on final order submission. Throwing
+		// causes the block checkout panel to stay in a permanent loading state
+		// (grey overlay, no interaction). Persist whatever we have; required
+		// validation is enforced separately on the actual submit hook below.
 		if ( empty( $point['id'] ) ) {
-			throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
-				'balikovna_required',
-				__( 'Prosím zvolte výdejní místo.', 'balikovna-wc' ),
-				400
-			);
+			return;
 		}
 		Order::save_point_to_order( $order, $point, $applies_sid );
-		WC()->session->set( 'balikovna_point', $point );
+		if ( WC()->session ) {
+			WC()->session->set( 'balikovna_point', $point );
+		}
 	}
 
 	public function enqueue_block_script() {
