@@ -1,7 +1,7 @@
 # Balíkovna for WooCommerce
 
 [![CI](https://github.com/luberan/balikovna-woocommerce/actions/workflows/ci.yml/badge.svg)](https://github.com/luberan/balikovna-woocommerce/actions/workflows/ci.yml)
-[![Latest Release](https://img.shields.io/github/v/release/luberan/balikovna-woocommerce)](https://github.com/luberan/balikovna-woocommerce/releases/latest)
+[![Latest Release](https://badgen.net/github/release/luberan/balikovna-woocommerce/stable)](https://github.com/luberan/balikovna-woocommerce/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 Open-source WooCommerce plugin pro integraci služeb **České pošty** – Balíkovna, Balík Do ruky, Balík Na poštu.
