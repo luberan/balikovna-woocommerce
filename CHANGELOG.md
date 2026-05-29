@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.0...v1.26.1) (2026-05-29)
+
+
+### 📚 Dokumentace
+
+* switch release badge to badgen (shields.io token pool errors) ([0898682](https://github.com/luberan/balikovna-woocommerce/commit/0898682e04e27d439f90bdbc08b9ad949e6d5fd9))
+
 ## [1.26.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.25.0...v1.26.0) (2026-05-29)
 
 
