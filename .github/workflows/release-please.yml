@@ -3,6 +3,10 @@ name: Release Please
 on:
   push:
     branches: [main]
+  # Manual trigger for cases where release-please merged its own PR but the
+  # resulting merge commit didn't trigger a fresh `push` event (GitHub's
+  # anti-loop protection: events from GITHUB_TOKEN don't trigger workflows).
+  workflow_dispatch:
 
 permissions:
   contents: write
