@@ -4,7 +4,7 @@ Tags: woocommerce, shipping, balikovna, ceska-posta, pickup
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.4.0 <!-- x-release-please-version -->
+Stable tag: 1.5.0 <!-- x-release-please-version -->
 License: GPLv3 or later
 
 Integrace České pošty (Balíkovna, Balík Do ruky, Balík Na poštu) do WooCommerce: shipping metody, výběr výdejního místa přes oficiální widget, ukládání k objednávce, e-maily, admin a CSV export pro Podání Online.
