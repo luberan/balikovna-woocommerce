@@ -32,22 +32,36 @@ jobs:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # Squash-merge the release PR right away. This produces a commit on main
-      # authored by the PAT user, which (unlike the default GITHUB_TOKEN) DOES
-      # trigger a fresh workflow run — that second run sees the bumped manifest
-      # without a matching tag and publishes the GitHub Release, which in turn
-      # enables the build-zip job below to attach the plugin ZIP asset.
+      # Squash-merge the release PR right away by performing a git merge with
+      # the PAT (not via `gh pr merge`, which produces a commit attributed to
+      # the GitHub web UI bot and therefore re-hits the anti-loop). Pushing
+      # with the PAT identity DOES trigger a fresh workflow run, which then
+      # publishes the GitHub Release and runs build-zip.
       - name: Auto-merge release PR
         if: steps.release.outputs.pr
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
+          set -e
           PR_NUMBER=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.number')
-          echo "Merging release PR #$PR_NUMBER"
-          gh pr merge "$PR_NUMBER" \
-            --repo "${{ github.repository }}" \
-            --squash \
-            --delete-branch
+          PR_BRANCH=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.headBranchName')
+          PR_TITLE=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.title')
+          echo "Merging release PR #$PR_NUMBER ($PR_BRANCH)"
+
+          git clone --depth 50 \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" repo
+          cd repo
+          git config user.name 'release-please[bot]'
+          git config user.email 'release-please[bot]@users.noreply.github.com'
+
+          git fetch origin "$PR_BRANCH"
+          git checkout main
+          git merge --squash "origin/$PR_BRANCH"
+          git commit -m "$PR_TITLE (#$PR_NUMBER)"
+          git push origin main
+
+          # Clean up the release branch.
+          git push origin --delete "$PR_BRANCH" || true
 
   build-zip:
     name: Build plugin ZIP and attach to release
