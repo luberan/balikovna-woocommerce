@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.3](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.2...v1.3.3) (2026-05-29)
+
+
+### 🐛 Opravy chyb
+
+* do not break block checkout when picker not yet selected ([0000a78](https://github.com/luberan/balikovna-woocommerce/commit/0000a787b225f4e53109642a4c6382ff6f910c52))
+
+
+### 📚 Dokumentace
+
+* sync readme.txt changelog with v1.3.2 [skip ci] ([4a6ccf9](https://github.com/luberan/balikovna-woocommerce/commit/4a6ccf9f73d6b486a4a77bd51a80b19755fd80fd))
+
+
+### 🛠 CI
+
+* add workflow_dispatch trigger to release-please for manual re-runs ([698f6d9](https://github.com/luberan/balikovna-woocommerce/commit/698f6d954122b766868a2adfee89d392580de744))
+
 ## [1.3.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.1...v1.3.2) (2026-05-29)
 
 
