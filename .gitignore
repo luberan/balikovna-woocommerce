@@ -44,6 +44,10 @@ wp-cli.local.yml
 # Translations - keep .pot, ship compiled .mo only on release
 /languages/*.mo
 
+# Third-party / vendor documentation kept locally only
+Balikovna.postman_collection.json
+*.postman_collection.json
+
 # Local env
 .env
 .env.local
