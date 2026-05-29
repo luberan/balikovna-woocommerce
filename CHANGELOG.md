@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.0...v1.3.1) (2026-05-29)
+
+
+### 🐛 Opravy chyb
+
+* **ci:** sync readme.txt changelog back to main so PUC sees it ([7007386](https://github.com/luberan/balikovna-woocommerce/commit/70073868a0a041884c6d5b700cbb6fc5525e6f8a))
+* trigger release to publish synced readme.txt changelog to main ([44ef828](https://github.com/luberan/balikovna-woocommerce/commit/44ef8287cb3e543bc1e91e67b373dba714649437))
+
 ## [1.3.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.2.2...v1.3.0) (2026-05-29)
 
 
