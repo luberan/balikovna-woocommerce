@@ -52,6 +52,9 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
+= 1.26.0 =
+* 🚀 Nové funkce: add Balíkovna 'Balík na adresu' shipping method (NA)
+
 = 1.25.0 =
 * 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
 * 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
