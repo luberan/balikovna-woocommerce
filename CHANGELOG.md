@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.2.2...v1.3.0) (2026-05-29)
+
+
+### 🚀 Nové funkce
+
+* **ci:** include full changelog history in release ZIP readme.txt ([2fa9110](https://github.com/luberan/balikovna-woocommerce/commit/2fa91105871921b47e8d0300ac4e06d8da83324e))
+
 ## [1.2.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.2.1...v1.2.2) (2026-05-29)
 
 
