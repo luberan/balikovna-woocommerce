@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.2.1...v1.2.2) (2026-05-29)
+
+
+### 🐛 Opravy chyb
+
+* **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives ([95c4c86](https://github.com/luberan/balikovna-woocommerce/commit/95c4c86a92479b942343c3ca5e8458379cf221b2))
+* harden Plugin Update Checker bootstrap against fatals ([ad7a70c](https://github.com/luberan/balikovna-woocommerce/commit/ad7a70c10c01b6c96417927a68d98d2c26b6b923))
+
 ## [1.2.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.2.0...v1.2.1) (2026-05-29)
 
 
