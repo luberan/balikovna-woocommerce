@@ -2,7 +2,7 @@
 (function ($) {
 	'use strict';
 
-	var $row, $btn, $selected, modal, currentService;
+	var $row, $btn, $selected, modal, currentService, currentPoint;
 
 	function chosenServiceId() {
 		var ids = Object.keys(BalikovnaWC.services || {});
@@ -95,7 +95,7 @@
 			id: String(p.id),
 			zip: String(p.zip || ''),
 			name: String(p.name),
-			street: String(p.street || '').trim(),
+			street: String(p.street || p.address || '').trim(),
 			city: city.trim(),
 			country: String(p.country || 'CZ'),
 			type: String(p.type || ''),
@@ -111,6 +111,8 @@
 			point: point
 		}).done(function (resp) {
 			if (resp && resp.success) {
+				currentPoint = resp.data;
+				BalikovnaWC.selected = resp.data;
 				renderSelected(resp.data);
 				closeModal();
 				$(document.body).trigger('update_checkout');
@@ -143,6 +145,7 @@
 		}
 
 		renderSelected(BalikovnaWC.selected || null);
+		currentPoint = BalikovnaWC.selected || null;
 		toggleRow();
 
 		$btn.on('click', openModal);
@@ -151,7 +154,7 @@
 			$row = $('.balikovna-row');
 			$btn = $('#balikovna-open');
 			$selected = $('#balikovna-selected');
-			renderSelected(BalikovnaWC.selected || null);
+			renderSelected(currentPoint || BalikovnaWC.selected || null);
 			toggleRow();
 			$btn.off('click').on('click', openModal);
 		});

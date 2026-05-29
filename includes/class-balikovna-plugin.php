@@ -51,15 +51,19 @@ class Plugin {
 	 * Vrátí URL widgetu pro výběr výdejního místa.
 	 *
 	 * Parametry dle oficiálního manuálu „Balíkovna – widget – implementace" (Česká pošta):
-	 *  - type=BALIKOVNY|POSTY : omezí seznam míst (jinak se načítají oba a hrozí chybný výběr).
+	 *  - type=BALIKOVNY|POST_OFFICE : omezí seznam míst (jinak se načítají oba a hrozí chybný výběr).
 	 *  - skipLocation=false   : povolí funkci „Moje poloha" (doporučeno).
 	 *  - phone=true           : zobrazí ve widgetu pole pro telefon. Manuál doporučuje pouze pokud
 	 *                           e-shop nemá telefon povinný. WooCommerce ho v checkoutu jako povinný
 	 *                           má, proto default = vypnuto. Lze zapnout filtrem `balikovna_wc_widget_phone`.
 	 *
-	 * @param string $type BALIKOVNY|POSTY
+	 * @param string $type BALIKOVNY|POST_OFFICE
 	 */
 	public static function widget_url( $type = 'BALIKOVNY' ) {
+		// Legacy hodnoty mapujeme na aktuální tokeny widgetu.
+		if ( 'POSTY' === $type ) {
+			$type = 'POST_OFFICE';
+		}
 		$show_phone = (bool) apply_filters( 'balikovna_wc_widget_phone', false );
 
 		$args = array(

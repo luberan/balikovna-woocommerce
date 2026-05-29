@@ -15,7 +15,8 @@ class Services {
 	 * Vrátí seznam podporovaných služeb.
 	 *
 	 * Klíče slouží jako WooCommerce shipping-method ID (`balikovna`, `cp_do_ruky`, `cp_na_postu`).
-	 * `pickup` určuje, zda si zákazník musí vybrat výdejní místo (a jaký typ – BALIKOVNY / POSTY).
+	 * `pickup` určuje, zda si zákazník musí vybrat výdejní místo (a jaký typ – BALIKOVNY / POST_OFFICE).
+	 * Hodnota se předává jako `type` parametr do widgetu b2c.cpost.cz/locations.
 	 * `service_code` = kód služby pro CSV Podání Online (orientačně; finální upřesnit dle aktuální šablony PO).
 	 *
 	 * @return array<string,array>
@@ -41,7 +42,7 @@ class Services {
 				'cp_na_postu' => array(
 					'label'        => __( 'Balík Na poštu', 'balikovna-wc' ),
 					'description'  => __( 'Doručení na vybranou pobočku České pošty.', 'balikovna-wc' ),
-					'pickup'       => 'POSTY',
+					'pickup'       => 'POST_OFFICE',
 					'service_code' => 'NP', // Na Poštu.
 					'logo'         => 'logo-cp.svg',
 				),

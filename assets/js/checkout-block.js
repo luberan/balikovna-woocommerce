@@ -43,7 +43,7 @@
 			id: String( p.id ),
 			zip: String( p.zip || '' ),
 			name: String( p.name ),
-			street: String( p.street || '' ).trim(),
+			street: String( p.street || p.address || '' ).trim(),
 			city: city.trim(),
 			country: String( p.country || 'CZ' ),
 			type: String( p.type || '' ),
@@ -79,6 +79,18 @@
 			} catch ( e ) {}
 			return null;
 		}, [] );
+
+		// Persistovaný bod ze Store API (extensions.balikovna-wc.point) přežije re-mount komponenty.
+		var persistedPoint = useSelect( function ( select ) {
+			try {
+				var store = select( 'wc/store/cart' );
+				var data = store && store.getCartData ? store.getCartData() : null;
+				var ext = data && data.extensions ? data.extensions[ NS ] : null;
+				return ( ext && ext.point && ext.point.id ) ? ext.point : null;
+			} catch ( e ) { return null; }
+		}, [] );
+
+		var effectivePoint = point || persistedPoint;
 
 		useEffect( function () {
 			function onMessage( ev ) {
@@ -139,15 +151,15 @@
 			el(
 				'button',
 				{ type: 'button', className: 'wc-block-components-button', onClick: openModal },
-				point ? BalikovnaWCBlock.i18n.change : BalikovnaWCBlock.i18n.choose
+				effectivePoint ? BalikovnaWCBlock.i18n.change : BalikovnaWCBlock.i18n.choose
 			),
-			point && el(
+			effectivePoint && el(
 				'div',
 				{ className: 'balikovna-selected' },
 				el( 'strong', null, BalikovnaWCBlock.i18n.selected + ' ' ),
-				point.name,
-				point.street && el( wp.element.Fragment, null, el( 'br' ), point.street ),
-				( point.zip || point.city ) && el( wp.element.Fragment, null, el( 'br' ), ( point.zip || '' ) + ' ' + ( point.city || '' ) )
+				effectivePoint.name,
+				effectivePoint.street && el( wp.element.Fragment, null, el( 'br' ), effectivePoint.street ),
+				( effectivePoint.zip || effectivePoint.city ) && el( wp.element.Fragment, null, el( 'br' ), ( effectivePoint.zip || '' ) + ' ' + ( effectivePoint.city || '' ) )
 			)
 		);
 	}
