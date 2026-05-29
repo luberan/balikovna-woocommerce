@@ -52,6 +52,824 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
+= 1.25.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** remove broken auto-merge to prevent release-please loop
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🐛 Opravy chyb: use POST_OFFICE widget type and persist picker selection
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.24.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.23.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.22.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.21.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.20.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.19.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.18.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.17.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.16.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.15.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.14.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.13.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.12.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.11.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.10.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: **ci:** use 'chore:' prefix in sync commit to avoid release-please bump loop
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.9.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.8.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.7.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.6.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.5.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.4.0 =
+* 🚀 Nové funkce: **ci:** include full changelog history in release ZIP readme.txt
+* 🚀 Nové funkce: GitHub-driven auto-updates via Plugin Update Checker
+* 🚀 Nové funkce: implement official CP picker payload and Podani Online CSV format
+* 🚀 Nové funkce: per-method admin setting for CP service codes (CSV column I)
+* 🐛 Opravy chyb: **ci:** anchor release ZIP excludes so PUC vendor Parsedown survives
+* 🐛 Opravy chyb: **ci:** build release ZIP in the same workflow as release-please
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🐛 Opravy chyb: **ci:** sync readme.txt changelog back to main so PUC sees it
+* 🐛 Opravy chyb: declare shipping method instance properties (PHP 8.2+ deprecation)
+* 🐛 Opravy chyb: do not break block checkout when picker not yet selected
+* 🐛 Opravy chyb: harden Plugin Update Checker bootstrap against fatals
+* 🐛 Opravy chyb: load textdomain on init hook (WP 6.7+ requirement)
+* 🐛 Opravy chyb: override changelog modal with local readme.txt history
+* 🐛 Opravy chyb: trigger release to publish synced readme.txt changelog to main
+* 🔧 Kompatibilita: bump targets to WP 7.0, PHP 8.5, WC 10.8
+* 🔧 Kompatibilita: declare realistic PHP minimum 7.4 (tested up to 8.5)
+* 🔧 Kompatibilita: declare realistic WordPress minimum 6.0 (tested up to 7.0)
+* 📚 Dokumentace: add Author URI to plugin header
+* 📚 Dokumentace: align license metadata with GPL-3.0-or-later
+* 📚 Dokumentace: fix plugin and POT repository URL to luberan/balikovna-woocommerce
+* 📚 Dokumentace: refresh README with current feature set and CP-confirmed details
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.1 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.2 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: add least-privilege permissions to workflow
+* 🛠 CI: add release-please for automated changelog and version bumps
+* 🛠 CI: add workflow_dispatch trigger to release-please for manual re-runs
+* 🛠 CI: allow phpcodesniffer-composer-installer plugin (Composer 2.2+)
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+* 🛠 CI: build proper plugin ZIP on release publish
+* 🛠 CI: bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2))
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+* 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
+
+= 1.3.6 =
+* 🐛 Opravy chyb: **ci:** clone without --depth so PR branch is available for merge
+* 🛠 CI: merge release PR via git+PAT instead of gh CLI to bypass anti-loop
+
+= 1.3.5 =
+* 📚 Dokumentace: sync readme.txt changelog with v1.3.4 [skip ci]
+* 🛠 CI: auto-merge release-please PR via PAT for fully unattended releases
+
 = 1.3.4 =
 * 📚 Dokumentace: sync readme.txt changelog with v1.3.3 [skip ci]
 * 🛠 CI: use PAT for release-please to break GITHUB_TOKEN anti-loop
