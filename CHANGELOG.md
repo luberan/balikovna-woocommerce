@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.25.0...v1.26.0) (2026-05-29)
+
+
+### 🚀 Nové funkce
+
+* add Balíkovna 'Balík na adresu' shipping method (NA) ([fc4984c](https://github.com/luberan/balikovna-woocommerce/commit/fc4984c5de2efd414a3cfbe884b16cf2a510dcf5))
+
 ## [1.25.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.24.0...v1.25.0) (2026-05-29)
 
 
