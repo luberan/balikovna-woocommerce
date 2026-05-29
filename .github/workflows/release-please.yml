@@ -66,6 +66,15 @@ jobs:
           test -f "build/${PLUGIN_SLUG}/includes/lib/plugin-update-checker/vendor/Parsedown.php" \
             || (echo "::error::Parsedown.php missing from ZIP" && exit 1)
 
+          # Replace the static '== Changelog ==' section in readme.txt with
+          # the full history converted from CHANGELOG.md (managed by
+          # release-please). Plugin Update Checker reads this section and
+          # displays it under "View version details" in WP admin.
+          if [ -f CHANGELOG.md ]; then
+            python3 .github/scripts/changelog-to-readme.py \
+              CHANGELOG.md "build/${PLUGIN_SLUG}/readme.txt"
+          fi
+
           cd build
           zip -r "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
           ls -la
