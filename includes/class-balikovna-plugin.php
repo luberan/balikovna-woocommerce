@@ -41,9 +41,10 @@ class Plugin {
 	}
 
 	public function register_shipping_methods( $methods ) {
-		$methods['balikovna']   = __NAMESPACE__ . '\\Shipping_Method_Balikovna';
-		$methods['cp_do_ruky']  = __NAMESPACE__ . '\\Shipping_Method_DoRuky';
-		$methods['cp_na_postu'] = __NAMESPACE__ . '\\Shipping_Method_NaPostu';
+		$methods['balikovna']           = __NAMESPACE__ . '\\Shipping_Method_Balikovna';
+		$methods['balikovna_na_adresu'] = __NAMESPACE__ . '\\Shipping_Method_BalikovnaNaAdresu';
+		$methods['cp_do_ruky']          = __NAMESPACE__ . '\\Shipping_Method_DoRuky';
+		$methods['cp_na_postu']         = __NAMESPACE__ . '\\Shipping_Method_NaPostu';
 		return $methods;
 	}
 

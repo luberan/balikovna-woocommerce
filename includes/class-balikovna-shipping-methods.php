@@ -15,6 +15,10 @@ class Shipping_Method_Balikovna extends Shipping_Method_Base {
 	protected static $service_id = 'balikovna';
 }
 
+class Shipping_Method_BalikovnaNaAdresu extends Shipping_Method_Base {
+	protected static $service_id = 'balikovna_na_adresu';
+}
+
 class Shipping_Method_DoRuky extends Shipping_Method_Base {
 	protected static $service_id = 'cp_do_ruky';
 }
