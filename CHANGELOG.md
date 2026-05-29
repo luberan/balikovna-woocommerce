@@ -1,0 +1,39 @@
+# Changelog
+
+## [1.1.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.0.0...v1.1.0) (2026-05-29)
+
+
+### 🚀 Nové funkce
+
+* implement official CP picker payload and Podani Online CSV format ([146501a](https://github.com/luberan/balikovna-woocommerce/commit/146501a9f1c85093268c72be1b0157678d0776a6))
+* per-method admin setting for CP service codes (CSV column I) ([cdd6771](https://github.com/luberan/balikovna-woocommerce/commit/cdd6771f8805be3c9c2fa3ff17147a23597ec7bf))
+
+
+### 🐛 Opravy chyb
+
+* declare shipping method instance properties (PHP 8.2+ deprecation) ([524ab83](https://github.com/luberan/balikovna-woocommerce/commit/524ab838d3daa87fab146eb036efc648a1b18d58))
+* load textdomain on init hook (WP 6.7+ requirement) ([c1a03dc](https://github.com/luberan/balikovna-woocommerce/commit/c1a03dce6b86e2f56c8bb081a55ad6bcf5e7d148))
+
+
+### 🔧 Kompatibilita
+
+* bump targets to WP 7.0, PHP 8.5, WC 10.8 ([4b758ff](https://github.com/luberan/balikovna-woocommerce/commit/4b758ff6d189dd50b9a04e21bcc099712f215e22))
+* declare realistic PHP minimum 7.4 (tested up to 8.5) ([58367d3](https://github.com/luberan/balikovna-woocommerce/commit/58367d3e336806eef395842731740f4f81a9953e))
+* declare realistic WordPress minimum 6.0 (tested up to 7.0) ([f2bdaf6](https://github.com/luberan/balikovna-woocommerce/commit/f2bdaf6a4754fef19492e91d29ca9683513115a1))
+
+
+### 📚 Dokumentace
+
+* add Author URI to plugin header ([295b9de](https://github.com/luberan/balikovna-woocommerce/commit/295b9de28a8fabce3e4f7a1ecadb5dccfd8acf97))
+* align license metadata with GPL-3.0-or-later ([597a953](https://github.com/luberan/balikovna-woocommerce/commit/597a953e231ecf2d58d135c9590043730a96b86c))
+* fix plugin and POT repository URL to luberan/balikovna-woocommerce ([8ed2e22](https://github.com/luberan/balikovna-woocommerce/commit/8ed2e22982bb95b53624c58da43ef9c11a81c9b0))
+* refresh README with current feature set and CP-confirmed details ([c9064f2](https://github.com/luberan/balikovna-woocommerce/commit/c9064f296762ac8af05614e74b639ccd41b24722))
+
+
+### 🛠 CI
+
+* add least-privilege permissions to workflow ([ffb6701](https://github.com/luberan/balikovna-woocommerce/commit/ffb6701b1731d72b95c3f1f3cf589495d6500b09))
+* add release-please for automated changelog and version bumps ([a5cd194](https://github.com/luberan/balikovna-woocommerce/commit/a5cd194c961e2c81060b9d8fdc966d0c634e12c7))
+* allow phpcodesniffer-composer-installer plugin (Composer 2.2+) ([d60fe6b](https://github.com/luberan/balikovna-woocommerce/commit/d60fe6b95a872502f0956dfd3159a928fa50be37))
+* build proper plugin ZIP on release publish ([314c053](https://github.com/luberan/balikovna-woocommerce/commit/314c0530a7c0acf100e9ada338f58eef350db028))
+* bump actions/checkout from 4 to 6 ([#2](https://github.com/luberan/balikovna-woocommerce/issues/2)) ([aeb12f2](https://github.com/luberan/balikovna-woocommerce/commit/aeb12f206826ed53034f5f9a60759c52fbaa46e8))
