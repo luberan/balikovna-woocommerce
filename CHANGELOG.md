@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.6](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.5...v1.3.6) (2026-05-29)
+
+
+### 🐛 Opravy chyb
+
+* **ci:** clone without --depth so PR branch is available for merge ([d8dde35](https://github.com/luberan/balikovna-woocommerce/commit/d8dde35a786c2e9dd834be8a0b54795110035837))
+
+
+### 🛠 CI
+
+* merge release PR via git+PAT instead of gh CLI to bypass anti-loop ([136cb84](https://github.com/luberan/balikovna-woocommerce/commit/136cb844b6f97a606c5d5b4abcce0be4eb140dce))
+
 ## [1.3.5](https://github.com/luberan/balikovna-woocommerce/compare/v1.3.4...v1.3.5) (2026-05-29)
 
 
