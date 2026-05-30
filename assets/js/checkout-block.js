@@ -16,6 +16,7 @@
 	var useSelect = ( wp.data && wp.data.useSelect ) || function () { return null; };
 
 	var NS = 'balikovna-wc';
+	var expectedOrigin = null;
 
 	function escapeHtml( s ) {
 		return String( s ).replace( /[&<>"']/g, function ( c ) {
@@ -68,10 +69,10 @@
 					for ( var j = 0; j < shipping_rates.length; j++ ) {
 						var r = shipping_rates[ j ];
 						if ( r.selected && r.rate_id ) {
-							for ( var k = 0; k < serviceIds.length; k++ ) {
-								if ( r.rate_id.indexOf( serviceIds[ k ] ) === 0 ) {
-									return serviceIds[ k ];
-								}
+							// rate_id má tvar `method_id:instance_id` — porovnávej přesné method_id.
+							var methodId = String( r.rate_id ).split( ':' )[ 0 ];
+							if ( serviceIds.indexOf( methodId ) !== -1 ) {
+								return methodId;
 							}
 						}
 					}
@@ -98,6 +99,8 @@
 				if ( BalikovnaWCBlock.debug ) {
 					try { console.log( '[Balíkovna] postMessage origin=%s data=%o', ev.origin, ev.data ); } catch ( e ) {}
 				}
+				// Přijmi zprávu pouze z originu widgetu (ochrana proti podvržení místa).
+				if ( expectedOrigin && ev.origin !== expectedOrigin ) return;
 				var p = normalizePoint( ev.data );
 				if ( ! p ) return;
 				if ( BalikovnaWCBlock.debug ) console.log( '[Balíkovna] normalized point: %o', p );
@@ -119,6 +122,7 @@
 		function openModal() {
 			var svc = chosenService && BalikovnaWCBlock.services[ chosenService ];
 			if ( ! svc ) return;
+			try { expectedOrigin = new URL( svc.widgetUrl, window.location.href ).origin; } catch ( e ) { expectedOrigin = null; }
 			closeModal();
 			var wrap = document.createElement( 'div' );
 			wrap.className = 'balikovna-modal';
@@ -127,7 +131,7 @@
 				'<div class="balikovna-modal__inner">' +
 				'<div class="balikovna-modal__head"><h3>' + escapeHtml( BalikovnaWCBlock.i18n.title ) + '</h3>' +
 				'<button type="button" class="balikovna-modal__close" aria-label="' + escapeHtml( BalikovnaWCBlock.i18n.close ) + '">&times;</button></div>' +
-				'<div class="balikovna-modal__body"><iframe id="balikovna-block-iframe" src="' + svc.widgetUrl + '" allow="geolocation"></iframe></div>' +
+				'<div class="balikovna-modal__body"><iframe id="balikovna-block-iframe" src="' + escapeHtml( svc.widgetUrl ) + '" allow="geolocation"></iframe></div>' +
 				'</div>';
 			document.body.appendChild( wrap );
 			wrap.addEventListener( 'click', function ( e ) {

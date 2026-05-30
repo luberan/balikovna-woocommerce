@@ -145,10 +145,11 @@ class Checkout {
 		}
 		$pickup_ids = Services::pickup_ids();
 		foreach ( $chosen as $rate ) {
-			foreach ( $pickup_ids as $sid ) {
-				if ( 0 === strpos( (string) $rate, $sid ) ) {
-					return $sid;
-				}
+			// Rate ID má tvar `method_id:instance_id` — porovnávej přesně method_id,
+			// ne prefix (jinak `balikovna` chybně matchne `balikovna_na_adresu`).
+			$method_id = strtok( (string) $rate, ':' );
+			if ( in_array( $method_id, $pickup_ids, true ) ) {
+				return $method_id;
 			}
 		}
 		return null;
@@ -156,6 +157,10 @@ class Checkout {
 
 	public function ajax_set_point() {
 		check_ajax_referer( 'balikovna_wc', 'nonce' );
+
+		if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+			wp_send_json_error( array( 'message' => 'no_session' ) );
+		}
 
 		$point = isset( $_POST['point'] ) ? wc_clean( wp_unslash( $_POST['point'] ) ) : array();
 		if ( ! is_array( $point ) ) {

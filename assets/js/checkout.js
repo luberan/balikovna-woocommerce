@@ -2,7 +2,7 @@
 (function ($) {
 	'use strict';
 
-	var $row, $btn, $selected, modal, currentService, currentPoint;
+	var $row, $btn, $selected, modal, currentService, currentPoint, expectedOrigin;
 
 	function chosenServiceId() {
 		var ids = Object.keys(BalikovnaWC.services || {});
@@ -10,10 +10,11 @@
 			return $(this).val();
 		}).get();
 		for (var i = 0; i < chosen.length; i++) {
-			for (var j = 0; j < ids.length; j++) {
-				if (typeof chosen[i] === 'string' && chosen[i].indexOf(ids[j]) === 0) {
-					return ids[j];
-				}
+			if (typeof chosen[i] !== 'string') continue;
+			// Hodnota má tvar `method_id:instance_id` — porovnávej přesné method_id.
+			var methodId = chosen[i].split(':')[0];
+			if (ids.indexOf(methodId) !== -1) {
+				return methodId;
 			}
 		}
 		return null;
@@ -51,13 +52,14 @@
 	function openModal() {
 		var svc = currentService && BalikovnaWC.services[currentService];
 		if (!svc) return;
+		try { expectedOrigin = new URL(svc.widgetUrl, window.location.href).origin; } catch (e) { expectedOrigin = null; }
 		closeModal();
 		var $m = $(
 			'<div class="balikovna-modal" role="dialog" aria-modal="true">' +
 			'<div class="balikovna-modal__inner">' +
 			'<div class="balikovna-modal__head"><h3>' + escapeHtml(BalikovnaWC.i18n.title) + '</h3>' +
 			'<button type="button" class="balikovna-modal__close" aria-label="' + escapeHtml(BalikovnaWC.i18n.close) + '">&times;</button></div>' +
-			'<div class="balikovna-modal__body"><iframe src="' + svc.widgetUrl + '" allow="geolocation"></iframe></div>' +
+			'<div class="balikovna-modal__body"><iframe src="' + escapeHtml(svc.widgetUrl) + '" allow="geolocation"></iframe></div>' +
 			'</div></div>'
 		);
 		$('body').append($m);
@@ -127,6 +129,8 @@
 			try { console.log('[Balíkovna] postMessage origin=%s data=%o', ev.origin, ev.data); } catch (e) {}
 		}
 		if (!modal) return;
+		// Přijmi zprávu pouze z originu widgetu (ochrana proti podvržení místa).
+		if (expectedOrigin && ev.origin !== expectedOrigin) return;
 		var p = normalizePoint(ev.data);
 		if (p) {
 			if (BalikovnaWC.debug) console.log('[Balíkovna] normalized point: %o', p);

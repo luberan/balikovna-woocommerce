@@ -13,6 +13,7 @@ namespace Balikovna_WC;
 
 use Automattic\WooCommerce\StoreApi\StoreApi;
 use Automattic\WooCommerce\StoreApi\Schemas\ExtendSchema;
+use Automattic\WooCommerce\StoreApi\Exceptions\RouteException;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -68,7 +69,8 @@ class Blocks {
 	public function data_callback() {
 		$point = Checkout::get_session_point();
 		return array(
-			'point'     => $point,
+			// Prázdný výběr serializuj jako objekt {}, ne pole [] — odpovídá schématu 'object'.
+			'point'     => empty( $point ) ? (object) array() : $point,
 			'widgetUrl' => Plugin::widget_url(),
 		);
 	}
@@ -96,42 +98,61 @@ class Blocks {
 	}
 
 	public function update_order_from_request( $order, $request ) {
-		$ext = $request->get_param( 'extensions' );
-		if ( ! is_array( $ext ) || empty( $ext[ self::NS ] ) ) {
-			return;
-		}
-		$payload = $ext[ self::NS ];
-		if ( empty( $payload['point'] ) || ! is_array( $payload['point'] ) ) {
-			return;
-		}
-
+		// Zjisti, zda objednávka používá službu vyžadující výběr výdejního místa.
 		$pickup_ids  = Services::pickup_ids();
 		$applies_sid = null;
 		foreach ( $order->get_shipping_methods() as $m ) {
-			foreach ( $pickup_ids as $sid ) {
-				if ( 0 === strpos( (string) $m->get_method_id(), $sid ) ) {
-					$applies_sid = $sid;
-					break 2;
-				}
+			// get_method_id() vrací čisté method_id bez instance — porovnávej přesně.
+			if ( in_array( (string) $m->get_method_id(), $pickup_ids, true ) ) {
+				$applies_sid = (string) $m->get_method_id();
+				break;
 			}
 		}
 		if ( ! $applies_sid ) {
 			return;
 		}
 
-		$point = Checkout::sanitize_point( $payload['point'] );
-		// Don't throw on empty selection here — this callback runs on every
-		// cart/checkout update, not just on final order submission. Throwing
-		// causes the block checkout panel to stay in a permanent loading state
-		// (grey overlay, no interaction). Persist whatever we have; required
-		// validation is enforced separately on the actual submit hook below.
-		if ( empty( $point['id'] ) ) {
+		// Ulož bod z requestu (pokud je validní).
+		$ext     = $request->get_param( 'extensions' );
+		$payload = ( is_array( $ext ) && ! empty( $ext[ self::NS ] ) ) ? $ext[ self::NS ] : array();
+		if ( ! empty( $payload['point'] ) && is_array( $payload['point'] ) ) {
+			$point = Checkout::sanitize_point( $payload['point'] );
+			if ( ! empty( $point['id'] ) ) {
+				Order::save_point_to_order( $order, $point, $applies_sid );
+				if ( WC()->session ) {
+					WC()->session->set( 'balikovna_point', $point );
+				}
+			}
+		}
+
+		// Validace probíhá jen na finálním odeslání objednávky (POST /checkout),
+		// ne při průběžných aktualizacích košíku — jinak by panel zůstal viset
+		// v načítacím stavu. Na finálním submitu odmítni objednávku bez místa.
+		if ( ! $this->is_final_checkout_request( $request ) ) {
 			return;
 		}
-		Order::save_point_to_order( $order, $point, $applies_sid );
-		if ( WC()->session ) {
-			WC()->session->set( 'balikovna_point', $point );
+
+		$saved = Order::get_point( $order );
+		if ( empty( $saved['id'] ) ) {
+			throw new RouteException(
+				'balikovna_point_required',
+				esc_html__( 'Prosím zvolte výdejní místo.', 'balikovna-wc' ),
+				400
+			);
 		}
+	}
+
+	/**
+	 * Rozliší finální odeslání objednávky (POST /checkout) od průběžných
+	 * aktualizací draftu, aby se validační výjimka nevyhazovala předčasně.
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return bool
+	 */
+	protected function is_final_checkout_request( $request ) {
+		return is_object( $request )
+			&& method_exists( $request, 'get_method' )
+			&& 'POST' === strtoupper( (string) $request->get_method() );
 	}
 
 	public function enqueue_block_script() {

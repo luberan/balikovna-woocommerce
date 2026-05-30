@@ -82,7 +82,7 @@ class Order {
 		$new = array();
 		foreach ( $columns as $k => $v ) {
 			$new[ $k ] = $v;
-			if ( 'shipping_address' === $k || 'order_total' === $k ) {
+			if ( 'shipping_address' === $k ) {
 				$new['balikovna'] = __( 'Balíkovna', 'balikovna-wc' );
 			}
 		}

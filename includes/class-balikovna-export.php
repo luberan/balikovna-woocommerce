@@ -159,10 +159,24 @@ class Export {
 		fclose( $out );
 	}
 
+	/**
+	 * Neutralizuje CSV formula injection: hodnoty začínající =, +, -, @, tab nebo CR
+	 * mohou být v Excelu/Sheetech interpretovány jako vzorce. Prefixujeme apostrofem.
+	 *
+	 * @param string $v
+	 * @return string
+	 */
+	protected function escape_csv_value( $v ) {
+		if ( '' !== $v && preg_match( '/^[=+\-@\t\r]/', $v ) ) {
+			return "'" . $v;
+		}
+		return $v;
+	}
+
 	protected function fputcsv_cp1250( $handle, array $row ) {
 		$converted = array_map(
 			function ( $v ) {
-				$v = (string) $v;
+				$v = $this->escape_csv_value( (string) $v );
 				if ( function_exists( 'iconv' ) ) {
 					$c = @iconv( 'UTF-8', 'Windows-1250//TRANSLIT//IGNORE', $v );
 					if ( false !== $c ) {
