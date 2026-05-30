@@ -52,6 +52,9 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
+= 1.26.2 =
+* 🐛 Opravy chyb: harden checkout integration and exact shipping-method matching
+
 = 1.26.1 =
 * 📚 Dokumentace: switch release badge to badgen (shields.io token pool errors)
 
