@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.1...v1.26.2) (2026-05-30)
+
+
+### 🐛 Opravy chyb
+
+* harden checkout integration and exact shipping-method matching ([a64688c](https://github.com/luberan/balikovna-woocommerce/commit/a64688c7b2eda8cfa8fd45ad89598d39d5e3ae2e))
+
 ## [1.26.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.0...v1.26.1) (2026-05-29)
 
 
