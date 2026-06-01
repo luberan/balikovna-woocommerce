@@ -52,6 +52,9 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
+= 1.26.3 =
+* 🛠 CI: bump googleapis/release-please-action from 4 to 5 ([#39](https://github.com/luberan/balikovna-woocommerce/issues/39))
+
 = 1.26.2 =
 * 🐛 Opravy chyb: harden checkout integration and exact shipping-method matching
 
