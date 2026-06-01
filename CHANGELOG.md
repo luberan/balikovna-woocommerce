@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.3](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.2...v1.26.3) (2026-06-01)
+
+
+### 🛠 CI
+
+* bump googleapis/release-please-action from 4 to 5 ([#39](https://github.com/luberan/balikovna-woocommerce/issues/39)) ([70691fb](https://github.com/luberan/balikovna-woocommerce/commit/70691fbeb9fa731e0a3fbb759075cb76609414b3))
+
 ## [1.26.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.1...v1.26.2) (2026-05-30)
 
 
