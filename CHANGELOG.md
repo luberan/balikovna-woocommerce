@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.4](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.3...v1.26.4) (2026-06-15)
+
+
+### 🐛 Opravy chyb
+
+* harden CSV export and picker postMessage origin check ([08d63d3](https://github.com/luberan/balikovna-woocommerce/commit/08d63d3c7d94d4a48cb6ee1ad5eff7b0a85a57c5))
+
 ## [1.26.3](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.2...v1.26.3) (2026-06-01)
 
 
