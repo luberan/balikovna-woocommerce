@@ -187,7 +187,9 @@ class Export {
 			},
 			$row
 		);
-		fputcsv( $handle, $converted, ';', '"' );
+		// PHP 8.4+ deprecuje spoléhání na výchozí hodnotu parametru $escape.
+		// Prázdný řetězec navíc vypne proprietární "\\" escapování → RFC 4180.
+		fputcsv( $handle, $converted, ';', '"', '' );
 	}
 
 	protected function calc_weight( \WC_Order $order ) {

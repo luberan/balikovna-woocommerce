@@ -130,7 +130,8 @@
 		}
 		if (!modal) return;
 		// Přijmi zprávu pouze z originu widgetu (ochrana proti podvržení místa).
-		if (expectedOrigin && ev.origin !== expectedOrigin) return;
+		// Pokud origin neznáme (nepodařilo se ho určit), zprávu raději odmítni.
+		if (!expectedOrigin || ev.origin !== expectedOrigin) return;
 		var p = normalizePoint(ev.data);
 		if (p) {
 			if (BalikovnaWC.debug) console.log('[Balíkovna] normalized point: %o', p);
