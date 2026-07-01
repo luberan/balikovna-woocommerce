@@ -45,7 +45,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # The release-please job has already pushed a tag and updated the
           # working files. Check out that tag explicitly so the ZIP contains
