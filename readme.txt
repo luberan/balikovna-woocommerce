@@ -52,6 +52,9 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Changelog ==
 
+= 1.26.5 =
+* 🛠 CI: bump actions/checkout from 6 to 7 ([#42](https://github.com/luberan/balikovna-woocommerce/issues/42))
+
 = 1.26.4 =
 * 🐛 Opravy chyb: harden CSV export and picker postMessage origin check
 
