@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.5](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.4...v1.26.5) (2026-07-01)
+
+
+### 🛠 CI
+
+* bump actions/checkout from 6 to 7 ([#42](https://github.com/luberan/balikovna-woocommerce/issues/42)) ([a8bdd82](https://github.com/luberan/balikovna-woocommerce/commit/a8bdd8283ff6fa910f0dea46907c2e418c580e8b))
+
 ## [1.26.4](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.3...v1.26.4) (2026-06-15)
 
 
