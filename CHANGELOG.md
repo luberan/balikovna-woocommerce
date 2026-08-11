@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.7](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.6...v1.26.7) (2026-08-11)
+
+
+### 🐛 Opravy chyb
+
+* enforce carrier contracts across checkout and export ([7da546b](https://github.com/luberan/balikovna-woocommerce/commit/7da546b94527218671ce5ae0cb04fd745d0247f2))
+
 ## [1.26.6](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.5...v1.26.6) (2026-08-11)
 
 
