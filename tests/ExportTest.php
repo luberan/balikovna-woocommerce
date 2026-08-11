@@ -23,10 +23,19 @@ final class Balikovna_Test_Export extends Export {
 final class ExportTest extends TestCase {
 	public function test_formula_prefixes_are_escaped_after_transliteration(): void {
 		$export = new Balikovna_Test_Export();
-		$raw = $export->encodeRow( array( '＝HYPERLINK("https://example.test")', '＋1+1', '－1+1', '＠SUM(1,1)', '−1+1' ) );
-		$values = str_getcsv( trim( $raw ), ';', '"', '' );
-		foreach ( $values as $value ) {
+		$ascii_values = str_getcsv( trim( $export->encodeRow( array( '=1+1', '+1+1', '-1+1', '@SUM(1,1)' ) ) ), ';', '"', '' );
+		foreach ( $ascii_values as $value ) {
 			$this->assertStringStartsWith( "'", $value );
+		}
+
+		$unicode_values = str_getcsv(
+			trim( $export->encodeRow( array( '＝HYPERLINK("https://example.test")', '＋1+1', '－1+1', '＠SUM(1,1)', '−1+1' ) ) ),
+			';',
+			'"',
+			''
+		);
+		foreach ( $unicode_values as $value ) {
+			$this->assertDoesNotMatchRegularExpression( '/^[=+\-@\t\r\n]/', $value );
 		}
 	}
 
