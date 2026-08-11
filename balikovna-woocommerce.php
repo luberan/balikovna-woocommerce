@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/luberan/balikovna-woocommerce
  * Description: Integrace České pošty - Balíkovna do WooCommerce. Výběr výdejního místa v košíku, uložení k objednávce, zobrazení v adminu a emailech, CSV export pro Podání Online.
  * x-release-please-start-version
- * Version:     1.26.6
+ * Version:     1.26.7
  * x-release-please-end
  * Author:      Lukáš Beran
  * Author URI:  https://www.lukasberan.cz/
@@ -21,7 +21,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'BALIKOVNA_WC_VERSION', '1.26.6' ); // x-release-please-version
+define( 'BALIKOVNA_WC_VERSION', '1.26.7' ); // x-release-please-version
 define( 'BALIKOVNA_WC_MIN_WC_VERSION', '10.8' );
 define( 'BALIKOVNA_WC_FILE', __FILE__ );
 define( 'BALIKOVNA_WC_PATH', plugin_dir_path( __FILE__ ) );
