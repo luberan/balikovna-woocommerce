@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.6](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.5...v1.26.6) (2026-08-11)
+
+
+### 🐛 Opravy chyb
+
+* resolve checkout and release audit findings ([b1343f7](https://github.com/luberan/balikovna-woocommerce/commit/b1343f749edf24f2a6a45f1891f065952200b213))
+
 ## [1.26.5](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.4...v1.26.5) (2026-07-01)
 
 ### 🛠 CI
