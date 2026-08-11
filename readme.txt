@@ -82,6 +82,9 @@ Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta
 
 == Changelog ==
 
+= 1.27.0 =
+* 🚀 Nové funkce: add Balíkovna plus and manual tracking
+
 = 1.26.7 =
 * 🐛 Opravy chyb: enforce carrier contracts across checkout and export
 
