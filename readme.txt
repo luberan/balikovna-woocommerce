@@ -79,6 +79,9 @@ Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta
 
 == Changelog ==
 
+= 1.26.7 =
+* 🐛 Opravy chyb: enforce carrier contracts across checkout and export
+
 = 1.26.6 =
 * 🐛 Opravy chyb: resolve checkout and release audit findings
 
