@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.7...v1.27.0) (2026-08-11)
+
+
+### 🚀 Nové funkce
+
+* add Balíkovna plus and manual tracking ([e4f8c85](https://github.com/luberan/balikovna-woocommerce/commit/e4f8c852edf9a334b4c833a36ba58eff972b186a))
+
 ## [1.26.7](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.6...v1.26.7) (2026-08-11)
 
 
