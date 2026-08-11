@@ -144,28 +144,133 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 	}
 
 	protected function calculate_cost( $package ) {
+		$metrics = $this->package_metrics( $package );
+		if ( ! $this->package_is_eligible( $package, $metrics ) ) {
+			return null;
+		}
+
 		if ( '' !== trim( (string) $this->free_shipping_min ) ) {
 			$threshold = (float) $this->free_shipping_min;
-			$subtotal  = 0.0;
-			foreach ( isset( $package['contents'] ) ? $package['contents'] : array() as $item ) {
-				$subtotal += (float) $item['line_total'] + (float) $item['line_tax'];
-			}
+			$subtotal  = $this->cart_contents_total( $package );
 			if ( $threshold > 0 && $subtotal >= $threshold ) {
 				return 0.0;
 			}
 		}
 
 		if ( 'weight' === $this->cost_type ) {
-			$weight = 0.0;
-			foreach ( isset( $package['contents'] ) ? $package['contents'] : array() as $item ) {
-				if ( $item['data'] && $item['data']->get_weight() ) {
-					$weight += (float) $item['data']->get_weight() * (int) $item['quantity'];
-				}
+			if ( empty( $metrics['weightComplete'] ) ) {
+				return null;
 			}
-			return $this->resolve_weight_cost( wc_get_weight( $weight, 'kg' ) );
+			return $this->resolve_weight_cost( $metrics['weightKg'] );
 		}
 
 		return max( 0.0, (float) $this->cost );
+	}
+
+	protected function cart_contents_total( $package ) {
+		$contents = isset( $package['contents'] ) && is_array( $package['contents'] ) ? $package['contents'] : array();
+		if ( function_exists( 'WC' ) && WC()->cart && is_callable( array( WC()->cart, 'get_cart' ) ) ) {
+			$cart_contents = WC()->cart->get_cart();
+			if ( is_array( $cart_contents ) && $cart_contents ) {
+				$contents = $cart_contents;
+			}
+		}
+
+		$subtotal = 0.0;
+		foreach ( $contents as $item ) {
+			$subtotal += (float) ( $item['line_total'] ?? 0 ) + (float) ( $item['line_tax'] ?? 0 );
+		}
+
+		return (float) apply_filters( 'balikovna_wc_free_shipping_subtotal', $subtotal, $package, $this->id );
+	}
+
+	protected function package_is_eligible( $package, array $metrics ) {
+		$allowed_countries = isset( $this->service['countries'] ) ? (array) $this->service['countries'] : array();
+		$country           = isset( $package['destination']['country'] )
+			? strtoupper( (string) $package['destination']['country'] )
+			: '';
+		if ( $allowed_countries && ! in_array( $country, $allowed_countries, true ) ) {
+			return false;
+		}
+
+		if ( isset( $this->service['max_weight_kg'] ) ) {
+			if ( empty( $metrics['weightComplete'] ) || $metrics['weightKg'] > (float) $this->service['max_weight_kg'] ) {
+				return false;
+			}
+		}
+
+		if ( isset( $this->service['max_dimensions_cm'] ) ) {
+			if ( empty( $metrics['dimensionsComplete'] ) ) {
+				return false;
+			}
+			$limits     = array_map( 'floatval', (array) $this->service['max_dimensions_cm'] );
+			$dimensions = array_map( 'floatval', (array) $metrics['dimensionsCm'] );
+			rsort( $limits, SORT_NUMERIC );
+			rsort( $dimensions, SORT_NUMERIC );
+			foreach ( $limits as $index => $limit ) {
+				if ( ! isset( $dimensions[ $index ] ) || $dimensions[ $index ] > $limit ) {
+					return false;
+				}
+			}
+			if ( $metrics['volumeCm3'] > array_product( $limits ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	protected function package_metrics( $package ) {
+		$metrics  = array(
+			'weightKg'           => 0.0,
+			'weightComplete'     => true,
+			'dimensionsCm'       => array( 0.0, 0.0, 0.0 ),
+			'dimensionsComplete' => true,
+			'volumeCm3'          => 0.0,
+		);
+		$contents = isset( $package['contents'] ) && is_array( $package['contents'] ) ? $package['contents'] : array();
+		if ( ! $contents ) {
+			$metrics['weightComplete']     = false;
+			$metrics['dimensionsComplete'] = false;
+		}
+
+		foreach ( $contents as $item ) {
+			$product  = isset( $item['data'] ) ? $item['data'] : null;
+			$quantity = isset( $item['quantity'] ) ? max( 0, (int) $item['quantity'] ) : 0;
+			if ( ! $product || 0 === $quantity ) {
+				$metrics['weightComplete']     = false;
+				$metrics['dimensionsComplete'] = false;
+				continue;
+			}
+
+			$weight = is_callable( array( $product, 'get_weight' ) ) ? (string) $product->get_weight() : '';
+			if ( '' === $weight || (float) $weight <= 0 ) {
+				$metrics['weightComplete'] = false;
+			} else {
+				$metrics['weightKg'] += wc_get_weight( (float) $weight, 'kg' ) * $quantity;
+			}
+
+			$dimensions = array();
+			foreach ( array( 'get_length', 'get_width', 'get_height' ) as $getter ) {
+				$value = is_callable( array( $product, $getter ) ) ? (string) $product->{$getter}() : '';
+				if ( '' === $value || (float) $value <= 0 ) {
+					$metrics['dimensionsComplete'] = false;
+					$dimensions                    = array();
+					break;
+				}
+				$dimensions[] = wc_get_dimension( (float) $value, 'cm' );
+			}
+			if ( 3 === count( $dimensions ) ) {
+				rsort( $dimensions, SORT_NUMERIC );
+				foreach ( $dimensions as $index => $dimension ) {
+					$metrics['dimensionsCm'][ $index ] = max( $metrics['dimensionsCm'][ $index ], $dimension );
+				}
+				$metrics['volumeCm3'] += array_product( $dimensions ) * $quantity;
+			}
+		}
+
+		$filtered = apply_filters( 'balikovna_wc_package_metrics', $metrics, $package, $this->id );
+		return is_array( $filtered ) ? array_merge( $metrics, $filtered ) : $metrics;
 	}
 
 	protected function resolve_weight_cost( $weight_kg ) {

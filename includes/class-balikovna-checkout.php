@@ -224,12 +224,13 @@ class Checkout {
 			$point = array();
 		}
 
+		$phone     = isset( $point['phone'] ) ? $point['phone'] : '';
 		$validated = Points::validate( $point, $chosen[ $package_key ]['serviceId'] );
 		if ( is_wp_error( $validated ) ) {
 			wp_send_json_error( array( 'message' => $validated->get_error_message() ), 400 );
 		}
 
-		$selection                  = $chosen[ $package_key ];
+		$selection                  = self::with_recipient_phone( $chosen[ $package_key ], $phone );
 		$selection['point']         = $validated;
 		$selections                 = self::get_session_selections( false );
 		$selections[ $package_key ] = $selection;
@@ -248,9 +249,19 @@ class Checkout {
 				break;
 			}
 		}
+
+		$service_ids = self::service_ids_from_rates( $rates );
+		$email       = isset( $data['billing_email'] ) ? (string) $data['billing_email'] : '';
+		$phone       = isset( $data['billing_phone'] ) ? (string) $data['billing_phone'] : '';
+		$phone       = self::recipient_phone_with_session_fallback( $phone, $service_ids );
+		foreach ( Services::recipient_contact_errors( $service_ids, $email, $phone ) as $code => $message ) {
+			$errors->add( $code, $message );
+		}
 	}
 
 	public function save_to_order( $order, $data ) {
+		$rates = isset( $data['shipping_method'] ) && is_array( $data['shipping_method'] ) ? $data['shipping_method'] : array();
+		self::apply_session_phone_to_order( $order, self::service_ids_from_rates( $rates ) );
 		Order::sync_order_summary( $order, false );
 	}
 
@@ -298,12 +309,18 @@ class Checkout {
 				continue;
 			}
 
-			$valid[ $normalized_key ] = array(
+			$normalized_selection = array(
 				'packageKey' => $normalized_key,
 				'rateId'     => $rate_id,
 				'serviceId'  => $service_id,
 				'point'      => $point,
 			);
+
+			$phone = isset( $selection['phone'] ) ? Services::normalize_recipient_phone( $selection['phone'] ) : '';
+			if ( Services::is_valid_recipient_phone( $phone, array( $service_id ) ) ) {
+				$normalized_selection['phone'] = $phone;
+			}
+			$valid[ $normalized_key ] = $normalized_selection;
 		}
 
 		if ( $prune ) {
@@ -335,6 +352,56 @@ class Checkout {
 			WC()->session->set( self::SESSION_KEY, $selections ? $selections : null );
 			WC()->session->set( 'balikovna_point', null );
 		}
+	}
+
+	public static function with_recipient_phone( array $selection, $phone ) {
+		$service_ids = ! empty( $selection['serviceId'] ) ? array( (string) $selection['serviceId'] ) : array();
+		$phone       = Services::normalize_recipient_phone( $phone );
+		if ( Services::is_valid_recipient_phone( $phone, $service_ids ) ) {
+			$selection['phone'] = $phone;
+		}
+		return $selection;
+	}
+
+	public static function recipient_phone_with_session_fallback( $phone, array $service_ids ) {
+		if ( Services::is_valid_recipient_phone( $phone, $service_ids ) ) {
+			return Services::normalize_recipient_phone( $phone );
+		}
+
+		$phones = array();
+		foreach ( self::get_session_selections() as $selection ) {
+			if ( $service_ids && ! in_array( $selection['serviceId'], $service_ids, true ) ) {
+				continue;
+			}
+			if ( ! empty( $selection['phone'] ) && Services::is_valid_recipient_phone( $selection['phone'], array( $selection['serviceId'] ) ) ) {
+				$normalized_phone            = Services::normalize_recipient_phone( $selection['phone'] );
+				$phones[ $normalized_phone ] = true;
+			}
+		}
+
+		return 1 === count( $phones ) ? (string) array_key_first( $phones ) : $phone;
+	}
+
+	public static function apply_session_phone_to_order( $order, array $service_ids ) {
+		if ( ! is_object( $order ) || ! is_callable( array( $order, 'get_billing_phone' ) ) || ! is_callable( array( $order, 'set_billing_phone' ) ) ) {
+			return;
+		}
+		$current_phone = (string) $order->get_billing_phone();
+		$phone         = self::recipient_phone_with_session_fallback( $current_phone, $service_ids );
+		if ( $phone !== $current_phone && Services::is_valid_recipient_phone( $phone, $service_ids ) ) {
+			$order->set_billing_phone( Services::normalize_recipient_phone( $phone ) );
+		}
+	}
+
+	private static function service_ids_from_rates( array $rates ) {
+		$service_ids = array();
+		foreach ( $rates as $rate_id ) {
+			$service_id = self::service_id_from_rate( $rate_id );
+			if ( Services::get( $service_id ) ) {
+				$service_ids[] = $service_id;
+			}
+		}
+		return array_values( array_unique( $service_ids ) );
 	}
 
 	public static function normalize_package_key( $package_key ) {

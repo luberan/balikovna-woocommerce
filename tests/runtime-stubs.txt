@@ -18,6 +18,7 @@ function __( $text, $domain = null ) { return $text; }
 function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
 function sanitize_text_field( $value ) { return trim( preg_replace( '/[\x00-\x1F\x7F]/u', '', strip_tags( (string) $value ) ) ); }
 function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) ); }
+function is_email( $value ) { return false !== filter_var( $value, FILTER_VALIDATE_EMAIL ); }
 function wc_clean( $value ) { return is_array( $value ) ? array_map( 'wc_clean', $value ) : sanitize_text_field( $value ); }
 function wp_unslash( $value ) { return $value; }
 function get_transient( $key ) { return $GLOBALS['balikovna_test_transients'][ $key ] ?? false; }
@@ -31,9 +32,11 @@ function wp_remote_retrieve_body() { return ''; }
 function wc_format_decimal( $value, $decimals = false ) { $decimals = false === $decimals ? 2 : (int) $decimals; return number_format( (float) $value, $decimals, '.', '' ); }
 function wc_get_price_decimals() { return 2; }
 function wc_get_weight( $weight, $unit ) { return (float) $weight; }
+function wc_get_dimension( $dimension, $unit ) { return (float) $dimension; }
 
 class WC_Admin_Settings { public static $errors = array(); public static function add_error( $message ) { self::$errors[] = $message; } }
 class WC_Shipping_Method {
+	public $id = '';
 	protected $options = array();
 	public function validate_textarea_field( $key, $value ) { return (string) $value; }
 	public function get_option( $key, $default = '' ) { return $this->options[ $key ] ?? $default; }
@@ -49,11 +52,13 @@ class WC_Order_Item_Shipping {
 	public function save() { return true; }
 }
 class WC_Order_Item_Product {
-	private $meta; private $quantity; private $product;
-	public function __construct( array $meta = array(), $quantity = 1, $product = null ) { $this->meta = $meta; $this->quantity = $quantity; $this->product = $product; }
+	private $meta; private $quantity; private $product; private $total; private $total_tax;
+	public function __construct( array $meta = array(), $quantity = 1, $product = null, $total = 0, $total_tax = 0 ) { $this->meta = $meta; $this->quantity = $quantity; $this->product = $product; $this->total = $total; $this->total_tax = $total_tax; }
 	public function get_meta( $key, $single = true ) { return $this->meta[ $key ] ?? ''; }
 	public function get_quantity() { return $this->quantity; }
 	public function get_product() { return $this->product; }
+	public function get_total() { return $this->total; }
+	public function get_total_tax() { return $this->total_tax; }
 }
 class WC_Order {
 	private $shipping_methods; private $meta; private $address; private $items;
@@ -68,9 +73,24 @@ class WC_Order {
 	public function get_shipping_address_2() { return $this->address['shipping_address_2'] ?? ''; }
 	public function get_shipping_postcode() { return $this->address['shipping_postcode'] ?? ''; }
 	public function get_shipping_city() { return $this->address['shipping_city'] ?? ''; }
+	public function get_shipping_country() { return $this->address['shipping_country'] ?? ''; }
+	public function get_shipping_first_name() { return $this->address['shipping_first_name'] ?? ''; }
+	public function get_shipping_last_name() { return $this->address['shipping_last_name'] ?? ''; }
+	public function get_shipping_company() { return $this->address['shipping_company'] ?? ''; }
 	public function get_billing_address_1() { return $this->address['billing_address_1'] ?? ''; }
 	public function get_billing_address_2() { return $this->address['billing_address_2'] ?? ''; }
 	public function get_billing_postcode() { return $this->address['billing_postcode'] ?? ''; }
 	public function get_billing_city() { return $this->address['billing_city'] ?? ''; }
+	public function get_billing_country() { return $this->address['billing_country'] ?? ''; }
+	public function get_billing_first_name() { return $this->address['billing_first_name'] ?? ''; }
+	public function get_billing_last_name() { return $this->address['billing_last_name'] ?? ''; }
+	public function get_billing_company() { return $this->address['billing_company'] ?? ''; }
+	public function get_billing_email() { return $this->address['billing_email'] ?? ''; }
+	public function get_billing_phone() { return $this->address['billing_phone'] ?? ''; }
+	public function set_billing_phone( $phone ) { $this->address['billing_phone'] = $phone; }
+	public function get_payment_method() { return $this->address['payment_method'] ?? ''; }
+	public function get_currency() { return $this->address['currency'] ?? 'CZK'; }
+	public function get_total() { return $this->address['total'] ?? 0; }
+	public function get_order_number() { return $this->address['order_number'] ?? '1'; }
 }
 function WC() { return $GLOBALS['balikovna_test_wc']; }

@@ -117,12 +117,22 @@ class Points {
 
 		$cache_key = 'balikovna_wc_points_' . strtolower( sanitize_key( $type ) ) . '_v1';
 		$ttl       = max( HOUR_IN_SECONDS, (int) apply_filters( 'balikovna_wc_points_cache_ttl', 7 * DAY_IN_SECONDS, $type ) );
+		$max_stale = max(
+			$ttl,
+			(int) apply_filters( 'balikovna_wc_points_max_stale_age', 30 * DAY_IN_SECONDS, $type )
+		);
 		$cached    = get_transient( $cache_key );
 		if ( is_array( $cached ) && $cached ) {
 			return $cached;
 		}
-		$stale = get_option( $cache_key . '_stale', array() );
-		if ( isset( $stale['updated'], $stale['directory'] ) && is_array( $stale['directory'] ) && (int) $stale['updated'] + $ttl > time() ) {
+		$stale         = get_option( $cache_key . '_stale', array() );
+		$stale_updated = isset( $stale['updated'] ) ? (int) $stale['updated'] : 0;
+		$stale_valid   = $stale_updated > 0
+			&& $stale_updated <= time()
+			&& isset( $stale['directory'] )
+			&& is_array( $stale['directory'] )
+			&& $stale['directory'];
+		if ( $stale_valid && $stale_updated + $ttl > time() ) {
 			return $stale['directory'];
 		}
 
@@ -156,11 +166,8 @@ class Points {
 			}
 		}
 
-		if ( isset( $stale['directory'] ) && is_array( $stale['directory'] ) && $stale['directory'] ) {
+		if ( $stale_valid && $stale_updated + $max_stale > time() ) {
 			return $stale['directory'];
-		}
-		if ( is_array( $stale ) && $stale ) {
-			return $stale;
 		}
 
 		return new \WP_Error(

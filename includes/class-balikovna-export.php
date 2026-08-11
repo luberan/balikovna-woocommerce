@@ -51,6 +51,18 @@ class Export {
 	}
 
 	protected function stream_csv( array $order_ids ) {
+		$rows = $this->prepare_rows( $order_ids );
+		if ( is_wp_error( $rows ) ) {
+			wp_die(
+				esc_html( $rows->get_error_message() ),
+				esc_html__( 'Export Balíkovna se nepodařil', 'balikovna-wc' ),
+				array(
+					'response'  => 400,
+					'back_link' => true,
+				)
+			);
+		}
+
 		$filename = 'balikovna-' . gmdate( 'Ymd-His' ) . '.csv';
 
 		nocache_headers();
@@ -83,59 +95,163 @@ class Export {
 		);
 
 		$this->fputcsv_cp1250( $out, $headers );
-
-		$cod_methods  = (array) apply_filters( 'balikovna_wc_cod_methods', array( 'cod' ) );
-		$default_subj = (string) apply_filters( 'balikovna_wc_default_subject', 'F' );
-
-		foreach ( $order_ids as $id ) {
-			$order = wc_get_order( $id );
-			if ( ! $order ) {
-				continue;
-			}
-
-			$is_cod         = in_array( $order->get_payment_method(), $cod_methods, true );
-			$shipment_index = 0;
-			foreach ( Order::get_shipments( $order ) as $shipment ) {
-				$service_id   = $shipment['serviceId'];
-				$service      = $shipment['service'];
-				$point        = $shipment['point'];
-				$service_code = (string) ( $service['service_code'] ?? '' );
-				if ( ! empty( $service['pickup'] ) && empty( $point['id'] ) ) {
-					continue;
-				}
-
-				list( $street_col, $zip_col, $city_col ) = $this->destination_columns( $order, $point, $service_code );
-
-				$weight     = '' !== $shipment['weightKg']
-					? wc_format_decimal( $shipment['weightKg'], 2 )
-					: $this->calc_weight( $order );
-				$last_name  = $order->get_shipping_last_name();
-				$first_name = $order->get_shipping_first_name();
-				$row        = array(
-					$last_name ? $last_name : $order->get_billing_last_name(),             // A
-					$first_name ? $first_name : $order->get_billing_first_name(),          // B
-					$street_col,                                                          // C
-					$zip_col,                                                             // D
-					$city_col,                                                            // E
-					$weight,                                                              // F
-					wc_format_decimal( $order->get_total(), 2 ),                          // G  Udaná cena
-					$is_cod && 0 === $shipment_index ? wc_format_decimal( $order->get_total(), 2 ) : '', // H  Dobírka jen na první zásilce.
-					$shipment['serviceCodes'],                                            // I  Služby konkrétní shipping metody.
-					$order->get_order_number(),                                           // J  Variabilní symbol
-					$order->get_billing_phone(),                                          // K
-					$order->get_billing_email(),                                          // L
-					$service_code,                                                        // M
-					$default_subj,                                                        // N
-					1,                                                                    // O  Jedna zásilka na shipping item.
-				);
-
-				$row = apply_filters( 'balikovna_wc_export_row', $row, $order, $point, $service_id, $shipment['item'] );
-				$this->fputcsv_cp1250( $out, $row );
-				++$shipment_index;
-			}
+		foreach ( $rows as $row ) {
+			$this->fputcsv_cp1250( $out, $row );
 		}
 
 		fclose( $out );
+	}
+
+	/**
+	 * Build all rows before sending download headers, so invalid orders cannot
+	 * produce a partial CSV file.
+	 *
+	 * @return array|\WP_Error
+	 */
+	protected function prepare_rows( array $order_ids ) {
+		$rows   = array();
+		$errors = array();
+		foreach ( $order_ids as $id ) {
+			$order = wc_get_order( $id );
+			if ( ! $order ) {
+				// translators: %d: WooCommerce order ID.
+				$errors[] = sprintf( __( 'Objednávka #%d neexistuje.', 'balikovna-wc' ), $id );
+				continue;
+			}
+			$order_rows = $this->prepare_order_rows( $order );
+			if ( is_wp_error( $order_rows ) ) {
+				$errors[] = $order_rows->get_error_message();
+				continue;
+			}
+			$rows = array_merge( $rows, $order_rows );
+		}
+
+		if ( $errors ) {
+			return new \WP_Error( 'balikovna_export_invalid_orders', implode( ' ', $errors ) );
+		}
+		if ( ! $rows ) {
+			return new \WP_Error(
+				'balikovna_export_empty',
+				__( 'Vybrané objednávky neobsahují žádnou zásilku České pošty.', 'balikovna-wc' )
+			);
+		}
+		return $rows;
+	}
+
+	/**
+	 * @return array|\WP_Error
+	 */
+	protected function prepare_order_rows( \WC_Order $order ) {
+		$shipments = Order::get_shipments( $order );
+		if ( ! $shipments ) {
+			return $this->order_error( $order, __( 'neobsahuje žádnou zásilku České pošty.', 'balikovna-wc' ) );
+		}
+
+		$service_ids    = array_column( $shipments, 'serviceId' );
+		$contact_errors = Services::recipient_contact_errors(
+			$service_ids,
+			$order->get_billing_email(),
+			$order->get_billing_phone()
+		);
+		if ( $contact_errors ) {
+			return $this->order_error( $order, reset( $contact_errors ) );
+		}
+
+		$currency = strtoupper( (string) $order->get_currency() );
+		if ( 'CZK' !== $currency ) {
+			return $this->order_error( $order, __( 'musí být vedena v měně CZK.', 'balikovna-wc' ) );
+		}
+
+		$cod_methods    = (array) apply_filters( 'balikovna_wc_cod_methods', array( 'cod' ) );
+		$is_cod         = in_array( $order->get_payment_method(), $cod_methods, true );
+		$default_subj   = (string) apply_filters( 'balikovna_wc_default_subject', 'F' );
+		$company        = $order->get_shipping_company() ? $order->get_shipping_company() : $order->get_billing_company();
+		$last_name      = $order->get_shipping_last_name() ? $order->get_shipping_last_name() : $order->get_billing_last_name();
+		$first_name     = $order->get_shipping_first_name() ? $order->get_shipping_first_name() : $order->get_billing_first_name();
+		$recipient_a    = $company ? $company : $last_name;
+		$recipient_b    = $company ? '' : $first_name;
+		$subject        = $company ? 'P' : $default_subj;
+		$phone          = Services::normalize_recipient_phone( $order->get_billing_phone() );
+		$shipment_count = count( $shipments );
+		$rows           = array();
+		if ( '' === trim( $recipient_a ) ) {
+			return $this->order_error( $order, __( 'nemá vyplněného příjemce nebo firmu.', 'balikovna-wc' ) );
+		}
+
+		foreach ( $shipments as $shipment_index => $shipment ) {
+			$service_id   = $shipment['serviceId'];
+			$service      = $shipment['service'];
+			$point        = $shipment['point'];
+			$service_code = (string) ( $service['service_code'] ?? '' );
+			if ( '' === $service_code ) {
+				return $this->order_error( $order, __( 'nemá nastavený typ zásilky pro Podání Online.', 'balikovna-wc' ) );
+			}
+			if ( ! empty( $service['pickup'] ) && empty( $point['id'] ) ) {
+				return $this->order_error( $order, __( 'nemá u všech zásilek zvolené výdejní místo.', 'balikovna-wc' ) );
+			}
+
+			$country = ! empty( $service['pickup'] )
+				? ( ! empty( $point['country'] ) ? (string) $point['country'] : 'CZ' )
+				: ( $order->get_shipping_country() ? $order->get_shipping_country() : $order->get_billing_country() );
+			if ( ! empty( $service['countries'] ) && ! in_array( strtoupper( $country ), $service['countries'], true ) ) {
+				return $this->order_error( $order, __( 'má nepodporovanou zemi doručení.', 'balikovna-wc' ) );
+			}
+
+			list( $street_col, $zip_col, $city_col ) = $this->destination_columns( $order, $point, $service_code );
+			if ( '' === trim( $street_col ) || '' === trim( $zip_col ) || ( 'NB' !== $service_code && '' === trim( $city_col ) ) ) {
+				return $this->order_error( $order, __( 'nemá úplnou adresu příjemce.', 'balikovna-wc' ) );
+			}
+
+			$weight = '' !== $shipment['weightKg']
+				? wc_format_decimal( $shipment['weightKg'], 2 )
+				: ( 1 === $shipment_count ? $this->calc_weight( $order ) : '' );
+			if ( (float) $weight <= 0 ) {
+				return $this->order_error( $order, __( 'nemá spolehlivě určenou hmotnost každé zásilky.', 'balikovna-wc' ) );
+			}
+
+			$contents_value = '' !== $shipment['contentsValue']
+				? wc_format_decimal( $shipment['contentsValue'], 2 )
+				: ( 1 === $shipment_count ? $this->calc_contents_value( $order ) : '' );
+			if ( '' === $contents_value ) {
+				return $this->order_error( $order, __( 'nemá uloženou hodnotu obsahu každé zásilky.', 'balikovna-wc' ) );
+			}
+
+			$cod_amount = $is_cod && 0 === $shipment_index
+				? wc_format_decimal( round( (float) $order->get_total() ), 0 )
+				: '';
+			$row        = array(
+				$recipient_a,                   // A
+				$recipient_b,                   // B
+				$street_col,                    // C
+				$zip_col,                       // D
+				$city_col,                      // E
+				$weight,                        // F
+				$contents_value,                // G
+				$cod_amount,                    // H
+				$shipment['serviceCodes'],      // I
+				$order->get_order_number(),     // J
+				$phone,                         // K
+				$order->get_billing_email(),    // L
+				$service_code,                  // M
+				$subject,                       // N
+				1,                              // O
+			);
+			$rows[]     = apply_filters( 'balikovna_wc_export_row', $row, $order, $point, $service_id, $shipment['item'] );
+		}
+
+		return $rows;
+	}
+
+	protected function order_error( \WC_Order $order, $message ) {
+		return new \WP_Error(
+			'balikovna_export_invalid_order',
+			sprintf(
+				// translators: 1: WooCommerce order number, 2: export validation error.
+				__( 'Objednávku %1$s nelze exportovat: %2$s', 'balikovna-wc' ),
+				$order->get_order_number(),
+				$message
+			)
+		);
 	}
 
 	/**
@@ -214,5 +330,18 @@ class Export {
 			}
 		}
 		return wc_format_decimal( $w, 2 );
+	}
+
+	protected function calc_contents_value( \WC_Order $order ) {
+		$value = 0.0;
+		$found = false;
+		foreach ( $order->get_items() as $item ) {
+			if ( ! $item instanceof \WC_Order_Item_Product ) {
+				continue;
+			}
+			$value += (float) $item->get_total() + (float) $item->get_total_tax();
+			$found  = true;
+		}
+		return $found ? wc_format_decimal( max( 0.0, $value ), 2 ) : '';
 	}
 }

@@ -18,6 +18,8 @@ require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-blocks.php';
 
 class Plugin {
 
+	const WIDGET_MESSAGE_ID = 'pickerResult';
+
 	private static $instance = null;
 
 	public static function instance() {
@@ -56,8 +58,8 @@ class Plugin {
 	 *  - type=BALIKOVNY|POST_OFFICE : omezí seznam míst (jinak se načítají oba a hrozí chybný výběr).
 	 *  - skipLocation=false   : povolí funkci „Moje poloha" (doporučeno).
 	 *  - phone=true           : zobrazí ve widgetu pole pro telefon. Manuál doporučuje pouze pokud
-	 *                           e-shop nemá telefon povinný. WooCommerce ho v checkoutu jako povinný
-	 *                           má, proto default = vypnuto. Lze zapnout filtrem `balikovna_wc_widget_phone`.
+	 *                           e-shop nemá telefon povinný. Vrácené číslo se použije jako fallback
+	 *                           billing telefonu. Default lze změnit filtrem `balikovna_wc_widget_phone`.
 	 *
 	 * @param string $type BALIKOVNY|POST_OFFICE
 	 */
@@ -71,6 +73,7 @@ class Plugin {
 		$args = array(
 			'type'         => $type,
 			'skipLocation' => 'false',
+			'messageId'    => self::WIDGET_MESSAGE_ID,
 		);
 		if ( $show_phone ) {
 			$args['phone'] = 'true';

@@ -65,6 +65,66 @@ final class PointsAndCheckoutTest extends TestCase {
 		$this->assertSame( 'balikovna_point_required', $errors->get_error_code() );
 	}
 
+	public function test_widget_phone_is_used_when_classic_checkout_phone_is_empty(): void {
+		WC()->session->set( 'chosen_shipping_methods', array( 'balikovna:4' ) );
+		$selection = Checkout::with_recipient_phone(
+			array(
+				'packageKey' => '0',
+				'rateId'     => 'balikovna:4',
+				'serviceId'  => 'balikovna',
+				'point'      => Points::validate( array( 'id' => 'B10000' ), 'balikovna' ),
+			),
+			'+420 777 123 456'
+		);
+		Checkout::set_session_selections( array( '0' => $selection ) );
+		$errors = new WP_Error();
+		$data   = array(
+			'shipping_method' => array( 'balikovna:4' ),
+			'billing_email'   => 'customer@example.test',
+			'billing_phone'   => '',
+		);
+
+		Checkout::instance()->validate_selection( $data, $errors );
+		$order = new WC_Order();
+		Checkout::instance()->save_to_order( $order, $data );
+
+		$this->assertFalse( $errors->has_errors() );
+		$this->assertSame( '+420777123456', Checkout::get_session_selection( '0', 'balikovna:4' )['phone'] );
+		$this->assertSame( '+420777123456', $order->get_billing_phone() );
+	}
+
+	public function test_checkout_phone_wins_and_conflicting_widget_phones_fail_closed(): void {
+		WC()->session->set( 'chosen_shipping_methods', array( 'balikovna:4', 'balikovna:5' ) );
+		$point = Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
+		Checkout::set_session_selections(
+			array(
+				'0' => Checkout::with_recipient_phone(
+					array( 'packageKey' => '0', 'rateId' => 'balikovna:4', 'serviceId' => 'balikovna', 'point' => $point ),
+					'+420777123456'
+				),
+				'1' => Checkout::with_recipient_phone(
+					array( 'packageKey' => '1', 'rateId' => 'balikovna:5', 'serviceId' => 'balikovna', 'point' => $point ),
+					'+420777654321'
+				),
+			)
+		);
+
+		$this->assertSame(
+			'',
+			Checkout::recipient_phone_with_session_fallback( '', array( 'balikovna' ) )
+		);
+		$this->assertSame(
+			'+420606123456',
+			Checkout::recipient_phone_with_session_fallback( '+420 606 123 456', array( 'balikovna' ) )
+		);
+
+		WC()->session->set( 'chosen_shipping_methods', array( 'balikovna:4' ) );
+		$this->assertSame(
+			'+420777123456',
+			Checkout::recipient_phone_with_session_fallback( '', array( 'balikovna' ) )
+		);
+	}
+
 	public function test_fresh_fallback_directory_avoids_a_network_dependency(): void {
 		remove_all_filters();
 		$GLOBALS['balikovna_test_options']['balikovna_wc_points_balikovny_v1_stale'] = array(
@@ -76,5 +136,26 @@ final class PointsAndCheckoutTest extends TestCase {
 		$result = Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
 		$this->assertIsArray( $result );
 		$this->assertSame( 'Cached point', $result['name'] );
+	}
+
+	public function test_expired_fallback_directory_is_rejected_after_network_failure(): void {
+		remove_all_filters();
+		add_filter(
+			'balikovna_wc_points_max_stale_age',
+			function () {
+				return 14 * DAY_IN_SECONDS;
+			}
+		);
+		$GLOBALS['balikovna_test_options']['balikovna_wc_points_balikovny_v1_stale'] = array(
+			'updated'   => time() - ( 15 * DAY_IN_SECONDS ),
+			'directory' => array(
+				'B10000' => Points::sanitize( array( 'id' => 'B10000', 'name' => 'Expired point', 'type' => 'BALIKOVNY' ) ),
+			),
+		);
+
+		$result = Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'balikovna_points_unavailable', $result->get_error_code() );
 	}
 }

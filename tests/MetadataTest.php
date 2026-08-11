@@ -34,7 +34,8 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( "did_action( 'woocommerce_blocks_loaded' )", $php );
 		$this->assertStringContainsString( 'packageKey', $js );
 		$this->assertStringContainsString( 'event.source !== activeModal.iframe.contentWindow', $js );
-		$this->assertStringContainsString( "data.message !== 'pickResult'", $js );
+		$this->assertStringContainsString( "[ 'pickerResult', 'pickResult' ].indexOf( data.message )", $js );
+		$this->assertStringContainsString( "phone: String( data.phone || '' ).trim()", $js );
 		$this->assertStringContainsString( 'setPageInert( wrap )', $js );
 		$this->assertStringContainsString( 'activeModal === modal', $js );
 		$this->assertStringContainsString( 'activeModal.saving && ! force', $js );
@@ -44,8 +45,20 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( 'woocommerce_cart_emptied', $checkout );
 		$this->assertStringNotContainsString( 'woocommerce_checkout_order_processed', $checkout );
 		$classic_js = file_get_contents( $this->rootPath( 'assets/js/checkout.js' ) );
+		$plugin     = file_get_contents( $this->rootPath( 'includes/class-balikovna-plugin.php' ) );
+		$this->assertStringContainsString( "['pickerResult', 'pickResult'].indexOf(data.message)", $classic_js );
+		$this->assertStringContainsString( "phone: String(data.phone || '').trim()", $classic_js );
+		$this->assertStringContainsString( "'messageId'    => self::WIDGET_MESSAGE_ID", $plugin );
 		$this->assertStringContainsString( 'setPageInert($wrap[0])', $classic_js );
 		$this->assertStringContainsString( 'modal === active', $classic_js );
+	}
+
+	public function test_blocks_schema_exposes_selection_phone(): void {
+		$schema = ( new Balikovna_WC\Blocks() )->schema_callback();
+		$this->assertSame(
+			array( 'type' => 'string' ),
+			$schema['selections']['items']['properties']['phone']
+		);
 	}
 
 	public function test_workflows_are_valid_and_actions_are_immutable(): void {

@@ -14,13 +14,15 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balík Do ruky, Balík N
 == Description ==
 
 * Shipping metody **Balíkovna**, **Balík na adresu (Balíkovna)**, **Balík Do ruky**, **Balík Na poštu** s podporou shipping zón.
-* Cenotvorba: fixní cena, váhová tabulka (`max_kg|cena`), volitelný práh „zdarma od".
-* Výběr výdejního místa přes oficiální widget České pošty v modálním okně (`b2c.cpost.cz/locations/`).
+* Cenotvorba: fixní cena, váhová tabulka (`max_kg|cena`), volitelný práh „zdarma od" z mezisoučtu celého košíku napříč shipping packages.
+* Produkty Balíkovna se nabízejí jen pro CZ zásilky do 15 kg a 50 × 50 × 50 cm; produkty musí mít vyplněnou hmotnost a rozměry.
+* Checkout pro Balíkovnu vyžaduje platný e-mail a české mobilní číslo s předvolbou země.
+* Výběr výdejního místa přes oficiální widget České pošty v modálním okně (`b2c.cpost.cz/locations/`); volitelný telefon z widgetu doplní chybějící WooCommerce billing telefon.
 * Serverové ověření ID a typu pobočky proti kanonickému seznamu ČP; samostatný výběr pro každý shipping package.
-* Plná kompatibilita s **klasickým shortcode checkoutem** i **Block Checkoutem** (Store API rozšíření).
+* Podpora **klasického shortcode checkoutu** i **Block Checkoutu** (Store API rozšíření).
 * Uložení zvoleného místa k objednávce, zobrazení v adminu, v e-mailech (zákazník i admin) a na stránce Děkujeme / Můj účet.
 * Sloupec **Balíkovna** v přehledu objednávek (HPOS i klasické).
-* Hromadná akce **Export Balíkovna (CSV Podání Online)** v přehledu objednávek - CSV ve Windows-1250, středník jako oddělovač, sloupec s kódem služby.
+* Hromadná akce **Export Balíkovna (CSV Podání Online)** v přehledu objednávek - CSV ve Windows-1250, středník jako oddělovač, per-package hmotnost a hodnota obsahu, atomická validace všech řádků.
 * HPOS ready, kompatibilní s `cart_checkout_blocks`.
 * **Automatické aktualizace** z GitHub Releases (Plugin Update Checker, MIT) - po první instalaci se další verze zobrazují v WP admin → Aktualizace stejně jako u pluginů z wordpress.org.
 * **Diagnostický mód**: při zapnutém `WP_DEBUG` se do konzole prohlížeče logují přijaté `postMessage` zprávy z widgetu (vhodné pro vývoj a ladění integrace).
@@ -35,31 +37,45 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balík Do ruky, Balík N
 == Filtry pro vývojáře ==
 
 * `balikovna_wc_services` - úprava seznamu dostupných služeb ČP.
+* `balikovna_wc_package_metrics` - úprava vypočtené hmotnosti, rozměrů a objemu shipping package.
 * `balikovna_wc_widget_url` - URL widgetu výběru pobočky (`$url`, `$type`).
-* `balikovna_wc_widget_phone` - `true` zapne pole pro telefon ve widgetu (default `false`).
+* `balikovna_wc_widget_phone` - `true` zapne pole pro telefon; platný výsledek doplní chybějící `billing_phone` (default `false`).
+* `balikovna_wc_free_shipping_subtotal` - úprava mezisoučtu celého košíku pro práh dopravy zdarma.
 * `balikovna_wc_export_headers` - hlavičky CSV exportu.
 * `balikovna_wc_export_row` - úprava řádku exportu (`$row, $order, $point, $service_id`).
 * `balikovna_wc_cod_methods` - seznam payment method ID považovaných za dobírku.
 * `balikovna_wc_default_subject` - default Subjekt v CSV (`F` = fyzická, `P` = právnická).
+* `balikovna_wc_valid_recipient_phone` - vlastní ověření normalizovaného telefonu příjemce.
+* `balikovna_wc_recipient_contact_errors` - úprava výsledných chyb kontaktu pro zvolené služby.
 * `balikovna_wc_debug` - vynucený diagnostický mód i bez `WP_DEBUG`.
 * `balikovna_wc_point_validation_result` - vlastní validační výsledek pobočky.
 * `balikovna_wc_points_directory` - vlastní kanonický seznam poboček pro daný typ.
 * `balikovna_wc_points_api_url` - URL API seznamu poboček.
 * `balikovna_wc_points_cache_ttl` - doba cache seznamu poboček.
+* `balikovna_wc_points_max_stale_age` - maximální stáří nouzového seznamu při výpadku API (výchozí 30 dní).
 
 == CSV pro Podání Online ==
 
-Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce A-O) potvrzené podporou ČP. Každý shipping item tvoří samostatný řádek. Pro **NB** se použije `Balíkova` a ID balíkovny, pro **NP** adresa, PSČ a město vybrané pošty. Sloupec **Služby** se naplní z nastavení konkrétní shipping metody. Lze jej upravit filtrem `balikovna_wc_export_row`.
+Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce A-O) potvrzené podporou ČP. Každý shipping item tvoří samostatný řádek s vlastní hmotností a hodnotou obsahu. Pro **NB** se použije `Balíkova` a ID balíkovny, pro **NP** adresa, PSČ a město vybrané pošty. Sloupec **Služby** se naplní z nastavení konkrétní shipping metody. Export přijímá jen CZK, dobírku zaokrouhlí na celé koruny a při neúplné zásilce nevytvoří částečný soubor. Import v Podání Online musí mít odpovídající mapování A-O a smluvní kódy. Lze jej upravit filtrem `balikovna_wc_export_row`.
 
 == Externí služby a soukromí ==
 
-Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta obdrží běžná HTTP metadata návštěvy. Geolokaci předá prohlížeč widgetu jen po souhlasu zákazníka. Server pluginu stahuje veřejný seznam poboček pro ověření výběru, bez údajů zákazníka nebo objednávky. Zásady provozovatele: https://www.ceskaposta.cz/ochrana-osobnich-udaju
+Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta obdrží běžná HTTP metadata návštěvy. Geolokaci předá prohlížeč widgetu jen po souhlasu zákazníka. Při zapnutém `phone=true` zadává zákazník telefon přímo ve widgetu České pošty a plugin jej může uložit jako WooCommerce `billing_phone`. Server pluginu stahuje veřejně dostupný JSON seznam poboček pro ověření výběru, bez údajů zákazníka nebo objednávky. Endpoint nemá zveřejněný verzovaný integrační kontrakt; zdroj je proto filtrovatelný a nouzová data mají maximální stáří. Zásady provozovatele: https://www.ceskaposta.cz/ochrana-osobnich-udaju
+
+== Známá omezení ==
+
+* Plugin aktuálně vytváří objednávku a CSV pro Podání Online; zásilku automaticky nezakládá u České pošty.
+* Není implementována Balíkovna plus, B2B-ZSK nAPI, tisk štítků, tracking, storna, vratky ani podací reporty.
+* Kódy produktů a doplňkových služeb musí odpovídat smlouvě a konfiguraci Podání Online.
+* Automatické testy používají runtime stuby a nenahrazují browserový end-to-end test na skutečné instalaci WooCommerce.
 
 == Roadmap ==
 
-* Vlastní Leaflet mapa nad veřejným ČP REST API (fallback k iframu pro CSP/blokátory).
-* Plné B2B API České pošty - automatické vytváření zásilek, tisk PDF štítků, tracking.
-* Notifikace o změně stavu zásilky.
+* Balíkovna plus.
+* B2B-ZSK nAPI - vytvoření zásilek, tisk štítků, tracking, storna a reporty.
+* Vratky a související B2B workflow.
+* Alternativní picker až nad stabilním a dokumentovaným číselníkem výdejních míst.
+* Reálné end-to-end testy Classic/Block Checkoutu, pay-for-order a HPOS.
 
 == Changelog ==
 

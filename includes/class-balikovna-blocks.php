@@ -117,6 +117,7 @@ class Blocks {
 						'packageKey' => array( 'type' => 'string' ),
 						'rateId'     => array( 'type' => 'string' ),
 						'serviceId'  => array( 'type' => 'string' ),
+						'phone'      => array( 'type' => 'string' ),
 						'point'      => $point_schema,
 					),
 				),
@@ -139,12 +140,13 @@ class Blocks {
 		}
 
 		$point = isset( $payload['point'] ) && is_array( $payload['point'] ) ? $payload['point'] : array();
+		$phone = isset( $point['phone'] ) ? $point['phone'] : '';
 		$point = Points::validate( $point, $chosen[ $package_key ]['serviceId'] );
 		if ( is_wp_error( $point ) ) {
 			throw new RouteException( sanitize_key( $point->get_error_code() ), esc_html( $point->get_error_message() ), 400 );
 		}
 
-		$selection                  = $chosen[ $package_key ];
+		$selection                  = Checkout::with_recipient_phone( $chosen[ $package_key ], $phone );
 		$selection['point']         = $point;
 		$selections                 = Checkout::get_session_selections( false );
 		$selections[ $package_key ] = $selection;
@@ -152,7 +154,9 @@ class Blocks {
 	}
 
 	public function update_order_from_request( $order, $request ) {
-		Order::sync_shipping_points( $order );
+		if ( ! $this->is_existing_order_request( $request ) ) {
+			Order::sync_shipping_points( $order );
+		}
 
 		// Validace probíhá jen na finálním odeslání objednávky (POST /checkout),
 		// ne při průběžných aktualizacích košíku — jinak by panel zůstal viset
@@ -161,7 +165,8 @@ class Blocks {
 			return;
 		}
 
-		foreach ( Order::get_shipments( $order, false ) as $shipment ) {
+		$shipments = Order::get_shipments( $order, false );
+		foreach ( $shipments as $shipment ) {
 			if ( ! empty( $shipment['service']['pickup'] ) && empty( $shipment['point']['id'] ) ) {
 				throw new RouteException(
 					'balikovna_point_required',
@@ -169,6 +174,18 @@ class Blocks {
 					400
 				);
 			}
+		}
+
+		$service_ids = array_column( $shipments, 'serviceId' );
+		Checkout::apply_session_phone_to_order( $order, $service_ids );
+		$contact_errors = Services::recipient_contact_errors(
+			$service_ids,
+			$order->get_billing_email(),
+			$order->get_billing_phone()
+		);
+		if ( $contact_errors ) {
+			$raw_code = array_key_first( $contact_errors );
+			throw new RouteException( sanitize_key( $raw_code ), esc_html( $contact_errors[ $raw_code ] ), 400 );
 		}
 	}
 
@@ -183,6 +200,20 @@ class Blocks {
 		return is_object( $request )
 			&& method_exists( $request, 'get_method' )
 			&& 'POST' === strtoupper( (string) $request->get_method() );
+	}
+
+	/**
+	 * Pay-for-order používá existující shipping itemy bez košíkové session.
+	 *
+	 * @param \WP_REST_Request $request
+	 * @return bool
+	 */
+	protected function is_existing_order_request( $request ) {
+		if ( ! is_object( $request ) || ! method_exists( $request, 'get_route' ) ) {
+			return false;
+		}
+
+		return 1 === preg_match( '#/checkout/\d+/?$#', (string) $request->get_route() );
 	}
 
 	public function enqueue_block_script() {

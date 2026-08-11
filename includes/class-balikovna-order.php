@@ -15,9 +15,10 @@ class Order {
 	const META_PACKAGE_KEY    = '_balikovna_package_key';
 	const META_RATE_ID        = '_balikovna_rate_id';
 	const META_PACKAGE_WEIGHT = '_balikovna_weight_kg';
+	const META_PACKAGE_VALUE  = '_balikovna_contents_value';
 	const META_UNIT_WEIGHT    = '_balikovna_unit_weight_kg';
 	const META_DATA_VERSION   = '_balikovna_data_version';
-	const DATA_VERSION        = 2;
+	const DATA_VERSION        = 3;
 
 	private static $instance = null;
 
@@ -75,6 +76,7 @@ class Order {
 		$item->update_meta_data( self::META_PACKAGE_KEY, (string) $package_key );
 		$item->update_meta_data( self::META_RATE_ID, $rate_id );
 		$item->update_meta_data( self::META_PACKAGE_WEIGHT, self::package_weight_kg( $package ) );
+		$item->update_meta_data( self::META_PACKAGE_VALUE, self::package_contents_value( $package ) );
 		$item->update_meta_data( self::META_DATA_VERSION, self::DATA_VERSION );
 
 		if ( empty( $service['pickup'] ) ) {
@@ -121,6 +123,7 @@ class Order {
 			$item->delete_meta_data( self::META_PACKAGE_KEY );
 			$item->delete_meta_data( self::META_RATE_ID );
 			$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
+			$item->delete_meta_data( self::META_PACKAGE_VALUE );
 			$item->delete_meta_data( self::META_DATA_VERSION );
 		}
 	}
@@ -160,6 +163,7 @@ class Order {
 				$item->delete_meta_data( self::META_PACKAGE_KEY );
 				$item->delete_meta_data( self::META_RATE_ID );
 				$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
+				$item->delete_meta_data( self::META_PACKAGE_VALUE );
 				$item->delete_meta_data( self::META_DATA_VERSION );
 				$item->save();
 				continue;
@@ -229,14 +233,15 @@ class Order {
 			}
 
 			$shipments[] = array(
-				'item'         => $item,
-				'serviceId'    => $service_id,
-				'service'      => $service,
-				'point'        => $point,
-				'packageKey'   => (string) $item->get_meta( self::META_PACKAGE_KEY, true ),
-				'rateId'       => self::shipping_item_rate_id( $item ),
-				'weightKg'     => (string) $item->get_meta( self::META_PACKAGE_WEIGHT, true ),
-				'serviceCodes' => (string) $item->get_meta( 'balikovna_service_codes', true ),
+				'item'          => $item,
+				'serviceId'     => $service_id,
+				'service'       => $service,
+				'point'         => $point,
+				'packageKey'    => (string) $item->get_meta( self::META_PACKAGE_KEY, true ),
+				'rateId'        => self::shipping_item_rate_id( $item ),
+				'weightKg'      => (string) $item->get_meta( self::META_PACKAGE_WEIGHT, true ),
+				'contentsValue' => (string) $item->get_meta( self::META_PACKAGE_VALUE, true ),
+				'serviceCodes'  => (string) $item->get_meta( 'balikovna_service_codes', true ),
 			);
 		}
 
@@ -300,6 +305,15 @@ class Order {
 			}
 		}
 		return wc_format_decimal( wc_get_weight( $weight, 'kg' ), 6 );
+	}
+
+	private static function package_contents_value( $package ) {
+		$value = 0.0;
+		$items = isset( $package['contents'] ) && is_array( $package['contents'] ) ? $package['contents'] : array();
+		foreach ( $items as $item ) {
+			$value += (float) ( $item['line_total'] ?? 0 ) + (float) ( $item['line_tax'] ?? 0 );
+		}
+		return wc_format_decimal( max( 0.0, $value ), wc_get_price_decimals() );
 	}
 
 	public static function get_point( \WC_Order $order ) {

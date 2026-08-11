@@ -32,7 +32,7 @@
 		if ( typeof data === 'string' ) {
 			try { data = JSON.parse( data ); } catch ( error ) { return null; }
 		}
-		if ( typeof data !== 'object' || data.message !== 'pickResult' || ! data.point ) return null;
+		if ( typeof data !== 'object' || [ 'pickerResult', 'pickResult' ].indexOf( data.message ) === -1 || ! data.point ) return null;
 		var point = data.point;
 		if ( ! point.id || ! point.name ) return null;
 		var city = String( point.municipality_name || point.city || '' ).trim();
@@ -49,7 +49,8 @@
 			type: String( point.type || '' ),
 			subtype: String( point.subtype || '' ),
 			lat: point.coor_y_wgs84 ? String( point.coor_y_wgs84 ) : '',
-			lng: point.coor_x_wgs84 ? String( point.coor_x_wgs84 ) : ''
+			lng: point.coor_x_wgs84 ? String( point.coor_x_wgs84 ) : '',
+			phone: String( data.phone || '' ).trim()
 		};
 	}
 
