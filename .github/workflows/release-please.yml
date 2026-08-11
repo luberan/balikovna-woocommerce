@@ -99,7 +99,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ inputs.release_tag || needs.release-please.outputs.tag_name }}
         run: |
-          gh release upload "$RELEASE_TAG" "source/build/balikovna-woocommerce.zip"
+          gh release upload "$RELEASE_TAG" "source/build/balikovna-woocommerce.zip" \
+            --repo "$GITHUB_REPOSITORY"
 
       - name: Sync readme.txt changelog back to main
         if: needs.release-please.outputs.release_created == 'true'

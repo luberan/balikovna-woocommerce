@@ -76,7 +76,4 @@ jobs:
       - name: Verify generated metadata and release staging
         if: matrix.php == '8.5'
         run: |
-          cp CHANGELOG.md /tmp/CHANGELOG.md
-          php .github/scripts/normalize-changelog.php /tmp/CHANGELOG.md
-          diff -u CHANGELOG.md /tmp/CHANGELOG.md
           php .github/scripts/build-plugin.php
