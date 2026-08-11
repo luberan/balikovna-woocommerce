@@ -232,6 +232,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		$country           = isset( $package['destination']['country'] )
 			? strtoupper( (string) $package['destination']['country'] )
 			: '';
+		$require_complete  = (bool) apply_filters( 'balikovna_wc_require_complete_package_metrics', false, $package, $this->id );
 		if ( $allowed_countries && ! in_array( $country, $allowed_countries, true ) ) {
 			return false;
 		}
@@ -240,13 +241,13 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 			$max_weight = '' !== trim( (string) $this->max_weight_kg )
 				? (float) $this->max_weight_kg
 				: (float) $this->service['max_weight_kg'];
-			if ( empty( $metrics['weightComplete'] ) || $metrics['weightKg'] > $max_weight ) {
+			if ( $metrics['weightKg'] > $max_weight || ( $require_complete && empty( $metrics['weightComplete'] ) ) ) {
 				return false;
 			}
 		}
 
 		if ( isset( $this->service['max_dimensions_cm'] ) ) {
-			if ( empty( $metrics['dimensionsComplete'] ) ) {
+			if ( $require_complete && empty( $metrics['dimensionsComplete'] ) ) {
 				return false;
 			}
 			$limits     = array_map( 'floatval', (array) $this->service['max_dimensions_cm'] );
@@ -305,8 +306,8 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 				$value = is_callable( array( $product, $getter ) ) ? (string) $product->{$getter}() : '';
 				if ( '' === $value || (float) $value <= 0 ) {
 					$metrics['dimensionsComplete'] = false;
-					$dimensions                    = array();
-					break;
+					$dimensions[]                  = 0.0;
+					continue;
 				}
 				$dimensions[] = wc_get_dimension( (float) $value, 'cm' );
 			}
@@ -315,7 +316,9 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 				foreach ( $dimensions as $index => $dimension ) {
 					$metrics['dimensionsCm'][ $index ] = max( $metrics['dimensionsCm'][ $index ], $dimension );
 				}
-				$metrics['volumeCm3'] += array_product( $dimensions ) * $quantity;
+				if ( 0.0 < min( $dimensions ) ) {
+					$metrics['volumeCm3'] += array_product( $dimensions ) * $quantity;
+				}
 			}
 		}
 

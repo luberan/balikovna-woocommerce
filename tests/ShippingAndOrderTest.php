@@ -13,11 +13,11 @@ final class Balikovna_Test_Shipping_Method extends Shipping_Method_Base {
 		return $this->resolve_weight_cost( $weight );
 	}
 
-	public function cost_for( $package, $service_id = 'balikovna', $free_shipping_min = '', $max_weight_kg = '' ) {
+	public function cost_for( $package, $service_id = 'balikovna', $free_shipping_min = '', $max_weight_kg = '', $cost_type = 'flat' ) {
 		$this->id                = $service_id;
 		$this->service           = Balikovna_WC\Services::get( $service_id );
 		$this->cost              = '79';
-		$this->cost_type         = 'flat';
+		$this->cost_type         = $cost_type;
 		$this->free_shipping_min = $free_shipping_min;
 		$this->max_weight_kg     = $max_weight_kg;
 		return $this->calculate_cost( $package );
@@ -87,9 +87,65 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( 16, array( 40, 30, 20 ) ) ) ) );
 		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( 16, array( 40, 30, 20 ) ) ), 'balikovna', '1000' ) );
 		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( 10, array( 51, 30, 20 ) ) ) ) );
-		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( '', array( 40, 30, 20 ) ) ) ) );
-		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( 10, array( '', 30, 20 ) ) ) ) );
+		$this->assertSame( 79.0, $method->cost_for( $package( new Balikovna_Test_Product( '', array( 40, 30, 20 ) ) ) ) );
+		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( '', array( 40, 30, 20 ) ) ), 'balikovna', '', '', 'weight' ) );
+		$this->assertSame( 79.0, $method->cost_for( $package( new Balikovna_Test_Product( 10, array( '', 30, 20 ) ) ) ) );
+		$this->assertSame( 79.0, $method->cost_for( $package( new Balikovna_Test_Product( 10, array( '', 30, 20 ) ) ), 'balikovna_na_adresu' ) );
+		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( 10, array( 51, '', 20 ) ) ) ) );
 		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( 10, array( 40, 30, 20 ) ), 'SK' ) ) );
+	}
+
+	public function test_strict_metrics_filter_rejects_incomplete_balikovna_products(): void {
+		add_filter(
+			'balikovna_wc_require_complete_package_metrics',
+			function () {
+				return true;
+			}
+		);
+		$method  = new Balikovna_Test_Shipping_Method();
+		$package = array(
+			'destination' => array( 'country' => 'CZ' ),
+			'contents'    => array(
+				array(
+					'data'       => new Balikovna_Test_Product( 10, array( 40, '', 20 ) ),
+					'quantity'   => 1,
+					'line_total' => 1000,
+					'line_tax'   => 210,
+				),
+			),
+		);
+
+		try {
+			$this->assertNull( $method->cost_for( $package, 'balikovna' ) );
+			$this->assertNull( $method->cost_for( $package, 'balikovna_na_adresu' ) );
+			$this->assertNull( $method->cost_for( $package, 'balikovna_plus' ) );
+		} finally {
+			remove_all_filters( 'balikovna_wc_require_complete_package_metrics' );
+		}
+	}
+
+	public function test_incomplete_item_cannot_hide_known_limit_violation_in_mixed_package(): void {
+		$method  = new Balikovna_Test_Shipping_Method();
+		$package = array(
+			'destination' => array( 'country' => 'CZ' ),
+			'contents'    => array(
+				array(
+					'data'       => new Balikovna_Test_Product( 5, array( 40, 30, 20 ) ),
+					'quantity'   => 2,
+					'line_total' => 1000,
+					'line_tax'   => 210,
+				),
+				array(
+					'data'       => new Balikovna_Test_Product( '', array( 51, '', 20 ) ),
+					'quantity'   => 1,
+					'line_total' => 500,
+					'line_tax'   => 105,
+				),
+			),
+		);
+
+		$this->assertNull( $method->cost_for( $package, 'balikovna' ) );
+		$this->assertNull( $method->cost_for( $package, 'balikovna_na_adresu' ) );
 	}
 
 	public function test_free_shipping_threshold_uses_the_whole_cart_across_packages(): void {

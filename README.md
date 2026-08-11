@@ -21,7 +21,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 - Samostatný výběr pro každý WooCommerce shipping package a přesnou instanci shipping metody
 - Podpora **klasického checkoutu** (`wp-admin → WooCommerce → checkout shortcode`) i **Block Checkoutu** (Store API extension)
 - **Cenotvorba** per metoda: fixní cena / podle hmotnosti (tabulka `max_kg|cena`) / volitelný práh „zdarma od“ z mezisoučtu celého košíku napříč shipping packages
-- Produkty Balíkovna se nabízejí jen pro CZ zásilky do 15 kg a 50 × 50 × 50 cm; hmotnost a rozměry musí být vyplněné u všech produktů v balíku
+- Produkty Balíkovna se nabízejí jen pro CZ zásilky do 15 kg a 50 × 50 × 50 cm. Známé parametry se vždy kontrolují; u fixní ceny chybějící katalogový údaj sazbu neskryje, váhová cenotvorba však vyžaduje vyplněnou hmotnost.
 - Checkout pro Balíkovnu vyžaduje platný e-mail a české mobilní číslo s předvolbou `+420` nebo `00420`
 - **Kódy služeb ČP** (CSV sloupec I) konfigurovatelné per metoda v admin nastavení
 - Uložení místa k objednávce, sloupec v přehledu objednávek, zobrazení v e-mailech a na stránce „Děkujeme"
@@ -70,7 +70,7 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
    - **Cena** nebo **váhová tabulka** (řádky `max_kg|cena`, např. `5|79`)
    - **Zdarma od částky** (volitelně, vyhodnocuje se z celého košíku)
    - **Kódy služeb ČP** (např. `7+45+S+41` – dle označení ve vaší smlouvě s ČP; použije se ve sloupci I exportu)
-   - U produktů používaných s Balíkovnou vyplňte hmotnost, délku, šířku a výšku; neúplný nebo nadlimitní balík se nenabídne.
+    - U produktů používaných s Balíkovnou vyplňte hmotnost, délku, šířku a výšku pro úplnou automatickou kontrolu. Známý nadlimitní parametr dopravu vždy skryje; neznámý údaj ji u fixní ceny sám o sobě neskryje.
     - U Balíkovny plus vyberte smluvní **typ zásilky DR/DV/DE** a limit 31,5 nebo 50 kg. Limit 50 kg zapněte pouze při sjednané smlouvě; žádná strana nesmí překročit 200 cm a součet tří rozměrů 300 cm.
 3. Zákazníci ve checkoutu uvidí novou shipping metodu; u Balíkovny a Balíku Na poštu kliknou „Vybrat výdejní místo" → vybere v iframe widgetu → potvrdí objednávku.
 4. V detailu objednávky lze ke každému shipping itemu České pošty zadat **podací číslo**. Uloží se před změnou stavu objednávky, takže jej následně odeslaný e-mail obsahuje spolu s odkazem Track & Trace.
@@ -82,6 +82,7 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
 |---|---|
 | `balikovna_wc_services` | Konfigurace služeb včetně `countries`, `max_weight_kg`, `max_dimensions_cm` a požadavků na kontakt |
 | `balikovna_wc_package_metrics` | Úprava vypočtené hmotnosti, rozměrů a objemu shipping package |
+| `balikovna_wc_require_complete_package_metrics` | `true` = skrýt Balíkovnu také při chybějící hmotnosti nebo rozměru (výchozí `false`) |
 | `balikovna_wc_widget_url` | URL widgetu výběru pobočky (`$url, $type`) |
 | `balikovna_wc_widget_phone` | `true` = zobrazit pole pro telefon; platný výsledek doplní chybějící `billing_phone` (default `false`) |
 | `balikovna_wc_free_shipping_subtotal` | Úprava mezisoučtu celého košíku použitého pro práh dopravy zdarma |

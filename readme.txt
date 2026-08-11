@@ -16,7 +16,7 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balíkovna plus, Balík 
 * Shipping metody **Balíkovna**, **Balík na adresu (Balíkovna)**, **Balíkovna plus**, **Balík Do ruky**, **Balík Na poštu** s podporou shipping zón.
 * Balíkovna plus standardně do 31,5 kg, smluvně do 50 kg; nejdelší strana do 200 cm a součet rozměrů do 300 cm.
 * Cenotvorba: fixní cena, váhová tabulka (`max_kg|cena`), volitelný práh „zdarma od" z mezisoučtu celého košíku napříč shipping packages.
-* Produkty Balíkovna se nabízejí jen pro CZ zásilky do 15 kg a 50 × 50 × 50 cm; produkty musí mít vyplněnou hmotnost a rozměry.
+* Produkty Balíkovna se nabízejí jen pro CZ zásilky do 15 kg a 50 × 50 × 50 cm. Známé parametry se kontrolují; chybějící údaj u fixní ceny sazbu neskryje, váhová cenotvorba vyžaduje hmotnost.
 * Checkout pro Balíkovnu vyžaduje platný e-mail a české mobilní číslo s předvolbou země.
 * Výběr výdejního místa přes oficiální widget České pošty v modálním okně (`b2c.cpost.cz/locations/`); volitelný telefon z widgetu doplní chybějící WooCommerce billing telefon.
 * Serverové ověření ID a typu pobočky proti kanonickému seznamu ČP; samostatný výběr pro každý shipping package.
@@ -41,6 +41,7 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balíkovna plus, Balík 
 
 * `balikovna_wc_services` - úprava seznamu dostupných služeb ČP.
 * `balikovna_wc_package_metrics` - úprava vypočtené hmotnosti, rozměrů a objemu shipping package.
+* `balikovna_wc_require_complete_package_metrics` - `true` skryje Balíkovnu i při chybějící hmotnosti nebo rozměru (výchozí `false`).
 * `balikovna_wc_widget_url` - URL widgetu výběru pobočky (`$url`, `$type`).
 * `balikovna_wc_widget_phone` - `true` zapne pole pro telefon; platný výsledek doplní chybějící `billing_phone` (default `false`).
 * `balikovna_wc_free_shipping_subtotal` - úprava mezisoučtu celého košíku pro práh dopravy zdarma.

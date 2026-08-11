@@ -1,14 +1,14 @@
 # Translation template for Balíkovna for WooCommerce.
 msgid ""
 msgstr ""
-"Project-Id-Version: Balíkovna for WooCommerce 1.26.7\n"
+"Project-Id-Version: Balíkovna for WooCommerce 1.27.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/balikovna-woocommerce\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-11T09:00:20+00:00\n"
+"POT-Creation-Date: 2026-08-11T09:39:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: balikovna-wc\n"
@@ -159,39 +159,39 @@ msgstr ""
 msgid "Objednávku %1$s nelze exportovat: %2$s"
 msgstr ""
 
-#: includes/class-balikovna-order.php:388
-#: includes/class-balikovna-order.php:501
-#: includes/class-balikovna-order.php:548
+#: includes/class-balikovna-order.php:397
+#: includes/class-balikovna-order.php:510
+#: includes/class-balikovna-order.php:557
 msgid "Česká pošta - zásilky"
 msgstr ""
 
 #. translators: 1: shipping service name, 2: shipment sequence number.
-#: includes/class-balikovna-order.php:392
+#: includes/class-balikovna-order.php:401
 #, php-format
 msgid "%1$s - zásilka %2$d"
 msgstr ""
 
-#: includes/class-balikovna-order.php:403
-#: includes/class-balikovna-order.php:508
-#: includes/class-balikovna-order.php:558
+#: includes/class-balikovna-order.php:412
+#: includes/class-balikovna-order.php:517
+#: includes/class-balikovna-order.php:567
 msgid "Podací číslo"
 msgstr ""
 
-#: includes/class-balikovna-order.php:407
-#: includes/class-balikovna-order.php:559
+#: includes/class-balikovna-order.php:416
+#: includes/class-balikovna-order.php:568
 msgid "Sledovat zásilku"
 msgstr ""
 
-#: includes/class-balikovna-order.php:446
+#: includes/class-balikovna-order.php:455
 msgid "Podací číslo smí obsahovat pouze písmena a číslice."
 msgstr ""
 
-#: includes/class-balikovna-order.php:460
-#: includes/class-balikovna-order.php:464
+#: includes/class-balikovna-order.php:469
+#: includes/class-balikovna-order.php:473
 msgid "Česká pošta"
 msgstr ""
 
-#: includes/class-balikovna-order.php:509
+#: includes/class-balikovna-order.php:518
 msgid "Sledování zásilky"
 msgstr ""
 
@@ -344,14 +344,14 @@ msgstr ""
 msgid "Smluvně %s kg"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:372
+#: includes/class-balikovna-shipping-method-base.php:375
 msgid "Tabulka hmotností nesmí být prázdná."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:379
+#: includes/class-balikovna-shipping-method-base.php:382
 msgid "Každý řádek tabulky musí mít formát „kladná hmotnost|nezáporná cena“."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:385
+#: includes/class-balikovna-shipping-method-base.php:388
 msgid "Hmotnostní limity musí být kladné a nesmí se opakovat."
 msgstr ""
