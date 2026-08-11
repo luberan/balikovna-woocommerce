@@ -63,6 +63,9 @@ Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta
 
 == Changelog ==
 
+= 1.26.6 =
+* 🐛 Opravy chyb: resolve checkout and release audit findings
+
 = 1.26.5 =
 * 🛠 CI: bump actions/checkout from 6 to 7 ([#42](https://github.com/luberan/balikovna-woocommerce/issues/42))
 
