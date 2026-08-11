@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.27.0...v1.27.1) (2026-08-11)
+
+
+### 🐛 Opravy chyb
+
+* restore Balikovna rates for incomplete products ([dc3627e](https://github.com/luberan/balikovna-woocommerce/commit/dc3627e489342d19f75fa81f4f71111e3787744e))
+
 ## [1.27.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.26.7...v1.27.0) (2026-08-11)
 
 
