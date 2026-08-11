@@ -61,6 +61,14 @@ final class MetadataTest extends TestCase {
 		);
 	}
 
+	public function test_plus_and_manual_tracking_are_registered(): void {
+		$plugin = file_get_contents( $this->rootPath( 'includes/class-balikovna-plugin.php' ) );
+		$order  = file_get_contents( $this->rootPath( 'includes/class-balikovna-order.php' ) );
+		$this->assertStringContainsString( "methods['balikovna_plus']", $plugin );
+		$this->assertStringContainsString( "woocommerce_process_shop_order_meta', array( \$this, 'save_tracking_numbers' ), 35", $order );
+		$this->assertStringContainsString( "'parcelNumbers'", $order );
+	}
+
 	public function test_workflows_are_valid_and_actions_are_immutable(): void {
 		foreach ( array( '.github/workflows/ci.yml', '.github/workflows/release-please.yml' ) as $path ) {
 			$contents = file_get_contents( $this->rootPath( $path ) );

@@ -13,12 +13,13 @@ final class Balikovna_Test_Shipping_Method extends Shipping_Method_Base {
 		return $this->resolve_weight_cost( $weight );
 	}
 
-	public function cost_for( $package, $service_id = 'balikovna', $free_shipping_min = '' ) {
+	public function cost_for( $package, $service_id = 'balikovna', $free_shipping_min = '', $max_weight_kg = '' ) {
 		$this->id                = $service_id;
 		$this->service           = Balikovna_WC\Services::get( $service_id );
 		$this->cost              = '79';
 		$this->cost_type         = 'flat';
 		$this->free_shipping_min = $free_shipping_min;
+		$this->max_weight_kg     = $max_weight_kg;
 		return $this->calculate_cost( $package );
 	}
 }
@@ -54,6 +55,7 @@ final class ShippingAndOrderTest extends TestCase {
 	protected function setUp(): void {
 		$GLOBALS['balikovna_test_wc']->session = new Balikovna_Test_Session();
 		$GLOBALS['balikovna_test_wc']->cart    = null;
+		$_POST = array();
 	}
 
 	public function test_weight_table_is_fail_closed(): void {
@@ -107,6 +109,30 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertSame( 79.0, $method->cost_for( $package, 'balikovna', '1000' ) );
 		$GLOBALS['balikovna_test_wc']->cart = new Balikovna_Test_Cart( array( $item, $item ) );
 		$this->assertSame( 0.0, $method->cost_for( $package, 'balikovna', '1000' ) );
+	}
+
+	public function test_balikovna_plus_enforces_standard_contract_and_dimension_limits(): void {
+		$method  = new Balikovna_Test_Shipping_Method();
+		$package = function ( $weight, array $dimensions ) {
+			return array(
+				'destination' => array( 'country' => 'CZ' ),
+				'contents'    => array(
+					array(
+						'data'       => new Balikovna_Test_Product( $weight, $dimensions ),
+						'quantity'   => 1,
+						'line_total' => 1000,
+						'line_tax'   => 210,
+					),
+				),
+			);
+		};
+
+		$this->assertSame( 79.0, $method->cost_for( $package( 31.5, array( 150, 80, 60 ) ), 'balikovna_plus' ) );
+		$this->assertNull( $method->cost_for( $package( 32, array( 150, 80, 60 ) ), 'balikovna_plus' ) );
+		$this->assertSame( 79.0, $method->cost_for( $package( 50, array( 150, 80, 60 ) ), 'balikovna_plus', '', '50' ) );
+		$this->assertNull( $method->cost_for( $package( 50.1, array( 150, 80, 60 ) ), 'balikovna_plus', '', '50' ) );
+		$this->assertNull( $method->cost_for( $package( 20, array( 180, 80, 50 ) ), 'balikovna_plus' ) );
+		$this->assertNull( $method->cost_for( $package( 20, array( 201, 50, 40 ) ), 'balikovna_plus' ) );
 	}
 
 	public function test_balikovna_requires_valid_recipient_contact(): void {
@@ -172,6 +198,23 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertSame( array(), Order::get_shipments( $order ) );
 	}
 
+	public function test_stale_plus_parcel_type_is_removed_after_shipping_method_change(): void {
+		$item = new WC_Order_Item_Shipping(
+			'cp_do_ruky',
+			'4',
+			array(
+				Order::META_PARCEL_TYPE    => 'DE',
+				Order::META_TRACKING_NUMBER => 'DR1234567890E',
+			)
+		);
+
+		Order::instance()->remove_stale_shipping_metadata( $item, null );
+
+		$this->assertSame( '', $item->get_meta( Order::META_PARCEL_TYPE ) );
+		$this->assertSame( 'DR1234567890E', $item->get_meta( Order::META_TRACKING_NUMBER ) );
+		$this->assertSame( 'DR', Order::get_shipments( new WC_Order( array( $item ) ) )[0]['parcelType'] );
+	}
+
 	public function test_legacy_point_is_preserved_when_summary_is_first_synchronized(): void {
 		$order = new WC_Order(
 			array( new WC_Order_Item_Shipping( 'balikovna', '4' ) ),
@@ -192,6 +235,48 @@ final class ShippingAndOrderTest extends TestCase {
 		$output = ob_get_clean();
 		$this->assertStringContainsString( 'A & B', $output );
 		$this->assertStringNotContainsString( '&amp;', $output );
+	}
+
+	public function test_manual_tracking_is_saved_per_shipping_item(): void {
+		$first  = new WC_Order_Item_Shipping( 'balikovna_plus', '4', array(), 10 );
+		$second = new WC_Order_Item_Shipping( 'cp_do_ruky', '5', array( Order::META_TRACKING_NUMBER => 'DR1111111111C' ), 11 );
+		$order  = new WC_Order( array( $first, $second ) );
+		$_POST  = array(
+			Order::TRACKING_NONCE_NAME => 'valid-nonce',
+			'balikovna_tracking_numbers' => array(
+				'10' => ' dr 1234567890 e ',
+			),
+		);
+
+		Order::instance()->save_tracking_numbers( 123, $order );
+
+		$this->assertSame( 'DR1234567890E', $first->get_meta( Order::META_TRACKING_NUMBER ) );
+		$this->assertSame( 'DR1111111111C', $second->get_meta( Order::META_TRACKING_NUMBER ) );
+	}
+
+	public function test_invalid_manual_tracking_does_not_replace_existing_number(): void {
+		$item  = new WC_Order_Item_Shipping( 'balikovna_plus', '4', array( Order::META_TRACKING_NUMBER => 'DR1111111111C' ), 10 );
+		$order = new WC_Order( array( $item ) );
+		$_POST = array(
+			Order::TRACKING_NONCE_NAME => 'valid-nonce',
+			'balikovna_tracking_numbers' => array( '10' => 'https://example.test/?parcel=1' ),
+		);
+
+		Order::instance()->save_tracking_numbers( 123, $order );
+
+		$this->assertSame( 'DR1111111111C', $item->get_meta( Order::META_TRACKING_NUMBER ) );
+	}
+
+	public function test_plain_text_email_contains_manual_tracking_link_for_address_service(): void {
+		$item  = new WC_Order_Item_Shipping( 'balikovna_plus', '4', array( Order::META_TRACKING_NUMBER => 'DR1234567890E' ) );
+		$order = new WC_Order( array( $item ) );
+
+		ob_start();
+		Order::instance()->email_after_order_table( $order, false, true, null );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'DR1234567890E', $output );
+		$this->assertStringContainsString( 'parcelNumbers=DR1234567890E', $output );
 	}
 
 	public function test_modern_summary_never_fills_a_second_shipping_item(): void {

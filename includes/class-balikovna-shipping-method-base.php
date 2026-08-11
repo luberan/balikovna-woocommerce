@@ -34,6 +34,12 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 	/** @var string Kódy služeb ČP pro Podání Online (sloupec I v CSV, např. "7+45+S+41"). */
 	protected $service_codes = '';
 
+	/** @var string Typ zásilky/prefix pro Podání Online. */
+	protected $parcel_type = '';
+
+	/** @var string Efektivní smluvní hmotnostní limit. */
+	protected $max_weight_kg = '';
+
 	public function __construct( $instance_id = 0 ) {
 		$this->id          = static::$service_id;
 		$this->instance_id = absint( $instance_id );
@@ -61,6 +67,8 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		$this->weight_table      = $this->get_option( 'weight_table', "5|79\n10|119\n15|159" );
 		$this->free_shipping_min = $this->get_option( 'free_shipping_min', '' );
 		$this->service_codes     = $this->get_option( 'service_codes', '' );
+		$this->parcel_type       = $this->get_option( 'parcel_type', $this->service['service_code'] ?? '' );
+		$this->max_weight_kg     = $this->get_option( 'max_weight_kg', $this->service['max_weight_kg'] ?? '' );
 
 		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
 	}
@@ -121,6 +129,40 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 				'default'     => '',
 			),
 		);
+
+		if ( ! empty( $this->service['service_code_options'] ) ) {
+			$options = array();
+			foreach ( $this->service['service_code_options'] as $code ) {
+				$options[ $code ] = $code;
+			}
+			$this->instance_form_fields['parcel_type'] = array(
+				'title'       => __( 'Typ zásilky ČP', 'balikovna-wc' ),
+				'type'        => 'select',
+				'description' => __( 'Prefix produktu pro Podání Online. Zvolte DR, DV nebo DE podle smlouvy s Českou poštou.', 'balikovna-wc' ),
+				'options'     => $options,
+				'default'     => $this->service['service_code'],
+				'desc_tip'    => true,
+			);
+		}
+
+		if ( ! empty( $this->service['contract_max_weight_kg'] ) ) {
+			$standard = (string) $this->service['max_weight_kg'];
+			$contract = (string) $this->service['contract_max_weight_kg'];
+
+			$this->instance_form_fields['max_weight_kg'] = array(
+				'title'       => __( 'Smluvní limit hmotnosti', 'balikovna-wc' ),
+				'type'        => 'select',
+				'description' => __( 'Limit 50 kg zvolte pouze v případě, že jej máte sjednaný ve smlouvě s Českou poštou.', 'balikovna-wc' ),
+				'options'     => array(
+					// translators: %s: standard weight limit in kilograms.
+					$standard => sprintf( __( 'Standardně %s kg', 'balikovna-wc' ), $standard ),
+					// translators: %s: contracted weight limit in kilograms.
+					$contract => sprintf( __( 'Smluvně %s kg', 'balikovna-wc' ), $contract ),
+				),
+				'default'     => $standard,
+				'desc_tip'    => true,
+			);
+		}
 	}
 
 	public function calculate_shipping( $package = array() ) {
@@ -138,6 +180,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 				'package'   => $package,
 				'meta_data' => array(
 					'balikovna_service_codes' => $this->service_codes,
+					'balikovna_parcel_type'   => $this->parcel_type,
 				),
 			)
 		);
@@ -194,7 +237,10 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		}
 
 		if ( isset( $this->service['max_weight_kg'] ) ) {
-			if ( empty( $metrics['weightComplete'] ) || $metrics['weightKg'] > (float) $this->service['max_weight_kg'] ) {
+			$max_weight = '' !== trim( (string) $this->max_weight_kg )
+				? (float) $this->max_weight_kg
+				: (float) $this->service['max_weight_kg'];
+			if ( empty( $metrics['weightComplete'] ) || $metrics['weightKg'] > $max_weight ) {
 				return false;
 			}
 		}
@@ -215,6 +261,10 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 			if ( $metrics['volumeCm3'] > array_product( $limits ) ) {
 				return false;
 			}
+		}
+
+		if ( isset( $this->service['max_dimensions_sum_cm'] ) && array_sum( $metrics['dimensionsCm'] ) > (float) $this->service['max_dimensions_sum_cm'] ) {
+			return false;
 		}
 
 		return true;

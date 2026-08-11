@@ -11,14 +11,18 @@ defined( 'ABSPATH' ) || exit;
 
 class Order {
 
-	const META_KEY            = '_balikovna_point';
-	const META_PACKAGE_KEY    = '_balikovna_package_key';
-	const META_RATE_ID        = '_balikovna_rate_id';
-	const META_PACKAGE_WEIGHT = '_balikovna_weight_kg';
-	const META_PACKAGE_VALUE  = '_balikovna_contents_value';
-	const META_UNIT_WEIGHT    = '_balikovna_unit_weight_kg';
-	const META_DATA_VERSION   = '_balikovna_data_version';
-	const DATA_VERSION        = 3;
+	const META_KEY              = '_balikovna_point';
+	const META_PACKAGE_KEY      = '_balikovna_package_key';
+	const META_RATE_ID          = '_balikovna_rate_id';
+	const META_PACKAGE_WEIGHT   = '_balikovna_weight_kg';
+	const META_PACKAGE_VALUE    = '_balikovna_contents_value';
+	const META_UNIT_WEIGHT      = '_balikovna_unit_weight_kg';
+	const META_DATA_VERSION     = '_balikovna_data_version';
+	const META_PARCEL_TYPE      = 'balikovna_parcel_type';
+	const META_TRACKING_NUMBER  = '_balikovna_tracking_number';
+	const TRACKING_NONCE_ACTION = 'balikovna_save_tracking_numbers';
+	const TRACKING_NONCE_NAME   = '_balikovna_tracking_nonce';
+	const DATA_VERSION          = 3;
 
 	private static $instance = null;
 
@@ -37,6 +41,7 @@ class Order {
 
 		// Admin order screen.
 		add_action( 'woocommerce_admin_order_data_after_shipping_address', array( $this, 'admin_after_shipping' ) );
+		add_action( 'woocommerce_process_shop_order_meta', array( $this, 'save_tracking_numbers' ), 35, 2 );
 
 		// Orders list column (HPOS + legacy).
 		add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_orders_column' ) );
@@ -113,17 +118,28 @@ class Order {
 			return;
 		}
 
-		$service_id = (string) $item->get_method_id();
-		$service    = Services::get( $service_id );
-		$point      = $item->get_meta( self::META_KEY, true );
+		$service_id  = (string) $item->get_method_id();
+		$service     = Services::get( $service_id );
+		$point       = $item->get_meta( self::META_KEY, true );
+		$parcel_type = strtoupper( preg_replace( '/[^A-Z0-9]/i', '', (string) $item->get_meta( self::META_PARCEL_TYPE, true ) ) );
 		if ( ! $service || empty( $service['pickup'] ) || ! is_array( $point ) || ! Points::matches_service( $point, $service_id ) ) {
 			$item->delete_meta_data( self::META_KEY );
+		}
+		if ( $service && $parcel_type ) {
+			$allowed_types = ! empty( $service['service_code_options'] )
+				? (array) $service['service_code_options']
+				: array( (string) ( $service['service_code'] ?? '' ) );
+			if ( ! in_array( $parcel_type, $allowed_types, true ) ) {
+				$item->delete_meta_data( self::META_PARCEL_TYPE );
+			}
 		}
 		if ( ! $service ) {
 			$item->delete_meta_data( self::META_PACKAGE_KEY );
 			$item->delete_meta_data( self::META_RATE_ID );
 			$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
 			$item->delete_meta_data( self::META_PACKAGE_VALUE );
+			$item->delete_meta_data( self::META_PARCEL_TYPE );
+			$item->delete_meta_data( self::META_TRACKING_NUMBER );
 			$item->delete_meta_data( self::META_DATA_VERSION );
 		}
 	}
@@ -164,6 +180,8 @@ class Order {
 				$item->delete_meta_data( self::META_RATE_ID );
 				$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
 				$item->delete_meta_data( self::META_PACKAGE_VALUE );
+				$item->delete_meta_data( self::META_PARCEL_TYPE );
+				$item->delete_meta_data( self::META_TRACKING_NUMBER );
 				$item->delete_meta_data( self::META_DATA_VERSION );
 				$item->save();
 				continue;
@@ -225,23 +243,29 @@ class Order {
 				continue;
 			}
 
-			$point = $item->get_meta( self::META_KEY, true );
-			$point = is_array( $point ) && Points::matches_service( $point, $service_id ) ? Points::sanitize( $point ) : array();
+			$point       = $item->get_meta( self::META_KEY, true );
+			$point       = is_array( $point ) && Points::matches_service( $point, $service_id ) ? Points::sanitize( $point ) : array();
+			$parcel_type = strtoupper( preg_replace( '/[^A-Z0-9]/i', '', (string) $item->get_meta( self::META_PARCEL_TYPE, true ) ) );
+			if ( '' === $parcel_type ) {
+				$parcel_type = (string) ( $service['service_code'] ?? '' );
+			}
 			if ( $allow_legacy && ! $point && ! $legacy_used && $legacy_service === $service_id && is_array( $legacy_point ) ) {
 				$point       = Points::sanitize( $legacy_point );
 				$legacy_used = true;
 			}
 
 			$shipments[] = array(
-				'item'          => $item,
-				'serviceId'     => $service_id,
-				'service'       => $service,
-				'point'         => $point,
-				'packageKey'    => (string) $item->get_meta( self::META_PACKAGE_KEY, true ),
-				'rateId'        => self::shipping_item_rate_id( $item ),
-				'weightKg'      => (string) $item->get_meta( self::META_PACKAGE_WEIGHT, true ),
-				'contentsValue' => (string) $item->get_meta( self::META_PACKAGE_VALUE, true ),
-				'serviceCodes'  => (string) $item->get_meta( 'balikovna_service_codes', true ),
+				'item'           => $item,
+				'serviceId'      => $service_id,
+				'service'        => $service,
+				'point'          => $point,
+				'packageKey'     => (string) $item->get_meta( self::META_PACKAGE_KEY, true ),
+				'rateId'         => self::shipping_item_rate_id( $item ),
+				'weightKg'       => (string) $item->get_meta( self::META_PACKAGE_WEIGHT, true ),
+				'contentsValue'  => (string) $item->get_meta( self::META_PACKAGE_VALUE, true ),
+				'parcelType'     => $parcel_type,
+				'trackingNumber' => self::sanitize_tracking_number( $item->get_meta( self::META_TRACKING_NUMBER, true ) ),
+				'serviceCodes'   => (string) $item->get_meta( 'balikovna_service_codes', true ),
 			);
 		}
 
@@ -343,15 +367,97 @@ class Order {
 		return implode( "\n", $lines );
 	}
 
+	public static function sanitize_tracking_number( $tracking_number ) {
+		$tracking_number = strtoupper( sanitize_text_field( (string) $tracking_number ) );
+		$tracking_number = preg_replace( '/[\s-]+/', '', $tracking_number );
+		return is_string( $tracking_number ) && preg_match( '/^[A-Z0-9]{6,35}$/', $tracking_number )
+			? $tracking_number
+			: '';
+	}
+
+	public static function tracking_url( $tracking_number ) {
+		$tracking_number = self::sanitize_tracking_number( $tracking_number );
+		if ( '' === $tracking_number ) {
+			return '';
+		}
+		$url = add_query_arg(
+			'parcelNumbers',
+			$tracking_number,
+			'https://www.postaonline.cz/trackandtrace/-/zasilka/cislo'
+		);
+		return (string) apply_filters( 'balikovna_wc_tracking_url', $url, $tracking_number );
+	}
+
 	public function admin_after_shipping( $order ) {
-		$shipments = self::point_shipments( $order );
+		$shipments = self::get_shipments( $order );
 		if ( ! $shipments ) {
 			return;
 		}
-		echo '<p><strong>' . esc_html__( 'Česká pošta - výdejní místa', 'balikovna-wc' ) . ':</strong></p>';
-		foreach ( $shipments as $shipment ) {
-			echo '<p><strong>' . esc_html( $shipment['service']['label'] ) . ':</strong><br>';
-			echo nl2br( esc_html( self::format_point( $shipment['point'] ) ) ) . '</p>';
+		wp_nonce_field( self::TRACKING_NONCE_ACTION, self::TRACKING_NONCE_NAME );
+		echo '<p><strong>' . esc_html__( 'Česká pošta - zásilky', 'balikovna-wc' ) . ':</strong></p>';
+		foreach ( $shipments as $shipment_index => $shipment ) {
+			$shipment_label = sprintf(
+				/* translators: 1: shipping service name, 2: shipment sequence number. */
+				__( '%1$s - zásilka %2$d', 'balikovna-wc' ),
+				$shipment['service']['label'],
+				$shipment_index + 1
+			);
+			echo '<p><strong>' . esc_html( $shipment_label ) . ':</strong><br>';
+			if ( ! empty( $shipment['point']['id'] ) ) {
+				echo nl2br( esc_html( self::format_point( $shipment['point'] ) ) ) . '<br>';
+			}
+			$item_id = absint( $shipment['item']->get_id() );
+			if ( $item_id ) {
+				$field_id = 'balikovna-tracking-' . $item_id;
+				echo '<label for="' . esc_attr( $field_id ) . '">' . esc_html__( 'Podací číslo', 'balikovna-wc' ) . ':</label><br>';
+				echo '<input type="text" class="short" id="' . esc_attr( $field_id ) . '" name="balikovna_tracking_numbers[' . esc_attr( (string) $item_id ) . ']" value="' . esc_attr( $shipment['trackingNumber'] ) . '" maxlength="35" autocomplete="off">';
+			}
+			if ( $shipment['trackingNumber'] ) {
+				echo '<br><a href="' . esc_url( self::tracking_url( $shipment['trackingNumber'] ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Sledovat zásilku', 'balikovna-wc' ) . '</a>';
+			}
+			echo '</p>';
+		}
+	}
+
+	public function save_tracking_numbers( $order_id, $order_or_post = null ) {
+		$nonce = isset( $_POST[ self::TRACKING_NONCE_NAME ] )
+			? sanitize_text_field( wp_unslash( $_POST[ self::TRACKING_NONCE_NAME ] ) )
+			: '';
+		if ( ! $nonce || ! wp_verify_nonce( $nonce, self::TRACKING_NONCE_ACTION ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		$order = $order_or_post instanceof \WC_Order ? $order_or_post : wc_get_order( $order_id );
+		if ( ! $order ) {
+			return;
+		}
+		$posted = isset( $_POST['balikovna_tracking_numbers'] ) && is_array( $_POST['balikovna_tracking_numbers'] )
+			? map_deep( wp_unslash( $_POST['balikovna_tracking_numbers'] ), 'sanitize_text_field' )
+			: array();
+		foreach ( self::get_shipments( $order ) as $shipment ) {
+			$item    = $shipment['item'];
+			$item_id = (string) absint( $item->get_id() );
+			if ( '0' === $item_id || ! array_key_exists( $item_id, $posted ) ) {
+				continue;
+			}
+			$raw = sanitize_text_field( (string) $posted[ $item_id ] );
+			if ( '' === trim( $raw ) ) {
+				$item->delete_meta_data( self::META_TRACKING_NUMBER );
+				$item->save();
+				continue;
+			}
+			$tracking_number = self::sanitize_tracking_number( $raw );
+			if ( '' === $tracking_number ) {
+				if ( class_exists( '\\WC_Admin_Meta_Boxes' ) ) {
+					\WC_Admin_Meta_Boxes::add_error( __( 'Podací číslo smí obsahovat pouze písmena a číslice.', 'balikovna-wc' ) );
+				}
+				continue;
+			}
+			$item->update_meta_data( self::META_TRACKING_NUMBER, $tracking_number );
+			$item->save();
 		}
 	}
 
@@ -360,11 +466,11 @@ class Order {
 		foreach ( $columns as $k => $v ) {
 			$new[ $k ] = $v;
 			if ( 'shipping_address' === $k ) {
-				$new['balikovna'] = __( 'Balíkovna', 'balikovna-wc' );
+				$new['balikovna'] = __( 'Česká pošta', 'balikovna-wc' );
 			}
 		}
 		if ( ! isset( $new['balikovna'] ) ) {
-			$new['balikovna'] = __( 'Balíkovna', 'balikovna-wc' );
+			$new['balikovna'] = __( 'Česká pošta', 'balikovna-wc' );
 		}
 		return $new;
 	}
@@ -374,8 +480,13 @@ class Order {
 			return;
 		}
 		$names = array();
-		foreach ( self::point_shipments( $order ) as $shipment ) {
-			$names[] = $shipment['point']['name'];
+		foreach ( self::get_shipments( $order ) as $shipment ) {
+			if ( ! empty( $shipment['point']['name'] ) ) {
+				$names[] = $shipment['point']['name'];
+			}
+			if ( $shipment['trackingNumber'] ) {
+				$names[] = $shipment['trackingNumber'];
+			}
 		}
 		echo esc_html( $names ? implode( ', ', $names ) : '—' );
 	}
@@ -391,15 +502,21 @@ class Order {
 	}
 
 	public function email_after_order_table( $order, $sent_to_admin, $plain_text, $email ) {
-		$shipments = self::point_shipments( $order );
+		$shipments = self::visible_shipments( $order );
 		if ( ! $shipments ) {
 			return;
 		}
 		if ( $plain_text ) {
-			echo "\n\n" . wp_strip_all_tags( __( 'Česká pošta - výdejní místa', 'balikovna-wc' ) ) . ":\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain-text email; HTML escaping would expose entities.
+			echo "\n\n" . wp_strip_all_tags( __( 'Česká pošta - zásilky', 'balikovna-wc' ) ) . ":\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain-text email; HTML escaping would expose entities.
 			foreach ( $shipments as $shipment ) {
 				echo wp_strip_all_tags( $shipment['service']['label'] ) . ":\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain-text email; value is stripped of HTML.
-				echo wp_strip_all_tags( self::format_point( $shipment['point'] ) ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain-text email; value is stripped of HTML.
+				if ( ! empty( $shipment['point']['id'] ) ) {
+					echo wp_strip_all_tags( self::format_point( $shipment['point'] ) ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain-text email; value is stripped of HTML.
+				}
+				if ( $shipment['trackingNumber'] ) {
+					echo wp_strip_all_tags( __( 'Podací číslo', 'balikovna-wc' ) ) . ': ' . $shipment['trackingNumber'] . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Validated alphanumeric tracking number.
+					echo wp_strip_all_tags( __( 'Sledování zásilky', 'balikovna-wc' ) ) . ': ' . self::tracking_url( $shipment['trackingNumber'] ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- URL is generated from a validated tracking number.
+				}
 			}
 			return;
 		}
@@ -407,7 +524,7 @@ class Order {
 	}
 
 	public function order_details( $order ) {
-		$shipments = self::point_shipments( $order );
+		$shipments = self::visible_shipments( $order );
 		if ( ! $shipments ) {
 			return;
 		}
@@ -425,11 +542,32 @@ class Order {
 		);
 	}
 
+	private static function visible_shipments( \WC_Order $order ) {
+		return array_values(
+			array_filter(
+				self::get_shipments( $order ),
+				function ( $shipment ) {
+					return ! empty( $shipment['point']['id'] ) || ! empty( $shipment['trackingNumber'] );
+				}
+			)
+		);
+	}
+
 	private function render_points_html( array $shipments ) {
-		echo '<h2>' . esc_html__( 'Česká pošta - výdejní místa', 'balikovna-wc' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Česká pošta - zásilky', 'balikovna-wc' ) . '</h2>';
 		foreach ( $shipments as $shipment ) {
 			echo '<p><strong>' . esc_html( $shipment['service']['label'] ) . ':</strong><br>';
-			echo nl2br( esc_html( self::format_point( $shipment['point'] ) ) ) . '</p>';
+			if ( ! empty( $shipment['point']['id'] ) ) {
+				echo nl2br( esc_html( self::format_point( $shipment['point'] ) ) );
+			}
+			if ( $shipment['trackingNumber'] ) {
+				if ( ! empty( $shipment['point']['id'] ) ) {
+					echo '<br>';
+				}
+				echo '<strong>' . esc_html__( 'Podací číslo', 'balikovna-wc' ) . ':</strong> ' . esc_html( $shipment['trackingNumber'] );
+				echo '<br><a href="' . esc_url( self::tracking_url( $shipment['trackingNumber'] ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Sledovat zásilku', 'balikovna-wc' ) . '</a>';
+			}
+			echo '</p>';
 		}
 	}
 }

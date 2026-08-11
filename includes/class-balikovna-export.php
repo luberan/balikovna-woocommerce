@@ -182,7 +182,7 @@ class Export {
 			$service_id   = $shipment['serviceId'];
 			$service      = $shipment['service'];
 			$point        = $shipment['point'];
-			$service_code = (string) ( $service['service_code'] ?? '' );
+			$service_code = (string) $shipment['parcelType'];
 			if ( '' === $service_code ) {
 				return $this->order_error( $order, __( 'nemá nastavený typ zásilky pro Podání Online.', 'balikovna-wc' ) );
 			}

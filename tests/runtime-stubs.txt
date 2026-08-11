@@ -18,9 +18,13 @@ function __( $text, $domain = null ) { return $text; }
 function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
 function sanitize_text_field( $value ) { return trim( preg_replace( '/[\x00-\x1F\x7F]/u', '', strip_tags( (string) $value ) ) ); }
 function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) ); }
+function absint( $value ) { return abs( (int) $value ); }
 function is_email( $value ) { return false !== filter_var( $value, FILTER_VALIDATE_EMAIL ); }
 function wc_clean( $value ) { return is_array( $value ) ? array_map( 'wc_clean', $value ) : sanitize_text_field( $value ); }
+function map_deep( $value, $callback ) { return is_array( $value ) ? array_map( function ( $item ) use ( $callback ) { return map_deep( $item, $callback ); }, $value ) : call_user_func( $callback, $value ); }
 function wp_unslash( $value ) { return $value; }
+function wp_verify_nonce( $nonce, $action ) { return 'valid-nonce' === $nonce; }
+function current_user_can() { return true; }
 function get_transient( $key ) { return $GLOBALS['balikovna_test_transients'][ $key ] ?? false; }
 function set_transient( $key, $value, $expiration ) { $GLOBALS['balikovna_test_transients'][ $key ] = $value; return true; }
 function get_option( $key, $default = false ) { return $GLOBALS['balikovna_test_options'][ $key ] ?? $default; }
@@ -42,8 +46,9 @@ class WC_Shipping_Method {
 	public function get_option( $key, $default = '' ) { return $this->options[ $key ] ?? $default; }
 }
 class WC_Order_Item_Shipping {
-	private $method_id; private $instance_id; private $meta;
-	public function __construct( $method_id = '', $instance_id = '', array $meta = array() ) { $this->method_id = $method_id; $this->instance_id = $instance_id; $this->meta = $meta; }
+	private $method_id; private $instance_id; private $meta; private $id;
+	public function __construct( $method_id = '', $instance_id = '', array $meta = array(), $id = 0 ) { $this->method_id = $method_id; $this->instance_id = $instance_id; $this->meta = $meta; $this->id = $id; }
+	public function get_id() { return $this->id; }
 	public function get_method_id() { return $this->method_id; }
 	public function get_instance_id() { return $this->instance_id; }
 	public function get_meta( $key, $single = true ) { return $this->meta[ $key ] ?? ''; }

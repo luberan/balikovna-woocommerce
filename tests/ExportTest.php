@@ -195,4 +195,38 @@ final class ExportTest extends TestCase {
 		$this->assertInstanceOf( WP_Error::class, $result );
 		$this->assertStringContainsString( 'CZK', $result->get_error_message() );
 	}
+
+	public function test_balikovna_plus_uses_snapshotted_contract_parcel_type(): void {
+		$item = new WC_Order_Item_Shipping(
+			'balikovna_plus',
+			'4',
+			array(
+				Balikovna_WC\Order::META_PACKAGE_WEIGHT => '20',
+				Balikovna_WC\Order::META_PACKAGE_VALUE  => '1000',
+				Balikovna_WC\Order::META_PARCEL_TYPE    => 'DE',
+				Balikovna_WC\Order::META_DATA_VERSION   => Balikovna_WC\Order::DATA_VERSION,
+			)
+		);
+		$order = new WC_Order(
+			array( $item ),
+			array(),
+			array(
+				'shipping_address_1' => 'Customer street 1',
+				'shipping_postcode'  => '60200',
+				'shipping_city'      => 'Brno',
+				'shipping_country'   => 'CZ',
+				'shipping_first_name' => 'Jan',
+				'shipping_last_name' => 'Novak',
+				'billing_email'      => 'customer@example.test',
+				'billing_phone'      => '+420777123456',
+				'currency'           => 'CZK',
+				'order_number'       => '127',
+			)
+		);
+
+		$rows = ( new Balikovna_Test_Export() )->rows( $order );
+
+		$this->assertIsArray( $rows );
+		$this->assertSame( 'DE', $rows[0][12] );
+	}
 }

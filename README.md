@@ -4,15 +4,16 @@
 [![Latest Release](https://badgen.net/github/release/luberan/balikovna-woocommerce/stable)](https://github.com/luberan/balikovna-woocommerce/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-Open-source WooCommerce plugin pro integraci služeb **České pošty** – Balíkovna, Balík na adresu, Balík Do ruky a Balík Na poštu.
+Open-source WooCommerce plugin pro integraci služeb **České pošty** – Balíkovna, Balík na adresu, Balíkovna plus, Balík Do ruky a Balík Na poštu.
 
 Komunikace s výdejními místy probíhá přes oficiální widget České pošty (`b2c.cpost.cz/locations`). Plugin nastavuje stabilní `messageId=pickerResult` a pro zpětnou kompatibilitu přijímá také historickou hodnotu `pickResult`.
 
 ## Funkce
 
-- Čtyři shipping metody:
+- Pět shipping metod:
   - **Balíkovna** – výdejní místa včetně partnerských míst a samoobslužných boxů
   - **Balík na adresu (Balíkovna)** – doručení produktu Balíkovna na adresu
+  - **Balíkovna plus** – větší a těžší zásilky na adresu; standardně do 31,5 kg, smluvně do 50 kg
   - **Balík Do ruky** – doručení na adresu
   - **Balík Na poštu** – doručení na vybranou pobočku České pošty
 - **Výběr výdejního místa** přes oficiální widget v přístupném modálním okně (parametry `type=BALIKOVNY|POST_OFFICE`, `skipLocation=false`, volitelně `phone=true`); vrácený telefon doplní chybějící `billing_phone`
@@ -24,6 +25,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 - Checkout pro Balíkovnu vyžaduje platný e-mail a české mobilní číslo s předvolbou `+420` nebo `00420`
 - **Kódy služeb ČP** (CSV sloupec I) konfigurovatelné per metoda v admin nastavení
 - Uložení místa k objednávce, sloupec v přehledu objednávek, zobrazení v e-mailech a na stránce „Děkujeme"
+- Ruční **podací číslo** pro každou zásilku České pošty; odkaz na oficiální Track & Trace v administraci, zákaznickém e-mailu a detailu objednávky
 - Hromadný **CSV export pro Podání Online** – jeden řádek pro každou zásilku, formát sloupců A–O, Windows-1250, středník
   - Pro typ NB (Balíkovna): adresa `Balíkova` + ID balíkovny v PSČ dle pokynů ČP
   - Pro typ NP (Balík Na poštu): adresa, PSČ a město vybrané pošty
@@ -61,7 +63,7 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
 
 ## Konfigurace
 
-1. WooCommerce → Nastavení → Doprava → vyberte zónu → **Přidat dopravu** → zvolte jednu ze čtyř služeb ČP.
+1. WooCommerce → Nastavení → Doprava → vyberte zónu → **Přidat dopravu** → zvolte jednu z pěti služeb ČP.
 2. Editujte metodu a nastavte:
    - **Název** zobrazený zákazníkovi
    - **Typ ceny** (fixní / podle hmotnosti)
@@ -69,8 +71,10 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
    - **Zdarma od částky** (volitelně, vyhodnocuje se z celého košíku)
    - **Kódy služeb ČP** (např. `7+45+S+41` – dle označení ve vaší smlouvě s ČP; použije se ve sloupci I exportu)
    - U produktů používaných s Balíkovnou vyplňte hmotnost, délku, šířku a výšku; neúplný nebo nadlimitní balík se nenabídne.
+    - U Balíkovny plus vyberte smluvní **typ zásilky DR/DV/DE** a limit 31,5 nebo 50 kg. Limit 50 kg zapněte pouze při sjednané smlouvě; žádná strana nesmí překročit 200 cm a součet tří rozměrů 300 cm.
 3. Zákazníci ve checkoutu uvidí novou shipping metodu; u Balíkovny a Balíku Na poštu kliknou „Vybrat výdejní místo" → vybere v iframe widgetu → potvrdí objednávku.
-4. V přehledu objednávek (WC → Objednávky) je hromadná akce **Export Balíkovna (CSV Podání Online)**.
+4. V detailu objednávky lze ke každému shipping itemu České pošty zadat **podací číslo**. Uloží se před změnou stavu objednávky, takže jej následně odeslaný e-mail obsahuje spolu s odkazem Track & Trace.
+5. V přehledu objednávek (WC → Objednávky) je hromadná akce **Export Balíkovna (CSV Podání Online)**.
 
 ## Filtry pro vývojáře
 
@@ -87,6 +91,7 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
 | `balikovna_wc_default_subject` | Default hodnota sloupce N v CSV (`F` = fyzická osoba, `P` = právnická) |
 | `balikovna_wc_valid_recipient_phone` | Vlastní ověření normalizovaného telefonu příjemce |
 | `balikovna_wc_recipient_contact_errors` | Úprava výsledných chyb kontaktu pro zvolené služby |
+| `balikovna_wc_tracking_url` | Úprava Track & Trace URL (`$url, $tracking_number`) |
 | `balikovna_wc_debug` | Vynucený diagnostický mód i bez `WP_DEBUG` |
 | `balikovna_wc_point_validation_result` | Vlastní validační výsledek pobočky; `null` ponechá výchozí ověření |
 | `balikovna_wc_points_directory` | Vlastní kanonický seznam poboček pro daný typ |
@@ -118,15 +123,14 @@ Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta
 ## Rozsah a známá omezení
 
 - Plugin aktuálně končí vytvořením objednávky a CSV pro Podání Online; zásilku automaticky nezakládá u České pošty.
-- Není implementována Balíkovna plus, B2B-ZSK nAPI autentizace a podání, tisk štítků, tracking, storna, vratky ani podací reporty.
+- Není implementována B2B-ZSK nAPI autentizace a podání, tisk štítků, automatická synchronizace stavů, storna, vratky ani podací reporty. Tracking je pouze odkaz z ručně zadaného podacího čísla.
 - Produktové prefixy a kódy doplňkových služeb závisejí na smlouvě odesílatele a musí odpovídat jeho konfiguraci Podání Online.
 - Veřejně dostupný JSON seznam bodů funguje se současným widgetem, ale není publikovaný jako verzované veřejné API; plugin toto riziko omezuje validací, cache limitem a možností nahradit zdroj filtrem.
 
 ## Roadmap
 
-- [ ] Balíkovna plus včetně jejích hmotnostních, rozměrových a doplňkových variant
 - [ ] B2B-ZSK nAPI – HMAC autentizace, idempotentní vytvoření zásilek a uložení podacích kódů
-- [ ] Tisk PDF štítků, tracking, storna a podací reporty
+- [ ] Tisk PDF štítků, automatická synchronizace stavů, storna a podací reporty
 - [ ] Vratky a související B2B workflow
 - [ ] Alternativní picker až nad stabilním a dokumentovaným číselníkem výdejních míst
 - [ ] Reálné end-to-end testy Classic/Block Checkoutu, pay-for-order a HPOS

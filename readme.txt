@@ -9,11 +9,12 @@ Stable tag: 1.26.7
 <!-- x-release-please-end -->
 License: GPLv3 or later
 
-Integrace České pošty (Balíkovna, Balík na adresu, Balík Do ruky, Balík Na poštu) do WooCommerce: shipping metody, výběr výdejního místa přes oficiální widget, ukládání k objednávce, e-maily, admin a CSV export pro Podání Online.
+Integrace České pošty (Balíkovna, Balík na adresu, Balíkovna plus, Balík Do ruky, Balík Na poštu) do WooCommerce: shipping metody, výdejní místa, ruční Track & Trace a CSV export pro Podání Online.
 
 == Description ==
 
-* Shipping metody **Balíkovna**, **Balík na adresu (Balíkovna)**, **Balík Do ruky**, **Balík Na poštu** s podporou shipping zón.
+* Shipping metody **Balíkovna**, **Balík na adresu (Balíkovna)**, **Balíkovna plus**, **Balík Do ruky**, **Balík Na poštu** s podporou shipping zón.
+* Balíkovna plus standardně do 31,5 kg, smluvně do 50 kg; nejdelší strana do 200 cm a součet rozměrů do 300 cm.
 * Cenotvorba: fixní cena, váhová tabulka (`max_kg|cena`), volitelný práh „zdarma od" z mezisoučtu celého košíku napříč shipping packages.
 * Produkty Balíkovna se nabízejí jen pro CZ zásilky do 15 kg a 50 × 50 × 50 cm; produkty musí mít vyplněnou hmotnost a rozměry.
 * Checkout pro Balíkovnu vyžaduje platný e-mail a české mobilní číslo s předvolbou země.
@@ -21,6 +22,7 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balík Do ruky, Balík N
 * Serverové ověření ID a typu pobočky proti kanonickému seznamu ČP; samostatný výběr pro každý shipping package.
 * Podpora **klasického shortcode checkoutu** i **Block Checkoutu** (Store API rozšíření).
 * Uložení zvoleného místa k objednávce, zobrazení v adminu, v e-mailech (zákazník i admin) a na stránce Děkujeme / Můj účet.
+* Ruční podací číslo per shipping item a oficiální Track & Trace odkaz v administraci, e-mailu a detailu objednávky.
 * Sloupec **Balíkovna** v přehledu objednávek (HPOS i klasické).
 * Hromadná akce **Export Balíkovna (CSV Podání Online)** v přehledu objednávek - CSV ve Windows-1250, středník jako oddělovač, per-package hmotnost a hodnota obsahu, atomická validace všech řádků.
 * HPOS ready, kompatibilní s `cart_checkout_blocks`.
@@ -30,9 +32,10 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balík Do ruky, Balík N
 
 == Konfigurace ==
 
-1. WooCommerce → Nastavení → Doprava → vyberte zónu → **Přidat dopravu** → vyberte službu ČP.
-2. Nastavte název, typ ceny, případně váhovou tabulku nebo práh dopravy zdarma.
+1. WooCommerce → Nastavení → Doprava → vyberte zónu → **Přidat dopravu** → vyberte jednu z pěti služeb ČP.
+2. Nastavte název, typ ceny, případně váhovou tabulku nebo práh dopravy zdarma. U Balíkovny plus nastavte smluvní prefix DR/DV/DE a limit 31,5 nebo 50 kg.
 3. Zákazník v checkoutu zvolí službu ČP a klikne na „Vybrat výdejní místo" (u Balíkovny / Balíku Na poštu).
+4. Po podání zásilky zadejte v detailu objednávky její podací číslo; následující zákaznický e-mail bude obsahovat Track & Trace odkaz.
 
 == Filtry pro vývojáře ==
 
@@ -47,6 +50,7 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balík Do ruky, Balík N
 * `balikovna_wc_default_subject` - default Subjekt v CSV (`F` = fyzická, `P` = právnická).
 * `balikovna_wc_valid_recipient_phone` - vlastní ověření normalizovaného telefonu příjemce.
 * `balikovna_wc_recipient_contact_errors` - úprava výsledných chyb kontaktu pro zvolené služby.
+* `balikovna_wc_tracking_url` - úprava Track & Trace URL (`$url`, `$tracking_number`).
 * `balikovna_wc_debug` - vynucený diagnostický mód i bez `WP_DEBUG`.
 * `balikovna_wc_point_validation_result` - vlastní validační výsledek pobočky.
 * `balikovna_wc_points_directory` - vlastní kanonický seznam poboček pro daný typ.
@@ -65,14 +69,13 @@ Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta
 == Známá omezení ==
 
 * Plugin aktuálně vytváří objednávku a CSV pro Podání Online; zásilku automaticky nezakládá u České pošty.
-* Není implementována Balíkovna plus, B2B-ZSK nAPI, tisk štítků, tracking, storna, vratky ani podací reporty.
+* Není implementováno B2B-ZSK nAPI, tisk štítků, automatická synchronizace stavů, storna, vratky ani podací reporty. Tracking používá ručně zadané podací číslo.
 * Kódy produktů a doplňkových služeb musí odpovídat smlouvě a konfiguraci Podání Online.
 * Automatické testy používají runtime stuby a nenahrazují browserový end-to-end test na skutečné instalaci WooCommerce.
 
 == Roadmap ==
 
-* Balíkovna plus.
-* B2B-ZSK nAPI - vytvoření zásilek, tisk štítků, tracking, storna a reporty.
+* B2B-ZSK nAPI - vytvoření zásilek, tisk štítků, automatické stavy, storna a reporty.
 * Vratky a související B2B workflow.
 * Alternativní picker až nad stabilním a dokumentovaným číselníkem výdejních míst.
 * Reálné end-to-end testy Classic/Block Checkoutu, pay-for-order a HPOS.
