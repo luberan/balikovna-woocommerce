@@ -10,6 +10,7 @@ namespace Balikovna_WC;
 defined( 'ABSPATH' ) || exit;
 
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-services.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-points.php';
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-checkout.php';
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-order.php';
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-export.php';

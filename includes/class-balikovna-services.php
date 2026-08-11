@@ -25,28 +25,28 @@ class Services {
 		return apply_filters(
 			'balikovna_wc_services',
 			array(
-				'balikovna'             => array(
+				'balikovna'           => array(
 					'label'        => __( 'Balík do Balíkovny', 'balikovna-wc' ),
 					'description'  => __( 'Doručení na výdejní místo Balíkovna.', 'balikovna-wc' ),
 					'pickup'       => 'BALIKOVNY',
 					'service_code' => 'NB', // Na Balíkovnu (dle CSV šablony Podání Online).
 					'logo'         => 'logo-balikovna.svg',
 				),
-				'balikovna_na_adresu'   => array(
+				'balikovna_na_adresu' => array(
 					'label'        => __( 'Balík na adresu (Balíkovna)', 'balikovna-wc' ),
 					'description'  => __( 'Doručení na adresu zákazníka v rámci produktu Balíkovna.', 'balikovna-wc' ),
 					'pickup'       => false,
 					'service_code' => 'NA', // Na Adresu (Balíkovna).
 					'logo'         => 'logo-balikovna.svg',
 				),
-				'cp_do_ruky'            => array(
+				'cp_do_ruky'          => array(
 					'label'        => __( 'Balík Do ruky', 'balikovna-wc' ),
 					'description'  => __( 'Doručení balíku na adresu zákazníka (Česká pošta).', 'balikovna-wc' ),
 					'pickup'       => false,
 					'service_code' => 'DR', // Do Ruky.
 					'logo'         => 'logo-cp.svg',
 				),
-				'cp_na_postu'           => array(
+				'cp_na_postu'         => array(
 					'label'        => __( 'Balík Na poštu', 'balikovna-wc' ),
 					'description'  => __( 'Doručení na vybranou pobočku České pošty.', 'balikovna-wc' ),
 					'pickup'       => 'POST_OFFICE',

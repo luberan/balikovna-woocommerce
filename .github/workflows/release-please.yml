@@ -7,26 +7,32 @@ on:
   # resulting merge commit didn't trigger a fresh `push` event (GitHub's
   # anti-loop protection: events from GITHUB_TOKEN don't trigger workflows).
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag whose missing ZIP should be built
+        required: false
+        type: string
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   release-please:
+    if: inputs.release_tag == ''
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
         with:
-          # Use a PAT so events created by this action (PR merges, tag pushes)
-          # DO trigger subsequent workflow runs. With the default GITHUB_TOKEN,
-          # the merge commit of the release PR wouldn't re-run this workflow,
-          # which is the step that creates the tag/release.
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          # Release PRs are merged manually, so the user-generated merge event
+          # starts the tag/release run without a broad personal access token.
+          token: ${{ secrets.GITHUB_TOKEN }}
           # Configuration is read from .release-please-config.json and
           # .release-please-manifest.json in the repo root.
           config-file: .release-please-config.json
@@ -41,76 +47,71 @@ jobs:
     name: Build plugin ZIP and attach to release
     runs-on: ubuntu-latest
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: always() && (needs.release-please.outputs.release_created == 'true' || inputs.release_tag != '')
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # The release-please job has already pushed a tag and updated the
           # working files. Check out that tag explicitly so the ZIP contains
           # the bumped version, not the pre-bump main.
-          ref: ${{ needs.release-please.outputs.tag_name }}
+          ref: ${{ inputs.release_tag || needs.release-please.outputs.tag_name }}
+          path: source
+
+      - name: Check out current build tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          path: tooling
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: "8.5"
+          coverage: none
 
       - name: Build plugin ZIP
         run: |
-          # Stage the plugin into a folder named exactly like the plugin slug
-          # (no version suffix) so WordPress can update it in place.
           PLUGIN_SLUG="balikovna-woocommerce"
-          mkdir -p "build/${PLUGIN_SLUG}"
-
-          rsync -a \
-            --exclude='/.git' \
-            --exclude='/.github' \
-            --exclude='/.gitignore' \
-            --exclude='/.release-please-config.json' \
-            --exclude='/.release-please-manifest.json' \
-            --exclude='/build' \
-            --exclude='/node_modules' \
-            --exclude='/vendor' \
-            --exclude='/tests' \
-            --exclude='/CONTRIBUTING.md' \
-            --exclude='/SECURITY.md' \
-            --exclude='/CHANGELOG.md' \
-            --exclude='/Balikovna.postman_collection.json' \
-            --exclude='*.zip' \
-            ./ "build/${PLUGIN_SLUG}/"
-
-          # Sanity check: bundled PUC's vendor/ (Parsedown) MUST be included.
-          test -f "build/${PLUGIN_SLUG}/includes/lib/plugin-update-checker/vendor/Parsedown.php" \
-            || (echo "::error::Parsedown.php missing from ZIP" && exit 1)
+          if [ -f source/CHANGELOG.md ]; then
+            php tooling/.github/scripts/normalize-changelog.php source/CHANGELOG.md
+          fi
+          php tooling/.github/scripts/build-plugin.php source
 
           # Replace the static '== Changelog ==' section in readme.txt with
           # the full history converted from CHANGELOG.md (managed by
           # release-please). Plugin Update Checker reads this section and
           # displays it under "View version details" in WP admin.
-          if [ -f CHANGELOG.md ]; then
-            python3 .github/scripts/changelog-to-readme.py \
-              CHANGELOG.md "build/${PLUGIN_SLUG}/readme.txt"
+          if [ -f source/CHANGELOG.md ]; then
+            php tooling/.github/scripts/changelog-to-readme.php \
+              source/CHANGELOG.md "source/build/${PLUGIN_SLUG}/readme.txt"
           fi
 
-          cd build
+          cd source/build
+          rm -f "${PLUGIN_SLUG}.zip"
           zip -r "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
           ls -la
 
       - name: Upload ZIP to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag || needs.release-please.outputs.tag_name }}
         run: |
-          gh release upload "${{ needs.release-please.outputs.tag_name }}" \
-            "build/balikovna-woocommerce.zip" --clobber
+          gh release upload "$RELEASE_TAG" "source/build/balikovna-woocommerce.zip"
 
       - name: Sync readme.txt changelog back to main
+        if: needs.release-please.outputs.release_created == 'true'
+        working-directory: tooling
         # Plugin Update Checker fetches readme.txt from the main branch (not
         # from the installed ZIP) to render "View version details" in WP
         # admin. Without this commit, users would always see only v1.0.0
         # changelog in WP admin even though the ZIP itself has full history.
         run: |
           set -e
-          # Re-check out main so we commit on top of the latest state
-          # (release-please has already pushed its bump commit).
-          git fetch origin main
-          git checkout main
+          # The tooling checkout tracks main; update it in case another commit
+          # landed while the release asset was being built.
           git pull --ff-only origin main
 
           if [ ! -f CHANGELOG.md ]; then
@@ -118,7 +119,7 @@ jobs:
             exit 0
           fi
 
-          python3 .github/scripts/changelog-to-readme.py \
+          php .github/scripts/changelog-to-readme.php \
             CHANGELOG.md readme.txt
 
           if git diff --quiet readme.txt; then

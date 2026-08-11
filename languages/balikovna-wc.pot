@@ -1,12 +1,232 @@
-#: Auto-generated POT template. To regenerate, use WP-CLI:
-#:   wp i18n make-pot . languages/balikovna-wc.pot --domain=balikovna-wc
-#:
+# Translation template for Balíkovna for WooCommerce.
 msgid ""
 msgstr ""
-"Project-Id-Version: Balíkovna for WooCommerce 1.0.0\n"
-"Report-Msgid-Bugs-To: https://github.com/luberan/balikovna-woocommerce/issues\n"
+"Project-Id-Version: Balíkovna for WooCommerce 1.26.5\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/balikovna-woocommerce\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-08-11T04:56:52+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: balikovna-wc\n"
+
+#. Plugin Name of the plugin
+#: balikovna-woocommerce.php:5
+msgid "Balíkovna for WooCommerce"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: balikovna-woocommerce.php:7
+msgid "https://github.com/luberan/balikovna-woocommerce"
+msgstr ""
+
+#. Description of the plugin
+#: balikovna-woocommerce.php:9
+msgid "Integrace České pošty - Balíkovna do WooCommerce. Výběr výdejního místa v košíku, uložení k objednávce, zobrazení v adminu a emailech, CSV export pro Podání Online."
+msgstr ""
+
+#. Author of the plugin
+#: balikovna-woocommerce.php:17
+msgid "Lukáš Beran"
+msgstr ""
+
+#. Author URI of the plugin
+#: balikovna-woocommerce.php:19
+msgid "https://www.lukasberan.cz/"
+msgstr ""
+
+#. translators: %s: minimum WooCommerce version.
+#: balikovna-woocommerce.php:129
+#, php-format
+msgid "Balíkovna for WooCommerce vyžaduje aktivní WooCommerce %s nebo novější."
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:136
+#: includes/class-balikovna-checkout.php:219
+msgid "Zvolená doprava se změnila. Vyberte místo znovu."
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:168
+#: includes/class-balikovna-checkout.php:247
+msgid "Prosím zvolte výdejní místo pro každý balík."
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:213
+#: includes/class-balikovna-checkout.php:97
+msgid "Vybrat výdejní místo"
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:214
+#: includes/class-balikovna-checkout.php:98
+msgid "Změnit výdejní místo"
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:215
+#: includes/class-balikovna-checkout.php:99
+msgid "Zvolené místo:"
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:216
+#: includes/class-balikovna-checkout.php:100
+msgid "Prosím zvolte výdejní místo."
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:217
+#: includes/class-balikovna-checkout.php:101
+msgid "Výběr výdejního místa"
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:218
+#: includes/class-balikovna-checkout.php:102
+msgid "Zavřít"
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:219
+#: includes/class-balikovna-checkout.php:103
+msgid "Ukládám výdejní místo…"
+msgstr ""
+
+#: includes/class-balikovna-blocks.php:220
+#: includes/class-balikovna-checkout.php:104
+msgid "Výdejní místo se nepodařilo uložit. Zkuste to prosím znovu."
+msgstr ""
+
+#: includes/class-balikovna-checkout.php:137
+#: includes/class-balikovna-checkout.php:138
+msgid "Výdejní místo"
+msgstr ""
+
+#: includes/class-balikovna-export.php:38
+msgid "Export Balíkovna (CSV Podání Online)"
+msgstr ""
+
+#: includes/class-balikovna-order.php:337
+#: includes/class-balikovna-order.php:385
+#: includes/class-balikovna-order.php:415
+msgid "Česká pošta - výdejní místa"
+msgstr ""
+
+#: includes/class-balikovna-order.php:349
+#: includes/class-balikovna-order.php:353
+msgid "Balíkovna"
+msgstr ""
+
+#: includes/class-balikovna-points.php:40
+msgid "Vybrané výdejní místo nemá platné ID pro zvolenou dopravu."
+msgstr ""
+
+#: includes/class-balikovna-points.php:51
+msgid "Vybrané výdejní místo již není dostupné. Zvolte prosím jiné."
+msgstr ""
+
+#: includes/class-balikovna-points.php:168
+msgid "Seznam výdejních míst se nyní nepodařilo ověřit. Zkuste výběr prosím znovu."
+msgstr ""
+
+#: includes/class-balikovna-services.php:29
+msgid "Balík do Balíkovny"
+msgstr ""
+
+#: includes/class-balikovna-services.php:30
+msgid "Doručení na výdejní místo Balíkovna."
+msgstr ""
+
+#: includes/class-balikovna-services.php:36
+msgid "Balík na adresu (Balíkovna)"
+msgstr ""
+
+#: includes/class-balikovna-services.php:37
+msgid "Doručení na adresu zákazníka v rámci produktu Balíkovna."
+msgstr ""
+
+#: includes/class-balikovna-services.php:43
+msgid "Balík Do ruky"
+msgstr ""
+
+#: includes/class-balikovna-services.php:44
+msgid "Doručení balíku na adresu zákazníka (Česká pošta)."
+msgstr ""
+
+#: includes/class-balikovna-services.php:50
+msgid "Balík Na poštu"
+msgstr ""
+
+#: includes/class-balikovna-services.php:51
+msgid "Doručení na vybranou pobočku České pošty."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:71
+msgid "Název"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:73
+msgid "Název zobrazený zákazníkovi v košíku."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:78
+msgid "DPH"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:81
+msgid "Zdaněno"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:82
+msgid "Nezdaněno"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:87
+msgid "Typ ceny"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:90
+#: includes/class-balikovna-shipping-method-base.php:96
+msgid "Fixní cena"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:91
+msgid "Podle hmotnosti (tabulka)"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:98
+msgid "Použije se při typu „Fixní cena\"."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:103
+msgid "Tabulka hmotností"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:105
+msgid "Jeden řádek = \"max_hmotnost_kg|cena\". Příklad: 5|79 znamená do 5 kg cena 79. Nad nejvyšším limitem se doprava nenabídne."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:111
+msgid "Zdarma od částky"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:113
+msgid "Mezisoučet košíku (bez dopravy), od kterého je doprava zdarma. Prázdné = vypnuto."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:118
+msgid "Kódy služeb ČP (CSV sloupec I)"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:120
+msgid "Při exportu pro Podání Online se použije jako hodnota sloupce „Služby“. Formát dle označení služeb ve vaší smlouvě s ČP, např. <code>7+45+S+41</code>. Prázdné = nevyplnit."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:217
+msgid "Tabulka hmotností nesmí být prázdná."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:224
+msgid "Každý řádek tabulky musí mít formát „kladná hmotnost|nezáporná cena“."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:230
+msgid "Hmotnostní limity musí být kladné a nesmí se opakovat."
+msgstr ""

@@ -22,18 +22,18 @@ Otevřete issue typu „Feature request" s popisem use-case a alternativ, které
 
 1. Forkněte repozitář a vytvořte větev z `main` (`git checkout -b feat/short-name`).
 2. Držte se WordPress coding standards (PSR-12 pro nové soubory je také OK, ale dodržujte styl okolního kódu).
-3. PHP kód cílí na **PHP 7.4+** (testováno proti aktuální stabilní větvi 8.5), WordPress 6.0+, WooCommerce 10.8+.
+3. PHP kód cílí na **PHP 7.4+** (testováno proti aktuální stabilní větvi 8.5), WordPress 6.9+, WooCommerce 10.8+.
 4. Žádné nové runtime závislosti bez diskuse v issue.
 5. Texty viditelné uživateli vždy přes `__()` / `_e()` s textdomain `balikovna-wc` a po přidání spusťte regeneraci POT:
    ```
-   wp i18n make-pot . languages/balikovna-wc.pot --domain=balikovna-wc
+   composer pot
    ```
 6. Commit message v angličtině, imperativ, krátký první řádek (max 72 znaků), volitelně rozšířený popis.
 7. PR popíše motivaci, dopad, kompatibilitu (klasický vs. Block Checkout, HPOS) a screen/GIF u UI změn.
 
 ## Spuštění lokálně
 
-Plugin nemá build krok – stačí naklonovat do `wp-content/plugins/` libovolné lokální WordPress instalace.
+Runtime plugin nemá kompilaci assetů – stačí jej naklonovat do `wp-content/plugins/`. Release staging se skládá příkazem `composer build`.
 
 Doporučená lokální stack (libovolná z nich):
 - [wp-env](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) (`npx wp-env start`)
@@ -45,17 +45,23 @@ Pro otestování diagnostického módu zapněte v `wp-config.php`:
 define( 'WP_DEBUG', true );
 ```
 
-## Lint
+## Testy a lint
+
+Nejprve nainstalujte přesně uzamčené vývojové závislosti:
+
+```
+composer install
+```
 
 PHP syntax check (běží i v CI):
 ```
 find . -name "*.php" -not -path "./vendor/*" -not -path "./includes/lib/*" -print0 | xargs -0 -n1 php -l
 ```
 
-Volitelně PHPCS s WordPress Coding Standards:
+Regresní testy a blokující WordPress/PHPCompatibility kontrola:
 ```
-composer global require wp-coding-standards/wpcs --dev
-phpcs --standard=WordPress includes/ balikovna-woocommerce.php
+composer test
+composer lint
 ```
 
 ## Licence

@@ -3,14 +3,16 @@
  * Plugin Name: Balíkovna for WooCommerce
  * Plugin URI:  https://github.com/luberan/balikovna-woocommerce
  * Description: Integrace České pošty - Balíkovna do WooCommerce. Výběr výdejního místa v košíku, uložení k objednávce, zobrazení v adminu a emailech, CSV export pro Podání Online.
- * Version:     1.26.5 <!-- x-release-please-version -->
+ * x-release-please-start-version
+ * Version:     1.26.5
+ * x-release-please-end
  * Author:      Lukáš Beran
  * Author URI:  https://www.lukasberan.cz/
  * License:     GPL-3.0-or-later
  * Text Domain: balikovna-wc
  * Domain Path: /languages
  * Requires PHP: 7.4
- * Requires at least: 6.0
+ * Requires at least: 6.9
  * WC requires at least: 10.8
  * WC tested up to: 10.8
  *
@@ -20,6 +22,7 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'BALIKOVNA_WC_VERSION', '1.26.5' ); // x-release-please-version
+define( 'BALIKOVNA_WC_MIN_WC_VERSION', '10.8' );
 define( 'BALIKOVNA_WC_FILE', __FILE__ );
 define( 'BALIKOVNA_WC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BALIKOVNA_WC_URL', plugin_dir_url( __FILE__ ) );
@@ -59,7 +62,10 @@ add_action(
 			$checker->setBranch( 'main' );
 			$api = $checker->getVcsApi();
 			if ( $api && method_exists( $api, 'enableReleaseAssets' ) ) {
-				$api->enableReleaseAssets( '/^balikovna-woocommerce\.zip$/i' );
+				$api->enableReleaseAssets(
+					'/^balikovna-woocommerce\.zip$/i',
+					\YahnisElsts\PluginUpdateChecker\v5p7\Vcs\Api::REQUIRE_RELEASE_ASSETS
+				);
 			}
 
 			// PUC by default uses the GitHub release body (just notes for the
@@ -69,17 +75,17 @@ add_action(
 			// complete history rendered by the release workflow.
 			add_filter(
 				'puc_request_info_result-balikovna-woocommerce',
-				function ( $pluginInfo ) {
-					if ( ! is_object( $pluginInfo ) ) {
-						return $pluginInfo;
+				function ( $plugin_info ) {
+					if ( ! is_object( $plugin_info ) ) {
+						return $plugin_info;
 					}
 					$readme_path = BALIKOVNA_WC_PATH . 'readme.txt';
 					if ( ! is_readable( $readme_path ) ) {
-						return $pluginInfo;
+						return $plugin_info;
 					}
 					$readme = file_get_contents( $readme_path );
 					if ( ! $readme || ! preg_match( '/^==\s*Changelog\s*==\s*$(.*?)(?=^==\s|\z)/sm', $readme, $m ) ) {
-						return $pluginInfo;
+						return $plugin_info;
 					}
 					$body = trim( $m[1] );
 					// Convert the WP readme syntax (`= 1.2.3 =` / `* item`) into
@@ -93,11 +99,11 @@ add_action(
 						},
 						$body
 					);
-					if ( ! isset( $pluginInfo->sections ) || ! is_array( $pluginInfo->sections ) ) {
-						$pluginInfo->sections = array();
+					if ( ! isset( $plugin_info->sections ) || ! is_array( $plugin_info->sections ) ) {
+						$plugin_info->sections = array();
 					}
-					$pluginInfo->sections['changelog'] = $body;
-					return $pluginInfo;
+					$plugin_info->sections['changelog'] = $body;
+					return $plugin_info;
 				}
 			);
 		} catch ( \Throwable $e ) {
@@ -112,11 +118,19 @@ add_action(
 add_action(
 	'plugins_loaded',
 	function () {
-		if ( ! class_exists( 'WooCommerce' ) ) {
+		if ( ! class_exists( 'WooCommerce' ) || ! defined( 'WC_VERSION' ) || version_compare( WC_VERSION, BALIKOVNA_WC_MIN_WC_VERSION, '<' ) ) {
 			add_action(
 				'admin_notices',
 				function () {
-					echo '<div class="notice notice-error"><p>' . esc_html__( 'Balíkovna for WooCommerce vyžaduje aktivní WooCommerce.', 'balikovna-wc' ) . '</p></div>';
+					echo '<div class="notice notice-error"><p>';
+					echo esc_html(
+						sprintf(
+							/* translators: %s: minimum WooCommerce version. */
+							__( 'Balíkovna for WooCommerce vyžaduje aktivní WooCommerce %s nebo novější.', 'balikovna-wc' ),
+							BALIKOVNA_WC_MIN_WC_VERSION
+						)
+					);
+					echo '</p></div>';
 				}
 			);
 			return;

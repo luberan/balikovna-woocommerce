@@ -84,8 +84,8 @@ class Export {
 
 		$this->fputcsv_cp1250( $out, $headers );
 
-		$cod_methods   = (array) apply_filters( 'balikovna_wc_cod_methods', array( 'cod' ) );
-		$default_subj  = (string) apply_filters( 'balikovna_wc_default_subject', 'F' );
+		$cod_methods  = (array) apply_filters( 'balikovna_wc_cod_methods', array( 'cod' ) );
+		$default_subj = (string) apply_filters( 'balikovna_wc_default_subject', 'F' );
 
 		foreach ( $order_ids as $id ) {
 			$order = wc_get_order( $id );
@@ -93,81 +93,88 @@ class Export {
 				continue;
 			}
 
-			// Zjisti, která ČP služba je u objednávky použita.
-			$service_id    = (string) $order->get_meta( '_balikovna_service' );
-			$service_codes = '';
-			foreach ( $order->get_shipping_methods() as $m ) {
-				if ( ! $service_id && Services::get( $m->get_method_id() ) ) {
-					$service_id = $m->get_method_id();
+			$is_cod         = in_array( $order->get_payment_method(), $cod_methods, true );
+			$shipment_index = 0;
+			foreach ( Order::get_shipments( $order ) as $shipment ) {
+				$service_id   = $shipment['serviceId'];
+				$service      = $shipment['service'];
+				$point        = $shipment['point'];
+				$service_code = (string) ( $service['service_code'] ?? '' );
+				if ( ! empty( $service['pickup'] ) && empty( $point['id'] ) ) {
+					continue;
 				}
-				$codes = $m->get_meta( 'balikovna_service_codes' );
-				if ( $codes ) {
-					$service_codes = (string) $codes;
-				}
+
+				list( $street_col, $zip_col, $city_col ) = $this->destination_columns( $order, $point, $service_code );
+
+				$weight     = '' !== $shipment['weightKg']
+					? wc_format_decimal( $shipment['weightKg'], 2 )
+					: $this->calc_weight( $order );
+				$last_name  = $order->get_shipping_last_name();
+				$first_name = $order->get_shipping_first_name();
+				$row        = array(
+					$last_name ? $last_name : $order->get_billing_last_name(),             // A
+					$first_name ? $first_name : $order->get_billing_first_name(),          // B
+					$street_col,                                                          // C
+					$zip_col,                                                             // D
+					$city_col,                                                            // E
+					$weight,                                                              // F
+					wc_format_decimal( $order->get_total(), 2 ),                          // G  Udaná cena
+					$is_cod && 0 === $shipment_index ? wc_format_decimal( $order->get_total(), 2 ) : '', // H  Dobírka jen na první zásilce.
+					$shipment['serviceCodes'],                                            // I  Služby konkrétní shipping metody.
+					$order->get_order_number(),                                           // J  Variabilní symbol
+					$order->get_billing_phone(),                                          // K
+					$order->get_billing_email(),                                          // L
+					$service_code,                                                        // M
+					$default_subj,                                                        // N
+					1,                                                                    // O  Jedna zásilka na shipping item.
+				);
+
+				$row = apply_filters( 'balikovna_wc_export_row', $row, $order, $point, $service_id, $shipment['item'] );
+				$this->fputcsv_cp1250( $out, $row );
+				++$shipment_index;
 			}
-			$service = $service_id ? Services::get( $service_id ) : null;
-			if ( ! $service ) {
-				continue;
-			}
-
-			$point = Order::get_point( $order );
-			// U služeb s pickup vyžaduj zvolené místo, u Do ruky může být prázdné.
-			if ( ! empty( $service['pickup'] ) && empty( $point['id'] ) ) {
-				continue;
-			}
-
-			$service_code = (string) ( $service['service_code'] ?? '' );
-			$is_cod       = in_array( $order->get_payment_method(), $cod_methods, true );
-
-			// Adresa: pro Balíkovnu (NB) speciální formát dle ČP,
-			// pro ostatní služby standardní adresa zákazníka.
-			if ( 'NB' === $service_code ) {
-				$street_col = 'Balíkova';
-				$zip_col    = $point['id'] ?? '';
-				$city_col   = '';
-			} else {
-				$street1 = $order->get_shipping_address_1() ?: $order->get_billing_address_1();
-				$street2 = $order->get_shipping_address_2() ?: $order->get_billing_address_2();
-				$street_col = trim( $street1 . ' ' . $street2 );
-				$zip_col    = $order->get_shipping_postcode() ?: $order->get_billing_postcode();
-				$city_col   = $order->get_shipping_city() ?: $order->get_billing_city();
-			}
-
-			$row = array(
-				$order->get_shipping_last_name() ?: $order->get_billing_last_name(), // A
-				$order->get_shipping_first_name() ?: $order->get_billing_first_name(), // B
-				$street_col,                                                          // C
-				$zip_col,                                                             // D
-				$city_col,                                                            // E
-				$this->calc_weight( $order ),                                         // F
-				wc_format_decimal( $order->get_total(), 2 ),                          // G  Udaná cena
-				$is_cod ? wc_format_decimal( $order->get_total(), 2 ) : '',           // H  Dobírka
-				$service_codes,                                                       // I  Služby (z nastavení shipping metody)
-				$order->get_order_number(),                                           // J  Variabilní symbol
-				$order->get_billing_phone(),                                          // K
-				$order->get_billing_email(),                                          // L
-				$service_code,                                                        // M
-				$default_subj,                                                        // N
-				1,                                                                    // O  Počet VK
-			);
-
-			$row = apply_filters( 'balikovna_wc_export_row', $row, $order, $point, $service_id );
-
-			$this->fputcsv_cp1250( $out, $row );
 		}
 
 		fclose( $out );
 	}
 
 	/**
-	 * Neutralizuje CSV formula injection: hodnoty začínající =, +, -, @, tab nebo CR
+	 * Map an order shipment to Podání Online destination columns C-E.
+	 *
+	 * @return string[]
+	 */
+	protected function destination_columns( \WC_Order $order, array $point, $service_code ) {
+		if ( 'NB' === $service_code ) {
+			return array( 'Balíkova', $point['id'] ?? '', '' );
+		}
+		if ( 'NP' === $service_code ) {
+			return array(
+				$point['street'] ?? ( $point['name'] ?? '' ),
+				! empty( $point['zip'] ) ? $point['zip'] : preg_replace( '/^P/', '', $point['id'] ?? '' ),
+				$point['city'] ?? ( $point['name'] ?? '' ),
+			);
+		}
+
+		$street1  = $order->get_shipping_address_1();
+		$street2  = $order->get_shipping_address_2();
+		$postcode = $order->get_shipping_postcode();
+		$city     = $order->get_shipping_city();
+		return array(
+			trim( ( $street1 ? $street1 : $order->get_billing_address_1() ) . ' ' . ( $street2 ? $street2 : $order->get_billing_address_2() ) ),
+			$postcode ? $postcode : $order->get_billing_postcode(),
+			$city ? $city : $order->get_billing_city(),
+		);
+	}
+
+	/**
+	 * Neutralizuje CSV formula injection: hodnoty začínající =, +, -, @, tab, CR nebo LF
 	 * mohou být v Excelu/Sheetech interpretovány jako vzorce. Prefixujeme apostrofem.
 	 *
 	 * @param string $v
 	 * @return string
 	 */
 	protected function escape_csv_value( $v ) {
-		if ( '' !== $v && preg_match( '/^[=+\-@\t\r]/', $v ) ) {
+		if ( '' !== $v && preg_match( '/^[=+\-@\t\r\n]/', $v ) ) {
 			return "'" . $v;
 		}
 		return $v;
@@ -176,14 +183,14 @@ class Export {
 	protected function fputcsv_cp1250( $handle, array $row ) {
 		$converted = array_map(
 			function ( $v ) {
-				$v = $this->escape_csv_value( (string) $v );
+				$v = (string) $v;
 				if ( function_exists( 'iconv' ) ) {
-					$c = @iconv( 'UTF-8', 'Windows-1250//TRANSLIT//IGNORE', $v );
+					$c = iconv( 'UTF-8', 'Windows-1250//TRANSLIT//IGNORE', $v );
 					if ( false !== $c ) {
-						return $c;
+						$v = $c;
 					}
 				}
-				return $v;
+				return $this->escape_csv_value( $v );
 			},
 			$row
 		);
@@ -196,11 +203,16 @@ class Export {
 		$w = 0.0;
 		foreach ( $order->get_items() as $item ) {
 			/** @var \WC_Order_Item_Product $item */
+			$snapshot = $item->get_meta( Order::META_UNIT_WEIGHT, true );
+			if ( '' !== (string) $snapshot ) {
+				$w += (float) $snapshot * (int) $item->get_quantity();
+				continue;
+			}
 			$product = $item->get_product();
-			if ( $product && $product->get_weight() ) {
-				$w += (float) $product->get_weight() * (int) $item->get_quantity();
+			if ( $product && '' !== (string) $product->get_weight() ) {
+				$w += wc_get_weight( (float) $product->get_weight(), 'kg' ) * (int) $item->get_quantity();
 			}
 		}
-		return wc_format_decimal( wc_get_weight( $w, 'kg' ), 2 );
+		return wc_format_decimal( $w, 2 );
 	}
 }

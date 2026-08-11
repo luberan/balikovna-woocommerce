@@ -35,9 +35,9 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 	protected $service_codes = '';
 
 	public function __construct( $instance_id = 0 ) {
-		$this->id           = static::$service_id;
-		$this->instance_id  = absint( $instance_id );
-		$this->service      = (array) Services::get( static::$service_id );
+		$this->id          = static::$service_id;
+		$this->instance_id = absint( $instance_id );
+		$this->service     = (array) Services::get( static::$service_id );
 
 		$this->method_title       = $this->service['label'] ?? static::$service_id;
 		$this->method_description = $this->service['description'] ?? '';
@@ -102,7 +102,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 			'weight_table'      => array(
 				'title'       => __( 'Tabulka hmotností', 'balikovna-wc' ),
 				'type'        => 'textarea',
-				'description' => __( 'Jeden řádek = "max_hmotnost_kg|cena". Příklad: 5|79 znamená do 5 kg cena 79.', 'balikovna-wc' ),
+				'description' => __( 'Jeden řádek = "max_hmotnost_kg|cena". Příklad: 5|79 znamená do 5 kg cena 79. Nad nejvyšším limitem se doprava nenabídne.', 'balikovna-wc' ),
 				'default'     => "5|79\n10|119\n15|159",
 				'css'         => 'min-height:120px;',
 				'desc_tip'    => true,
@@ -147,17 +147,17 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		if ( '' !== trim( (string) $this->free_shipping_min ) ) {
 			$threshold = (float) $this->free_shipping_min;
 			$subtotal  = 0.0;
-			foreach ( $package['contents'] as $item ) {
+			foreach ( isset( $package['contents'] ) ? $package['contents'] : array() as $item ) {
 				$subtotal += (float) $item['line_total'] + (float) $item['line_tax'];
 			}
-			if ( $subtotal >= $threshold ) {
+			if ( $threshold > 0 && $subtotal >= $threshold ) {
 				return 0.0;
 			}
 		}
 
 		if ( 'weight' === $this->cost_type ) {
 			$weight = 0.0;
-			foreach ( $package['contents'] as $item ) {
+			foreach ( isset( $package['contents'] ) ? $package['contents'] : array() as $item ) {
 				if ( $item['data'] && $item['data']->get_weight() ) {
 					$weight += (float) $item['data']->get_weight() * (int) $item['quantity'];
 				}
@@ -165,27 +165,82 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 			return $this->resolve_weight_cost( wc_get_weight( $weight, 'kg' ) );
 		}
 
-		return (float) $this->cost;
+		return max( 0.0, (float) $this->cost );
 	}
 
 	protected function resolve_weight_cost( $weight_kg ) {
-		$rows     = array_filter( array_map( 'trim', explode( "\n", (string) $this->weight_table ) ) );
-		$best     = null;
-		$best_max = INF;
-		$max_cost = 0.0;
+		$rows = $this->parse_weight_table( $this->weight_table );
+		if ( is_wp_error( $rows ) ) {
+			return null;
+		}
+
 		foreach ( $rows as $row ) {
-			$parts = array_map( 'trim', explode( '|', $row ) );
-			if ( count( $parts ) < 2 ) {
-				continue;
-			}
-			$max  = (float) str_replace( ',', '.', $parts[0] );
-			$cost = (float) str_replace( ',', '.', $parts[1] );
-			$max_cost = max( $max_cost, $cost );
-			if ( $weight_kg <= $max && $max < $best_max ) {
-				$best     = $cost;
-				$best_max = $max;
+			if ( (float) $weight_kg <= $row['max'] ) {
+				return $row['cost'];
 			}
 		}
-		return (float) ( null !== $best ? $best : $max_cost );
+
+		return null;
+	}
+
+	/**
+	 * Validate and normalize the weight table when instance settings are saved.
+	 */
+	public function validate_textarea_field( $key, $value ) {
+		if ( 'weight_table' !== $key ) {
+			return parent::validate_textarea_field( $key, $value );
+		}
+
+		$rows = $this->parse_weight_table( $value );
+		if ( is_wp_error( $rows ) ) {
+			if ( class_exists( '\WC_Admin_Settings' ) ) {
+				\WC_Admin_Settings::add_error( $rows->get_error_message() );
+			}
+			return (string) $this->get_option( 'weight_table', $this->weight_table );
+		}
+
+		$normalized = array();
+		foreach ( $rows as $row ) {
+			$normalized[] = wc_format_decimal( $row['max'], 3 ) . '|' . wc_format_decimal( $row['cost'], wc_get_price_decimals() );
+		}
+		return implode( "\n", $normalized );
+	}
+
+	/**
+	 * @param string $table Raw table.
+	 * @return array|\WP_Error
+	 */
+	protected function parse_weight_table( $table ) {
+		$lines = preg_split( '/\r?\n/', trim( (string) $table ) );
+		$lines = array_values( array_filter( array_map( 'trim', (array) $lines ), 'strlen' ) );
+		if ( ! $lines ) {
+			return new \WP_Error( 'balikovna_empty_weight_table', __( 'Tabulka hmotností nesmí být prázdná.', 'balikovna-wc' ) );
+		}
+
+		$rows = array();
+		foreach ( $lines as $line ) {
+			$parts = array_map( 'trim', explode( '|', $line ) );
+			if ( 2 !== count( $parts ) || ! preg_match( '/^\d+(?:[.,]\d+)?$/', $parts[0] ) || ! preg_match( '/^\d+(?:[.,]\d+)?$/', $parts[1] ) ) {
+				return new \WP_Error( 'balikovna_invalid_weight_row', __( 'Každý řádek tabulky musí mít formát „kladná hmotnost|nezáporná cena“.', 'balikovna-wc' ) );
+			}
+
+			$max  = (float) str_replace( ',', '.', $parts[0] );
+			$cost = (float) str_replace( ',', '.', $parts[1] );
+			if ( $max <= 0 || isset( $rows[ (string) $max ] ) ) {
+				return new \WP_Error( 'balikovna_invalid_weight_limit', __( 'Hmotnostní limity musí být kladné a nesmí se opakovat.', 'balikovna-wc' ) );
+			}
+			$rows[ (string) $max ] = array(
+				'max'  => $max,
+				'cost' => $cost,
+			);
+		}
+
+		usort(
+			$rows,
+			function ( $left, $right ) {
+				return $left['max'] <=> $right['max'];
+			}
+		);
+		return $rows;
 	}
 }

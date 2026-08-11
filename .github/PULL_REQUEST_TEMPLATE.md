@@ -24,8 +24,9 @@ Closes #
 
 - [ ] Kód odpovídá stylu okolního kódu (WPCS / PSR-12).
 - [ ] Nové uživatelské texty obalené v `__()` / `_e()` s textdomain `balikovna-wc`.
-- [ ] POT soubor přegenerovaný (`wp i18n make-pot . languages/balikovna-wc.pot`).
+- [ ] POT soubor přegenerovaný (`composer pot`).
 - [ ] PHP lint prošel (`php -l` na všech upravených souborech).
+- [ ] Regresní testy a standardy prošly (`composer test && composer lint`).
 - [ ] Otestováno na čerstvé instalaci WP + WC.
 - [ ] Aktualizován `readme.txt` (changelog), případně `README.md`.
 

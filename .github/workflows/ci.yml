@@ -19,9 +19,9 @@ jobs:
       matrix:
         php: ["7.4", "8.2", "8.3", "8.4", "8.5"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Setup PHP ${{ matrix.php }}
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: ${{ matrix.php }}
           coverage: none
@@ -33,29 +33,50 @@ jobs:
             -not -path "./node_modules/*" \
             -print0 | xargs -0 -n1 -P4 php -l
 
-  phpcs:
-    name: WordPress Coding Standards
+  quality:
+    name: Quality checks (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.5"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
-          php-version: "8.5"
-          tools: composer, cs2pr
+          php-version: ${{ matrix.php }}
+          tools: composer
           coverage: none
-      - name: Install PHPCS + WPCS
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Validate dependencies
         run: |
-          composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
-          composer global require --dev \
-            squizlabs/php_codesniffer \
-            wp-coding-standards/wpcs \
-            phpcompatibility/phpcompatibility-wp \
-            dealerdirect/phpcodesniffer-composer-installer
-          echo "$(composer global config bin-dir --absolute --quiet)" >> $GITHUB_PATH
-      - name: Run PHPCS
+          composer validate --strict
+          composer audit --locked
+      - name: Run unit and metadata tests
+        run: composer test
+      - name: Run WordPress and PHP compatibility checks
+        run: composer lint
+      - name: Check JavaScript syntax
+        if: matrix.php == '8.5'
         run: |
-          phpcs --standard=WordPress --extensions=php \
-            --ignore=vendor,node_modules,includes/lib \
-            --report=checkstyle \
-            includes/ balikovna-woocommerce.php | cs2pr
-        continue-on-error: true
+          node --check assets/js/checkout.js
+          node --check assets/js/checkout-block.js
+      - name: Verify translation template
+        if: matrix.php == '8.5'
+        run: |
+          php -d error_reporting=8191 vendor/wp-cli/wp-cli/php/boot-fs.php i18n make-pot . /tmp/balikovna-wc.pot \
+            --slug=balikovna-woocommerce \
+            --domain=balikovna-wc \
+            --exclude=build,vendor,tests,includes/lib \
+            --package-name="Balíkovna for WooCommerce" \
+            --file-comment="Translation template for Balíkovna for WooCommerce."
+          php .github/scripts/check-pot.php languages/balikovna-wc.pot /tmp/balikovna-wc.pot
+      - name: Verify generated metadata and release staging
+        if: matrix.php == '8.5'
+        run: |
+          cp CHANGELOG.md /tmp/CHANGELOG.md
+          php .github/scripts/normalize-changelog.php /tmp/CHANGELOG.md
+          diff -u CHANGELOG.md /tmp/CHANGELOG.md
+          php .github/scripts/build-plugin.php

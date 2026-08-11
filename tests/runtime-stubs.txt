@@ -1,0 +1,76 @@
+class WP_Error {
+	private $code;
+	private $message;
+	private $errors = array();
+	public function __construct( $code = '', $message = '' ) { $this->code = $code; $this->message = $message; }
+	public function get_error_code() { return $this->code ?: ( $this->errors ? array_key_first( $this->errors ) : '' ); }
+	public function get_error_message() { if ( $this->message ) return $this->message; $code = $this->get_error_code(); return $code ? $this->errors[ $code ][0] : ''; }
+	public function add( $code, $message ) { $this->errors[ $code ][] = $message; }
+	public function has_errors() { return (bool) $this->errors; }
+}
+function is_wp_error( $value ) { return $value instanceof WP_Error; }
+function add_filter( $tag, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['balikovna_test_filters'][ $tag ][] = array( $callback, $accepted_args ); }
+function add_action( $tag, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['balikovna_test_actions'][ $tag ][] = array( $callback, $accepted_args ); }
+function did_action( $tag ) { return $GLOBALS['balikovna_test_did_actions'][ $tag ] ?? 0; }
+function apply_filters( $tag, $value ) { $args = array_slice( func_get_args(), 2 ); foreach ( $GLOBALS['balikovna_test_filters'][ $tag ] ?? array() as $filter ) { $value = call_user_func_array( $filter[0], array_slice( array_merge( array( $value ), $args ), 0, $filter[1] ) ); } return $value; }
+function remove_all_filters( $tag = null ) { if ( null === $tag ) { $GLOBALS['balikovna_test_filters'] = array(); } else { unset( $GLOBALS['balikovna_test_filters'][ $tag ] ); } }
+function __( $text, $domain = null ) { return $text; }
+function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
+function sanitize_text_field( $value ) { return trim( preg_replace( '/[\x00-\x1F\x7F]/u', '', strip_tags( (string) $value ) ) ); }
+function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) ); }
+function wc_clean( $value ) { return is_array( $value ) ? array_map( 'wc_clean', $value ) : sanitize_text_field( $value ); }
+function wp_unslash( $value ) { return $value; }
+function get_transient( $key ) { return $GLOBALS['balikovna_test_transients'][ $key ] ?? false; }
+function set_transient( $key, $value, $expiration ) { $GLOBALS['balikovna_test_transients'][ $key ] = $value; return true; }
+function get_option( $key, $default = false ) { return $GLOBALS['balikovna_test_options'][ $key ] ?? $default; }
+function update_option( $key, $value, $autoload = null ) { $GLOBALS['balikovna_test_options'][ $key ] = $value; return true; }
+function add_query_arg( $key, $value = null, $url = null ) { if ( is_array( $key ) ) { $url = (string) $value; $args = $key; } else { $args = array( $key => $value ); } return (string) $url . ( false === strpos( (string) $url, '?' ) ? '?' : '&' ) . http_build_query( $args, '', '&', PHP_QUERY_RFC3986 ); }
+function wp_safe_remote_get() { return new WP_Error( 'network_disabled', 'Network disabled in unit tests.' ); }
+function wp_remote_retrieve_response_code() { return 0; }
+function wp_remote_retrieve_body() { return ''; }
+function wc_format_decimal( $value, $decimals = false ) { $decimals = false === $decimals ? 2 : (int) $decimals; return number_format( (float) $value, $decimals, '.', '' ); }
+function wc_get_price_decimals() { return 2; }
+function wc_get_weight( $weight, $unit ) { return (float) $weight; }
+
+class WC_Admin_Settings { public static $errors = array(); public static function add_error( $message ) { self::$errors[] = $message; } }
+class WC_Shipping_Method {
+	protected $options = array();
+	public function validate_textarea_field( $key, $value ) { return (string) $value; }
+	public function get_option( $key, $default = '' ) { return $this->options[ $key ] ?? $default; }
+}
+class WC_Order_Item_Shipping {
+	private $method_id; private $instance_id; private $meta;
+	public function __construct( $method_id = '', $instance_id = '', array $meta = array() ) { $this->method_id = $method_id; $this->instance_id = $instance_id; $this->meta = $meta; }
+	public function get_method_id() { return $this->method_id; }
+	public function get_instance_id() { return $this->instance_id; }
+	public function get_meta( $key, $single = true ) { return $this->meta[ $key ] ?? ''; }
+	public function update_meta_data( $key, $value ) { $this->meta[ $key ] = $value; }
+	public function delete_meta_data( $key ) { unset( $this->meta[ $key ] ); }
+	public function save() { return true; }
+}
+class WC_Order_Item_Product {
+	private $meta; private $quantity; private $product;
+	public function __construct( array $meta = array(), $quantity = 1, $product = null ) { $this->meta = $meta; $this->quantity = $quantity; $this->product = $product; }
+	public function get_meta( $key, $single = true ) { return $this->meta[ $key ] ?? ''; }
+	public function get_quantity() { return $this->quantity; }
+	public function get_product() { return $this->product; }
+}
+class WC_Order {
+	private $shipping_methods; private $meta; private $address; private $items;
+	public function __construct( array $shipping_methods = array(), array $meta = array(), array $address = array(), array $items = array() ) { $this->shipping_methods = $shipping_methods; $this->meta = $meta; $this->address = $address; $this->items = $items; }
+	public function get_shipping_methods() { return $this->shipping_methods; }
+	public function get_meta( $key ) { return $this->meta[ $key ] ?? ''; }
+	public function update_meta_data( $key, $value ) { $this->meta[ $key ] = $value; }
+	public function delete_meta_data( $key ) { unset( $this->meta[ $key ] ); }
+	public function save() { return true; }
+	public function get_items() { return $this->items; }
+	public function get_shipping_address_1() { return $this->address['shipping_address_1'] ?? ''; }
+	public function get_shipping_address_2() { return $this->address['shipping_address_2'] ?? ''; }
+	public function get_shipping_postcode() { return $this->address['shipping_postcode'] ?? ''; }
+	public function get_shipping_city() { return $this->address['shipping_city'] ?? ''; }
+	public function get_billing_address_1() { return $this->address['billing_address_1'] ?? ''; }
+	public function get_billing_address_2() { return $this->address['billing_address_2'] ?? ''; }
+	public function get_billing_postcode() { return $this->address['billing_postcode'] ?? ''; }
+	public function get_billing_city() { return $this->address['billing_city'] ?? ''; }
+}
+function WC() { return $GLOBALS['balikovna_test_wc']; }

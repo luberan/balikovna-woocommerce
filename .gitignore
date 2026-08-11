@@ -14,7 +14,6 @@ desktop.ini
 
 # PHP / Composer
 /vendor/
-composer.lock
 composer.phar
 
 # Node / build
