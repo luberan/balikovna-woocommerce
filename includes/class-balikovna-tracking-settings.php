@@ -69,14 +69,123 @@ class Tracking_Settings {
 	}
 
 	/**
+	 * Reconcile newly published official codes without changing existing choices.
+	 *
+	 * The CIS schema exposes no stable aggregate parent ID, so normalized `name`
+	 * is used only to find conservative inheritance candidates. Persisted keys
+	 * remain the stable status/reason code.
+	 */
+	public static function reconcile_status_dictionary( array $dictionary, array $previous_dictionary = array() ) {
+		if ( ! $dictionary ) {
+			return false;
+		}
+
+		$stored = get_option( self::OPTION_NAME, null );
+		if ( ! is_array( $stored ) || empty( $stored['status_defaults_initialized'] ) ) {
+			self::initialize_status_defaults( $dictionary );
+			return true;
+		}
+
+		$settings       = array_merge( self::defaults(), $stored );
+		$known_codes    = array_values( array_unique( array_map( 'strval', (array) $settings['known_status_codes'] ) ) );
+		$poll_statuses  = array_values( array_unique( array_map( 'strval', (array) $settings['poll_statuses'] ) ) );
+		$mappings       = is_array( $settings['status_mappings'] ) ? $settings['status_mappings'] : array();
+		$all_rows       = array();
+		$observed_codes = array();
+
+		foreach ( array( $previous_dictionary, $dictionary ) as $source ) {
+			foreach ( $source as $code => $row ) {
+				if ( is_array( $row ) && ! empty( $row['observed'] ) ) {
+					$observed_codes[] = (string) $code;
+				} elseif ( is_array( $row ) ) {
+					$all_rows[ (string) $code ] = $row;
+				}
+			}
+		}
+
+		$original_mappings = $mappings;
+		$clean_known_codes = array_values( array_diff( $known_codes, $observed_codes ) );
+		$changed           = $clean_known_codes !== $known_codes;
+		$known_codes       = $clean_known_codes;
+		foreach ( $dictionary as $code => $row ) {
+			$code = (string) $code;
+			if ( ! is_array( $row ) || ! empty( $row['observed'] ) || in_array( $code, $known_codes, true ) ) {
+				continue;
+			}
+
+			$group_key         = self::status_group_key( $row, $code );
+			$known_group_codes = array();
+			foreach ( $known_codes as $known_code ) {
+				if ( isset( $all_rows[ $known_code ] ) && self::status_group_key( $all_rows[ $known_code ], $known_code ) === $group_key ) {
+					$known_group_codes[] = $known_code;
+				}
+			}
+
+			$mapping_values = array();
+			$poll_values    = array();
+			foreach ( $known_group_codes as $known_code ) {
+				$mapping_values[] = isset( $mappings[ $known_code ] )
+					? self::normalize_order_status( $mappings[ $known_code ] )
+					: '';
+				$poll_values[]    = in_array( $known_code, $poll_statuses, true );
+			}
+			$mapping_values = array_values( array_unique( $mapping_values ) );
+			$poll_values    = array_values( array_unique( $poll_values, SORT_REGULAR ) );
+
+			if ( ! array_key_exists( $code, $mappings ) && 1 === count( $mapping_values ) && '' !== $mapping_values[0] ) {
+				$mappings[ $code ] = $mapping_values[0];
+
+				$settings['status_mappings'] = $mappings;
+			}
+
+			$continue_polling = ! $known_group_codes || 1 !== count( $poll_values ) || true === $poll_values[0];
+			if ( $continue_polling && ! in_array( $code, $poll_statuses, true ) ) {
+				$poll_statuses[] = $code;
+			} elseif ( ! $continue_polling ) {
+				$poll_statuses = array_values( array_diff( $poll_statuses, array( $code ) ) );
+			}
+			$known_codes[] = $code;
+			$changed       = true;
+		}
+
+		if ( ! $changed ) {
+			return false;
+		}
+
+		if ( ! self::mappings_equal( $mappings, $original_mappings ) ) {
+			$settings['mapping_revision'] = max( 1, (int) $settings['mapping_revision'] ) + 1;
+		}
+		$settings['known_status_codes'] = array_values( array_unique( $known_codes ) );
+		$settings['poll_statuses']      = array_values( array_unique( $poll_statuses ) );
+		$settings['status_mappings']    = $mappings;
+		update_option( self::OPTION_NAME, $settings, false );
+		return true;
+	}
+
+	/**
 	 * Sanitize a complete settings form payload.
 	 */
 	public static function sanitize( array $input, array $existing, array $dictionary ) {
 		$order_statuses = self::order_statuses();
 		$allowed_codes  = array_fill_keys( array_keys( $dictionary ), true );
-		$batch_size     = isset( $input['batch_size'] ) ? absint( $input['batch_size'] ) : self::DEFAULT_BATCH_SIZE;
-		$tracking_days  = isset( $input['tracking_days'] ) ? absint( $input['tracking_days'] ) : self::DEFAULT_TRACKING_DAYS;
-		$secret_key     = isset( $existing['secret_key'] ) ? (string) $existing['secret_key'] : '';
+		$official_codes = array();
+		$observed_codes = array();
+		foreach ( $dictionary as $code => $row ) {
+			if ( is_array( $row ) && ! empty( $row['observed'] ) ) {
+				$observed_codes[] = (string) $code;
+			} else {
+				$official_codes[] = (string) $code;
+			}
+		}
+		$batch_size    = isset( $input['batch_size'] ) ? absint( $input['batch_size'] ) : self::DEFAULT_BATCH_SIZE;
+		$tracking_days = isset( $input['tracking_days'] ) ? absint( $input['tracking_days'] ) : self::DEFAULT_TRACKING_DAYS;
+		$api_token     = isset( $existing['api_token'] ) ? (string) $existing['api_token'] : '';
+		if ( ! empty( $input['clear_api_token'] ) ) {
+			$api_token = '';
+		} elseif ( isset( $input['api_token'] ) && '' !== trim( (string) $input['api_token'] ) ) {
+			$api_token = self::limit( sanitize_text_field( (string) $input['api_token'] ), 160 );
+		}
+		$secret_key = isset( $existing['secret_key'] ) ? (string) $existing['secret_key'] : '';
 		if ( ! empty( $input['clear_secret'] ) ) {
 			$secret_key = '';
 		} elseif ( isset( $input['secret_key'] ) && '' !== trim( (string) $input['secret_key'] ) ) {
@@ -119,7 +228,10 @@ class Tracking_Settings {
 					$mappings[ (string) $code ] = $target;
 				}
 			}
-			$known_status_codes          = array_merge( (array) ( $existing['known_status_codes'] ?? array() ), array_keys( $dictionary ) );
+			$known_status_codes          = array_merge(
+				array_diff( (array) ( $existing['known_status_codes'] ?? array() ), $observed_codes ),
+				$official_codes
+			);
 			$status_defaults_initialized = true;
 		} else {
 			$poll_statuses               = isset( $existing['poll_statuses'] ) ? (array) $existing['poll_statuses'] : array();
@@ -133,13 +245,14 @@ class Tracking_Settings {
 			? $existing['status_mappings']
 			: array();
 		$mapping_revision  = max( 1, (int) ( $existing['mapping_revision'] ?? 1 ) );
-		if ( ! empty( $existing['auto_order_status'] ) !== $auto_order_status || $mappings !== $old_mappings ) {
+		if ( ! empty( $existing['auto_order_status'] ) !== $auto_order_status || ! self::mappings_equal( $mappings, $old_mappings ) ) {
 			++$mapping_revision;
 		}
+		ksort( $mappings, SORT_STRING );
 
 		return array(
 			'enabled'                     => ! empty( $input['enabled'] ),
-			'api_token'                   => self::limit( sanitize_text_field( (string) ( $input['api_token'] ?? '' ) ), 160 ),
+			'api_token'                   => $api_token,
 			'secret_key'                  => $secret_key,
 			'environment'                 => isset( $input['environment'] ) && 'sandbox' === $input['environment'] ? 'sandbox' : 'production',
 			'batch_size'                  => max( 1, min( self::MAX_BATCH_SIZE, $batch_size ) ),
@@ -192,7 +305,7 @@ class Tracking_Settings {
 			if ( '' === $name ) {
 				$name = (string) $code;
 			}
-			$key = sha1( $name );
+			$key = sha1( self::status_group_key( $row, $code ) );
 			if ( ! isset( $groups[ $key ] ) ) {
 				$groups[ $key ] = array(
 					'name'  => $name,
@@ -210,12 +323,23 @@ class Tracking_Settings {
 		return $groups;
 	}
 
+	public static function status_group_key( array $row, $fallback_code = '' ) {
+		$name = Shipment_Status::normalize_label( $row['name'] ?? '' );
+		return '' !== $name ? 'name:' . $name : 'code:' . (string) $fallback_code;
+	}
+
 	public static function normalize_order_status( $status ) {
 		$status = sanitize_key( (string) $status );
 		if ( '' === $status ) {
 			return '';
 		}
 		return 0 === strpos( $status, 'wc-' ) ? $status : 'wc-' . $status;
+	}
+
+	private static function mappings_equal( array $left, array $right ) {
+		ksort( $left, SORT_STRING );
+		ksort( $right, SORT_STRING );
+		return $left === $right;
 	}
 
 	private static function default_order_statuses() {

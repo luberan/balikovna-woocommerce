@@ -13,4 +13,17 @@
 
 	toggle.addEventListener( 'change', updateMappingVisibility );
 	updateMappingVisibility();
+
+	document.querySelectorAll( '[data-balikovna-mixed-polling]' ).forEach( function ( checkbox ) {
+		checkbox.indeterminate = true;
+		checkbox.addEventListener( 'change', function () {
+			var groupKey = checkbox.getAttribute( 'data-balikovna-mixed-polling' );
+			document.querySelectorAll( '[data-balikovna-mixed-marker]' ).forEach( function ( marker ) {
+				if ( marker.getAttribute( 'data-balikovna-mixed-marker' ) === groupKey ) {
+					marker.disabled = true;
+				}
+			} );
+			checkbox.indeterminate = false;
+		} );
+	} );
 }() );

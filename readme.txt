@@ -4,6 +4,8 @@ Tags: woocommerce, shipping, balikovna, ceska-posta, pickup
 Requires at least: 6.9
 Tested up to: 7.0
 Requires PHP: 7.4
+WC requires at least: 10.8
+WC tested up to: 11.0
 <!-- x-release-please-start-version -->
 Stable tag: 1.28.0
 <!-- x-release-please-end -->
@@ -41,10 +43,12 @@ Integrace České pošty do WooCommerce: shipping metody, výdejní místa, CSV,
 2. Nastavte název, typ ceny, případně váhovou tabulku nebo práh dopravy zdarma. U Balíkovny plus nastavte smluvní prefix DR/DV/DE a limit 31,5 nebo 50 kg.
 3. Zákazník v checkoutu zvolí službu ČP a klikne na „Vybrat výdejní místo" (u Balíkovny / Balíku Na poštu).
 4. Po podání zásilky zadejte v detailu objednávky její podací číslo; následující zákaznický e-mail bude obsahovat Track & Trace odkaz.
-5. Pro automatické stavy otevřete **WooCommerce → Nastavení → Doprava → Sledování stavu zásilek**, zadejte B2B nAPI `Api-Token` a `secretKey`, zvolte prostředí a použijte **Otestovat připojení**.
+5. Pro automatické stavy otevřete **WooCommerce → Nastavení → Doprava → Sledování stavu zásilek**, zadejte B2B nAPI credentialy `Api-Token` a `secretKey`, zvolte prostředí a použijte **Otestovat připojení**. Uložené credentialy se znovu nezobrazují a test ověřuje CIS/číselník, nikoli ZSK stav konkrétní zásilky.
 6. Nastavte počet objednávek na běh (výchozí 100), okno 14 dní, sledované WooCommerce stavy a carrier stavy. Volitelně zapněte mapování carrier → WooCommerce.
 
 Výchozí mapování: `PODÁNO`/`V PŘEPRAVĚ` → `wc-shipped` (pokud existuje), `ULOŽENO` → `wc-ready-pickup` (pokud existuje), `DORUČENO` → `wc-completed`. WooCommerce e-maily spustí běžná změna stavu; plugin nevytváří vlastní e-mailové šablony.
+
+Nový reason kód v již známém agregovaném stavu převezme mapování nebo polling pouze při jednomyslném nastavení existujících kódů. Konfliktní nebo zcela nový stav zůstává bez automatického mapování a bezpečně se dál kontroluje.
 
 == Filtry pro vývojáře ==
 
@@ -82,7 +86,7 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta obdrží běžná HTTP metadata návštěvy. Geolokaci předá prohlížeč widgetu jen po souhlasu zákazníka. Při zapnutém `phone=true` zadává zákazník telefon přímo ve widgetu České pošty a plugin jej může uložit jako WooCommerce `billing_phone`. Server pluginu stahuje veřejně dostupný JSON seznam poboček pro ověření výběru, bez údajů zákazníka nebo objednávky.
 
-Při nAPI sledování server posílá podací číslo a autentizační hlavičky na pevné hosty `https://b2b.postaonline.cz:444/restservices/ZSKService/v1` a `https://b2b.postaonline.cz:444/restservices/CISService/v1`, případně na oficiální testovací varianty `b2b-test.postaonline.cz:444`. Používá pouze `GET /parcelStatuses/current/idParcel/{idParcel}` a `GET /statusesOverview`. `secretKey` se neposílá; lokálně podepisuje bodyless řetězec `;timestamp;nonce` pomocí HMAC-SHA256. Plugin ukládá jen aktuální stav a časy ke shipping itemu, ne kompletní odpověď. Zásady provozovatele: https://www.ceskaposta.cz/ochrana-osobnich-udaju
+Při nAPI sledování server posílá podací číslo a autentizační hlavičky na pevné hosty `https://b2b.postaonline.cz:444/restservices/ZSKService/v1` a `https://b2b.postaonline.cz:444/restservices/CISService/v1`, případně na oficiální testovací varianty `b2b-test.postaonline.cz:444`. Používá pouze `GET /parcelStatuses/current/idParcel/{idParcel}` a `GET /statusesOverview`. `Api-Token` a `secretKey` jsou credentialy; uložené hodnoty se v HTML nevypisují. `secretKey` se neposílá a lokálně podepisuje bodyless řetězec `;timestamp;nonce` pomocí HMAC-SHA256. Plugin ukládá jen aktuální stav a časy ke shipping itemu, ne kompletní odpověď. Zásady provozovatele: https://www.ceskaposta.cz/ochrana-osobnich-udaju
 
 == Známá omezení ==
 
@@ -92,7 +96,7 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 * Neznámé carrier stavy se dál kontrolují, ale bez výchozí automatické změny objednávky.
 * Action Scheduler vyžaduje funkční WP-Cron nebo externí pravidelné volání `wp-cron.php`. Hook je `balikovna_wc_sync_shipment_statuses`, log source `balikovna-woocommerce-tracking`.
 * Kódy produktů a doplňkových služeb musí odpovídat smlouvě a konfiguraci Podání Online.
-* Automatické testy používají runtime stuby a nenahrazují browserový end-to-end test na skutečné instalaci WooCommerce.
+* Automatické testy používají runtime stuby. API bylo staticky prověřeno proti WooCommerce 11.0.1, ale skutečný WooCommerce/HPOS ani browserový end-to-end test CI nespouští.
 
 == Roadmap ==
 

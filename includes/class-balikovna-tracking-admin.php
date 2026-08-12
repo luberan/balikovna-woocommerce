@@ -13,6 +13,7 @@ class Tracking_Admin {
 
 	const SECTION = 'balikovna_tracking';
 	const FIELD   = 'balikovna_tracking';
+	const MIXED   = '__mixed__';
 
 	private $tracking;
 
@@ -113,7 +114,7 @@ class Tracking_Admin {
 		$existing              = Tracking_Settings::get();
 		$dictionary_repository = $this->tracking->dictionary( $existing );
 		$dictionary            = $dictionary_repository->get();
-		$posted                = $this->expand_status_groups( $posted, $dictionary );
+		$posted                = $this->expand_status_groups( $posted, $dictionary, $existing );
 		$settings              = Tracking_Settings::sanitize( $posted, $existing, $dictionary );
 		update_option( Tracking_Settings::OPTION_NAME, $settings, false );
 
@@ -145,6 +146,7 @@ class Tracking_Admin {
 	}
 
 	private function render_connection_fields( array $settings ) {
+		$token_configured  = '' !== (string) ( $settings['api_token'] ?? '' );
 		$secret_configured = '' !== (string) ( $settings['secret_key'] ?? '' );
 		echo '<h3>' . esc_html__( 'Připojení Česká pošta nAPI', 'balikovna-wc' ) . '</h3>';
 		echo '<table class="form-table" role="presentation"><tbody>';
@@ -155,8 +157,12 @@ class Tracking_Admin {
 			__( 'Bez úplných přihlašovacích údajů se naplánovaná synchronizace bezpečně přeskočí.', 'balikovna-wc' )
 		);
 		echo '<tr><th scope="row"><label for="balikovna-api-token">' . esc_html__( 'Api-Token', 'balikovna-wc' ) . '</label></th><td>';
-		echo '<input type="text" class="regular-text" id="balikovna-api-token" name="' . esc_attr( self::FIELD ) . '[api_token]" value="' . esc_attr( $settings['api_token'] ?? '' ) . '" maxlength="160" autocomplete="off">';
-		echo '<p class="description">' . esc_html__( 'Veřejná část API klíče vygenerovaná v uživatelské aplikaci Pošta Online.', 'balikovna-wc' ) . '</p></td></tr>';
+		echo '<input type="password" class="regular-text" id="balikovna-api-token" name="' . esc_attr( self::FIELD ) . '[api_token]" value="" maxlength="160" autocomplete="new-password" placeholder="' . esc_attr( $token_configured ? __( 'Uloženo - prázdné pole hodnotu nezmění', 'balikovna-wc' ) : '' ) . '">';
+		echo '<p class="description">' . esc_html__( 'Přihlašovací údaj nAPI. Uložená hodnota se z bezpečnostních důvodů nezobrazuje.', 'balikovna-wc' ) . '</p>';
+		if ( $token_configured ) {
+			echo '<label><input type="checkbox" name="' . esc_attr( self::FIELD ) . '[clear_api_token]" value="1"> ' . esc_html__( 'Odstranit uložený Api-Token', 'balikovna-wc' ) . '</label>';
+		}
+		echo '</td></tr>';
 		echo '<tr><th scope="row"><label for="balikovna-secret-key">' . esc_html__( 'secretKey', 'balikovna-wc' ) . '</label></th><td>';
 		echo '<input type="password" class="regular-text" id="balikovna-secret-key" name="' . esc_attr( self::FIELD ) . '[secret_key]" value="" maxlength="512" autocomplete="new-password" placeholder="' . esc_attr( $secret_configured ? __( 'Uloženo - prázdné pole hodnotu nezmění', 'balikovna-wc' ) : '' ) . '">';
 		echo '<p class="description">' . esc_html__( 'Tajný klíč se používá pouze k podpisu požadavků a nikdy se neposílá ani nezobrazuje.', 'balikovna-wc' ) . '</p>';
@@ -205,11 +211,16 @@ class Tracking_Admin {
 			echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Stavy zásilek, které budou kontrolovány', 'balikovna-wc' ) . '</legend>';
 			echo '<p><strong>' . esc_html__( 'Stavy zásilek, které budou kontrolovány', 'balikovna-wc' ) . '</strong></p>';
 			foreach ( $groups as $group_key => $group ) {
-				$checked = true;
-				foreach ( $group['codes'] as $code ) {
-					$checked = $checked && Tracking_Settings::should_poll( $code, $settings );
+				$polling_state = $this->group_polling_state( $group['codes'], $settings );
+				$is_mixed      = self::MIXED === $polling_state;
+				if ( $is_mixed ) {
+					echo '<input type="hidden" name="' . esc_attr( self::FIELD ) . '[mixed_poll_groups][]" value="' . esc_attr( $group_key ) . '" data-balikovna-mixed-marker="' . esc_attr( $group_key ) . '">';
 				}
-				echo '<label><input type="checkbox" name="' . esc_attr( self::FIELD ) . '[poll_groups][]" value="' . esc_attr( $group_key ) . '"' . checked( $checked, true, false ) . '> ' . esc_html( $this->group_label( $group ) ) . '</label><br>';
+				echo '<label><input type="checkbox" name="' . esc_attr( self::FIELD ) . '[poll_groups][]" value="' . esc_attr( $group_key ) . '"' . checked( 'continue' === $polling_state, true, false ) . ( $is_mixed ? ' data-balikovna-mixed-polling="' . esc_attr( $group_key ) . '"' : '' ) . '> ' . esc_html( $this->group_label( $group ) );
+				if ( $is_mixed ) {
+					echo ' - ' . esc_html__( 'Různé / částečné nastavení', 'balikovna-wc' );
+				}
+				echo '</label><br>';
 			}
 			echo '</fieldset>';
 		}
@@ -230,6 +241,9 @@ class Tracking_Admin {
 			foreach ( $groups as $group_key => $group ) {
 				$current = $this->group_mapping( $group['codes'], $settings );
 				echo '<tr><td>' . esc_html( $this->group_label( $group ) ) . '</td><td><select name="' . esc_attr( self::FIELD ) . '[mapping_groups][' . esc_attr( $group_key ) . ']">';
+				if ( self::MIXED === $current ) {
+					echo '<option value="' . esc_attr( self::MIXED ) . '" selected="selected">' . esc_html__( 'Různé / částečné nastavení', 'balikovna-wc' ) . '</option>';
+				}
 				echo '<option value="">' . esc_html__( 'Stav objednávky / beze změny', 'balikovna-wc' ) . '</option>';
 				foreach ( $order_statuses as $status => $label ) {
 					echo '<option value="' . esc_attr( $status ) . '"' . selected( $status, $current, false ) . '>' . esc_html( $label ) . '</option>';
@@ -264,17 +278,32 @@ class Tracking_Admin {
 		echo '<p><button type="submit" class="button" name="balikovna_tracking_action" value="synchronize_now">' . esc_html__( 'Synchronizovat nyní', 'balikovna-wc' ) . '</button></p>';
 	}
 
-	private function expand_status_groups( array $posted, array $dictionary ) {
+	private function expand_status_groups( array $posted, array $dictionary, array $existing ) {
 		$groups                    = Tracking_Settings::status_groups( $dictionary );
 		$selected                  = isset( $posted['poll_groups'] ) ? array_map( 'sanitize_key', (array) $posted['poll_groups'] ) : array();
+		$mixed_polling             = isset( $posted['mixed_poll_groups'] ) ? array_map( 'sanitize_key', (array) $posted['mixed_poll_groups'] ) : array();
 		$mappings                  = isset( $posted['mapping_groups'] ) && is_array( $posted['mapping_groups'] ) ? $posted['mapping_groups'] : array();
 		$posted['poll_statuses']   = array();
 		$posted['status_mappings'] = array();
 		foreach ( $groups as $group_key => $group ) {
-			if ( in_array( $group_key, $selected, true ) ) {
+			if ( in_array( $group_key, $mixed_polling, true ) ) {
+				foreach ( $group['codes'] as $code ) {
+					if ( Tracking_Settings::should_poll( $code, $existing ) ) {
+						$posted['poll_statuses'][] = $code;
+					}
+				}
+			} elseif ( in_array( $group_key, $selected, true ) ) {
 				$posted['poll_statuses'] = array_merge( $posted['poll_statuses'], $group['codes'] );
 			}
 			$target = isset( $mappings[ $group_key ] ) ? (string) $mappings[ $group_key ] : '';
+			if ( self::MIXED === $target ) {
+				foreach ( $group['codes'] as $code ) {
+					if ( isset( $existing['status_mappings'][ $code ] ) ) {
+						$posted['status_mappings'][ $code ] = $existing['status_mappings'][ $code ];
+					}
+				}
+				continue;
+			}
 			if ( '' === $target ) {
 				continue;
 			}
@@ -295,7 +324,7 @@ class Tracking_Admin {
 			\WC_Admin_Settings::add_error(
 				sprintf(
 					/* translators: %s: sanitized API error. */
-					__( 'Připojení k Česká pošta nAPI selhalo: %s', 'balikovna-wc' ),
+					__( 'Připojení k nAPI CIS selhalo: %s', 'balikovna-wc' ),
 					$result->get_message()
 				)
 			);
@@ -304,7 +333,7 @@ class Tracking_Admin {
 		\WC_Admin_Settings::add_message(
 			sprintf(
 				/* translators: %d: number of carrier status codes. */
-				__( 'Připojení je funkční. Načteno stavů: %d.', 'balikovna-wc' ),
+				__( 'Připojení k nAPI CIS je funkční a číselník stavů byl úspěšně načten (%d kódů).', 'balikovna-wc' ),
 				count( $result )
 			)
 		);
@@ -376,13 +405,22 @@ class Tracking_Admin {
 	private function group_mapping( array $codes, array $settings ) {
 		$targets = array();
 		foreach ( $codes as $code ) {
-			$target = Tracking_Settings::mapping_for( $code, $settings );
-			if ( '' !== $target ) {
-				$targets[] = $target;
-			}
+			$targets[] = Tracking_Settings::mapping_for( $code, $settings );
 		}
 		$targets = array_values( array_unique( $targets ) );
-		return 1 === count( $targets ) ? $targets[0] : '';
+		return 1 === count( $targets ) ? $targets[0] : self::MIXED;
+	}
+
+	private function group_polling_state( array $codes, array $settings ) {
+		$states = array();
+		foreach ( $codes as $code ) {
+			$states[] = Tracking_Settings::should_poll( $code, $settings );
+		}
+		$states = array_values( array_unique( $states, SORT_REGULAR ) );
+		if ( 1 !== count( $states ) ) {
+			return self::MIXED;
+		}
+		return true === $states[0] ? 'continue' : 'stop';
 	}
 
 	private function format_timestamp( $timestamp ) {

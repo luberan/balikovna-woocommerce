@@ -24,6 +24,9 @@ class Tracking {
 	}
 
 	public function init() {
+		$cached_dictionary = $this->dictionary()->get();
+		Tracking_Settings::reconcile_status_dictionary( $cached_dictionary, $cached_dictionary );
+
 		$this->scheduler = new Tracking_Scheduler( array( $this, 'run_synchronization' ) );
 		$this->scheduler->init();
 

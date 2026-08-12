@@ -78,32 +78,7 @@ class Shipment_Status {
 	}
 
 	public static function semantic_for_label( $label ) {
-		$label = sanitize_text_field( (string) $label );
-		if ( function_exists( 'mb_strtoupper' ) ) {
-			$label = mb_strtoupper( $label, 'UTF-8' );
-		} else {
-			$label = strtoupper( $label );
-		}
-		$label = strtr(
-			$label,
-			array(
-				'Á' => 'A',
-				'Č' => 'C',
-				'Ď' => 'D',
-				'É' => 'E',
-				'Ě' => 'E',
-				'Í' => 'I',
-				'Ň' => 'N',
-				'Ó' => 'O',
-				'Ř' => 'R',
-				'Š' => 'S',
-				'Ť' => 'T',
-				'Ú' => 'U',
-				'Ů' => 'U',
-				'Ý' => 'Y',
-				'Ž' => 'Z',
-			)
-		);
+		$label = self::normalize_label( $label );
 
 		$semantics = array(
 			'PREDANA DATA'        => self::SEMANTIC_DATA,
@@ -117,6 +92,57 @@ class Shipment_Status {
 		);
 
 		return isset( $semantics[ $label ] ) ? $semantics[ $label ] : self::SEMANTIC_UNKNOWN;
+	}
+
+	/**
+	 * Normalize an aggregate status label for exact semantic/group comparison.
+	 */
+	public static function normalize_label( $label ) {
+		$label = trim( sanitize_text_field( (string) $label ) );
+		if ( function_exists( 'remove_accents' ) ) {
+			$label = remove_accents( $label );
+		} else {
+			$label = strtr(
+				$label,
+				array(
+					'Á' => 'A',
+					'Č' => 'C',
+					'Ď' => 'D',
+					'É' => 'E',
+					'Ě' => 'E',
+					'Í' => 'I',
+					'Ň' => 'N',
+					'Ó' => 'O',
+					'Ř' => 'R',
+					'Š' => 'S',
+					'Ť' => 'T',
+					'Ú' => 'U',
+					'Ů' => 'U',
+					'Ý' => 'Y',
+					'Ž' => 'Z',
+					'á' => 'a',
+					'č' => 'c',
+					'ď' => 'd',
+					'é' => 'e',
+					'ě' => 'e',
+					'í' => 'i',
+					'ň' => 'n',
+					'ó' => 'o',
+					'ř' => 'r',
+					'š' => 's',
+					'ť' => 't',
+					'ú' => 'u',
+					'ů' => 'u',
+					'ý' => 'y',
+					'ž' => 'z',
+				)
+			);
+		}
+
+		$label = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $label, 'UTF-8' ) : strtoupper( $label );
+		$label = preg_replace( '/[!.,;:]+$/u', '', $label );
+		$label = is_string( $label ) ? preg_replace( '/\s+/u', ' ', trim( $label ) ) : '';
+		return is_string( $label ) ? $label : '';
 	}
 
 	public function get_parcel_id() {

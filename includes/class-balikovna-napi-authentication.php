@@ -69,6 +69,9 @@ class Napi_Authentication {
 	public function signature( $timestamp, $nonce, $body = null ) {
 		$content_hash   = null === $body ? '' : hash( 'sha256', (string) $body );
 		$string_to_sign = $content_hash . ';' . (string) $timestamp . ';' . (string) $nonce;
+		// The official specs call secretKey "Base64 format" but neither require
+		// decoding nor publish a complete vector. Preserve the supplied text as
+		// the HMAC key until Česká pošta documents the key bytes unambiguously.
 		return base64_encode( hash_hmac( 'sha256', $string_to_sign, $this->secret_key, true ) );
 	}
 }

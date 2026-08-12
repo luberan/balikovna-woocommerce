@@ -51,7 +51,8 @@ class Status_Dictionary {
 			return $this->get();
 		}
 
-		$result = $this->client->statuses_overview();
+		$previous = $this->get();
+		$result   = $this->client->statuses_overview();
 		if ( $result instanceof Napi_Error ) {
 			$cache               = $this->cache();
 			$cache['last_error'] = array(
@@ -62,7 +63,8 @@ class Status_Dictionary {
 			update_option( self::OPTION_NAME, $cache, false );
 			return $result;
 		}
-		$previous = $this->get();
+		Tracking_Settings::initialize_status_defaults( $result );
+		Tracking_Settings::reconcile_status_dictionary( $result, $previous );
 		foreach ( $previous as $code => $row ) {
 			if ( ! isset( $result[ $code ] ) && ! empty( $row['observed'] ) ) {
 				$result[ $code ] = $row;
@@ -75,7 +77,6 @@ class Status_Dictionary {
 			'last_error' => array(),
 		);
 		update_option( self::OPTION_NAME, $cache, false );
-		Tracking_Settings::initialize_status_defaults( $result );
 		return $result;
 	}
 

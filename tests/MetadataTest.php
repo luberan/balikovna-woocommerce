@@ -19,6 +19,10 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( trim( $header[1] ), trim( $stable[1] ) );
 		$this->assertStringContainsString( 'Requires at least: 6.9', $plugin );
 		$this->assertStringContainsString( 'Requires at least: 6.9', $readme );
+		$this->assertStringContainsString( 'WC requires at least: 10.8', $plugin );
+		$this->assertStringContainsString( 'WC tested up to: 11.0', $plugin );
+		$this->assertStringContainsString( 'WC requires at least: 10.8', $readme );
+		$this->assertStringContainsString( 'WC tested up to: 11.0', $readme );
 	}
 
 	public function test_updater_requires_the_release_asset(): void {
@@ -51,6 +55,14 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( "'messageId'    => self::WIDGET_MESSAGE_ID", $plugin );
 		$this->assertStringContainsString( 'setPageInert($wrap[0])', $classic_js );
 		$this->assertStringContainsString( 'modal === active', $classic_js );
+	}
+
+	public function test_ci_checks_all_first_party_javascript(): void {
+		$ci = file_get_contents( $this->rootPath( '.github/workflows/ci.yml' ) );
+
+		$this->assertStringContainsString( 'find assets/js -type f -name "*.js" -print0', $ci );
+		$this->assertStringContainsString( 'xargs -0 -n1 node --check', $ci );
+		$this->assertStringNotContainsString( 'node --check assets/js/checkout.js', $ci );
 	}
 
 	public function test_blocks_schema_exposes_selection_phone(): void {

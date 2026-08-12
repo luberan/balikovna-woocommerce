@@ -60,9 +60,9 @@ jobs:
         run: composer lint
       - name: Check JavaScript syntax
         if: matrix.php == '8.5'
-        run: |
-          node --check assets/js/checkout.js
-          node --check assets/js/checkout-block.js
+        run: >-
+          find assets/js -type f -name "*.js" -print0 |
+          xargs -0 -n1 node --check
       - name: Verify translation template
         if: matrix.php == '8.5'
         run: |

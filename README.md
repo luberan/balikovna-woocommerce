@@ -50,7 +50,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 | | Minimum | Testováno |
 |---|---|---|
 | WordPress | 6.9 | 7.0 |
-| WooCommerce | 10.8 | 10.8 |
+| WooCommerce | 10.8 | 11.0.1 |
 | PHP | 7.4 | 8.5 |
 
 ## Instalace
@@ -82,10 +82,10 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
 3. Zákazníci ve checkoutu uvidí novou shipping metodu; u Balíkovny a Balíku Na poštu kliknou „Vybrat výdejní místo" → vybere v iframe widgetu → potvrdí objednávku.
 4. V detailu objednávky lze ke každému shipping itemu České pošty zadat **podací číslo**. Uloží se před změnou stavu objednávky, takže jej následně odeslaný e-mail obsahuje spolu s odkazem Track & Trace.
 5. Pro automatické stavy otevřete **WooCommerce → Nastavení → Doprava → Sledování stavu zásilek**:
-  - v uživatelské aplikaci Pošta Online si vygenerujte `Api-Token` a `secretKey` pro B2B nAPI,
-  - zvolte produkční nebo oficiální testovací prostředí, údaje uložte a klikněte na **Otestovat připojení**,
+  - v uživatelské aplikaci Pošta Online si vygenerujte přihlašovací údaje `Api-Token` a `secretKey` pro B2B nAPI; uložené hodnoty se v administraci znovu nezobrazují,
+  - zvolte produkční nebo oficiální testovací prostředí, údaje uložte a klikněte na **Otestovat připojení**; test ověří přístup k CIS a načtení číselníku, nikoli ZSK stav konkrétní zásilky,
   - zapněte sledování, nastavte počet objednávek na běh (výchozí 100), stáří objednávek (výchozí 14 dní) a stavy objednávek, které mají být sledovány,
-  - zvolte agregované stavy ČP, které se mají dál dotazovat; neznámý nově pozorovaný stav se dál kontroluje, dokud konfiguraci znovu neuložíte,
+  - zvolte agregované stavy ČP, které se mají dál dotazovat; nový reason kód známého agregovaného stavu bezpečně převezme pouze jednomyslné nastavení skupiny, při nejednoznačnosti se dál kontroluje bez automaticky odhadnutého mapování,
   - volitelně zapněte změny stavů objednávek a nastavte mapování **Česká pošta status → WooCommerce status**.
 6. Doporučené stavy `wc-shipped` a `wc-ready-pickup` plugin sám neregistruje. Pokud existují, objeví se automaticky ve volbách a bezpečných výchozích mapováních. Totéž platí pro jakýkoli jiný stav vrácený `wc_get_order_statuses()`.
 7. V přehledu objednávek (WC → Objednávky) je hromadná akce **Export Balíkovna (CSV Podání Online)**.
@@ -166,13 +166,13 @@ composer build  # čistý staging do build/balikovna-woocommerce
 
 CI běží PHP lint matrix 7.4–8.5 a blokující QA na PHP 7.4 i 8.5. Release ZIP se skládá stejným reprodukovatelným build skriptem.
 
-Automatické testy používají izolované WordPress/WooCommerce runtime stuby. Pokrývají regresní logiku pluginu, nenahrazují však browserový end-to-end test na skutečné instalaci WooCommerce, HPOS databázi ani autentizovaný import Podání Online.
+Automatické testy používají izolované WordPress/WooCommerce runtime stuby. Zdrojové API a hooky byly staticky prověřeny proti WooCommerce 11.0.1, CI však nenačítá skutečný WooCommerce ani HPOS databázi. Testy proto nenahrazují browserový end-to-end test Classic/Block Checkoutu, HPOS ani autentizovaný import Podání Online.
 
 ## Externí služby a soukromí
 
 Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta obdrží běžná HTTP metadata návštěvy. Polohu pro funkci „Moje poloha“ předá prohlížeč widgetu pouze po souhlasu zákazníka. Pokud správce zapne `phone=true`, zákazník zadává telefon přímo ve widgetu České pošty; plugin jej následně převezme a může uložit jako WooCommerce `billing_phone`. Server pluginu stahuje z téhož hostu veřejně dostupný JSON seznam poboček pro ověření výběru; do tohoto požadavku neposílá údaje zákazníka ani objednávky. Endpoint seznamu nemá zveřejněný verzovaný integrační kontrakt, proto lze zdroj nahradit filtry `balikovna_wc_points_api_url` nebo `balikovna_wc_points_directory` a nouzová data se přijímají nejvýše 30 dní.
 
-Při zapnutém nAPI sledování server e-shopu posílá na výše uvedený pevný ZSK host pouze podací číslo potřebné pro `statusInfo` a autentizační hlavičky (`Api-Token`, timestamp, nonce a podpis). `secretKey` zůstává uložen v nastavení WordPressu a používá se lokálně jako HMAC klíč. CIS `statusesOverview` neposílá podací číslo ani údaje zákazníka. Plugin ukládá jen aktuální kód/název stavu, čas události a časy kontroly ke konkrétnímu WooCommerce shipping itemu; neukládá kompletní API odpověď. Tyto diagnostické údaje se zákazníkům nezobrazují. Podmínky zpracování provozovatele jsou na [webu České pošty](https://www.ceskaposta.cz/ochrana-osobnich-udaju).
+Při zapnutém nAPI sledování server e-shopu posílá na výše uvedený pevný ZSK host pouze podací číslo potřebné pro `statusInfo` a autentizační hlavičky (`Api-Token`, timestamp, nonce a podpis). `Api-Token` i `secretKey` jsou přihlašovací údaje uložené v nastavení WordPressu; v HTML administrace se jejich uložené hodnoty nevypisují. `secretKey` se používá lokálně jako HMAC klíč a neposílá se. CIS `statusesOverview` neposílá podací číslo ani údaje zákazníka. Plugin ukládá jen aktuální kód/název stavu, čas události a časy kontroly ke konkrétnímu WooCommerce shipping itemu; neukládá kompletní API odpověď. Tyto diagnostické údaje se zákazníkům nezobrazují. Podmínky zpracování provozovatele jsou na [webu České pošty](https://www.ceskaposta.cz/ochrana-osobnich-udaju).
 
 ## Rozsah a známá omezení
 
