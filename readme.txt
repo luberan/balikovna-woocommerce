@@ -107,6 +107,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.28.1 =
+* 🐛 Opravy chyb: reconcile shipment tracking settings
+
 = 1.28.0 =
 * 🚀 Nové funkce: add automatic shipment status synchronization
 
