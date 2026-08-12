@@ -15,6 +15,18 @@ require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-checkout.php';
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-order.php';
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-export.php';
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-blocks.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-shipment-status.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-napi-authentication.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-napi-client.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-settings.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-status-dictionary.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-eligible-orders.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-order-status-mapper.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-logger.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-shipment-synchronizer.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-scheduler.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-admin.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking.php';
 
 class Plugin {
 
@@ -37,6 +49,7 @@ class Plugin {
 		Order::instance()->init();
 		Export::instance()->init();
 		Blocks::instance()->init();
+		Tracking::instance()->init();
 	}
 
 	public function load_shipping_methods() {

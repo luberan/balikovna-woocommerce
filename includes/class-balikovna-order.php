@@ -11,18 +11,26 @@ defined( 'ABSPATH' ) || exit;
 
 class Order {
 
-	const META_KEY              = '_balikovna_point';
-	const META_PACKAGE_KEY      = '_balikovna_package_key';
-	const META_RATE_ID          = '_balikovna_rate_id';
-	const META_PACKAGE_WEIGHT   = '_balikovna_weight_kg';
-	const META_PACKAGE_VALUE    = '_balikovna_contents_value';
-	const META_UNIT_WEIGHT      = '_balikovna_unit_weight_kg';
-	const META_DATA_VERSION     = '_balikovna_data_version';
-	const META_PARCEL_TYPE      = 'balikovna_parcel_type';
-	const META_TRACKING_NUMBER  = '_balikovna_tracking_number';
-	const TRACKING_NONCE_ACTION = 'balikovna_save_tracking_numbers';
-	const TRACKING_NONCE_NAME   = '_balikovna_tracking_nonce';
-	const DATA_VERSION          = 3;
+	const META_KEY                     = '_balikovna_point';
+	const META_PACKAGE_KEY             = '_balikovna_package_key';
+	const META_RATE_ID                 = '_balikovna_rate_id';
+	const META_PACKAGE_WEIGHT          = '_balikovna_weight_kg';
+	const META_PACKAGE_VALUE           = '_balikovna_contents_value';
+	const META_UNIT_WEIGHT             = '_balikovna_unit_weight_kg';
+	const META_DATA_VERSION            = '_balikovna_data_version';
+	const META_PARCEL_TYPE             = 'balikovna_parcel_type';
+	const META_TRACKING_NUMBER         = '_balikovna_tracking_number';
+	const META_STATUS_CODE             = '_balikovna_status_code';
+	const META_STATUS_LABEL            = '_balikovna_status_label';
+	const META_STATUS_EVENT_AT         = '_balikovna_status_event_at';
+	const META_STATUS_CHECKED_AT       = '_balikovna_status_checked_at';
+	const META_STATUS_ATTEMPTED_AT     = '_balikovna_status_attempted_at';
+	const META_STATUS_TRACKING_NUMBER  = '_balikovna_status_tracking_number';
+	const META_STATUS_EVALUATED_CODE   = '_balikovna_status_evaluated_code';
+	const META_STATUS_MAPPING_REVISION = '_balikovna_status_mapping_revision';
+	const TRACKING_NONCE_ACTION        = 'balikovna_save_tracking_numbers';
+	const TRACKING_NONCE_NAME          = '_balikovna_tracking_nonce';
+	const DATA_VERSION                 = 3;
 
 	private static $instance = null;
 
@@ -118,10 +126,16 @@ class Order {
 			return;
 		}
 
-		$service_id  = (string) $item->get_method_id();
-		$service     = Services::get( $service_id );
-		$point       = $item->get_meta( self::META_KEY, true );
-		$parcel_type = strtoupper( preg_replace( '/[^A-Z0-9]/i', '', (string) $item->get_meta( self::META_PARCEL_TYPE, true ) ) );
+		$service_id      = (string) $item->get_method_id();
+		$service         = Services::get( $service_id );
+		$point           = $item->get_meta( self::META_KEY, true );
+		$parcel_type     = strtoupper( preg_replace( '/[^A-Z0-9]/i', '', (string) $item->get_meta( self::META_PARCEL_TYPE, true ) ) );
+		$tracking_number = self::sanitize_tracking_number( $item->get_meta( self::META_TRACKING_NUMBER, true ) );
+		$status_tracking = (string) $item->get_meta( self::META_STATUS_TRACKING_NUMBER, true );
+		$status_code     = (string) $item->get_meta( self::META_STATUS_CODE, true );
+		if ( $service && ( '' !== $status_code || '' !== $status_tracking ) && $tracking_number !== $status_tracking ) {
+			self::clear_tracking_status( $item );
+		}
 		if ( ! $service || empty( $service['pickup'] ) || ! is_array( $point ) || ! Points::matches_service( $point, $service_id ) ) {
 			$item->delete_meta_data( self::META_KEY );
 		}
@@ -140,6 +154,7 @@ class Order {
 			$item->delete_meta_data( self::META_PACKAGE_VALUE );
 			$item->delete_meta_data( self::META_PARCEL_TYPE );
 			$item->delete_meta_data( self::META_TRACKING_NUMBER );
+			self::clear_tracking_status( $item );
 			$item->delete_meta_data( self::META_DATA_VERSION );
 		}
 	}
@@ -182,6 +197,7 @@ class Order {
 				$item->delete_meta_data( self::META_PACKAGE_VALUE );
 				$item->delete_meta_data( self::META_PARCEL_TYPE );
 				$item->delete_meta_data( self::META_TRACKING_NUMBER );
+				self::clear_tracking_status( $item );
 				$item->delete_meta_data( self::META_DATA_VERSION );
 				$item->save();
 				continue;
@@ -255,17 +271,21 @@ class Order {
 			}
 
 			$shipments[] = array(
-				'item'           => $item,
-				'serviceId'      => $service_id,
-				'service'        => $service,
-				'point'          => $point,
-				'packageKey'     => (string) $item->get_meta( self::META_PACKAGE_KEY, true ),
-				'rateId'         => self::shipping_item_rate_id( $item ),
-				'weightKg'       => (string) $item->get_meta( self::META_PACKAGE_WEIGHT, true ),
-				'contentsValue'  => (string) $item->get_meta( self::META_PACKAGE_VALUE, true ),
-				'parcelType'     => $parcel_type,
-				'trackingNumber' => self::sanitize_tracking_number( $item->get_meta( self::META_TRACKING_NUMBER, true ) ),
-				'serviceCodes'   => (string) $item->get_meta( 'balikovna_service_codes', true ),
+				'item'            => $item,
+				'serviceId'       => $service_id,
+				'service'         => $service,
+				'point'           => $point,
+				'packageKey'      => (string) $item->get_meta( self::META_PACKAGE_KEY, true ),
+				'rateId'          => self::shipping_item_rate_id( $item ),
+				'weightKg'        => (string) $item->get_meta( self::META_PACKAGE_WEIGHT, true ),
+				'contentsValue'   => (string) $item->get_meta( self::META_PACKAGE_VALUE, true ),
+				'parcelType'      => $parcel_type,
+				'trackingNumber'  => self::sanitize_tracking_number( $item->get_meta( self::META_TRACKING_NUMBER, true ) ),
+				'statusCode'      => (string) $item->get_meta( self::META_STATUS_CODE, true ),
+				'statusLabel'     => (string) $item->get_meta( self::META_STATUS_LABEL, true ),
+				'statusEventAt'   => (string) $item->get_meta( self::META_STATUS_EVENT_AT, true ),
+				'statusCheckedAt' => (int) $item->get_meta( self::META_STATUS_CHECKED_AT, true ),
+				'serviceCodes'    => (string) $item->get_meta( 'balikovna_service_codes', true ),
 			);
 		}
 
@@ -388,6 +408,23 @@ class Order {
 		return (string) apply_filters( 'balikovna_wc_tracking_url', $url, $tracking_number );
 	}
 
+	public static function clear_tracking_status( \WC_Order_Item_Shipping $item ) {
+		foreach (
+			array(
+				self::META_STATUS_CODE,
+				self::META_STATUS_LABEL,
+				self::META_STATUS_EVENT_AT,
+				self::META_STATUS_CHECKED_AT,
+				self::META_STATUS_ATTEMPTED_AT,
+				self::META_STATUS_TRACKING_NUMBER,
+				self::META_STATUS_EVALUATED_CODE,
+				self::META_STATUS_MAPPING_REVISION,
+			) as $meta_key
+		) {
+			$item->delete_meta_data( $meta_key );
+		}
+	}
+
 	public function admin_after_shipping( $order ) {
 		$shipments = self::get_shipments( $order );
 		if ( ! $shipments ) {
@@ -412,11 +449,36 @@ class Order {
 				echo '<label for="' . esc_attr( $field_id ) . '">' . esc_html__( 'Podací číslo', 'balikovna-wc' ) . ':</label><br>';
 				echo '<input type="text" class="short" id="' . esc_attr( $field_id ) . '" name="balikovna_tracking_numbers[' . esc_attr( (string) $item_id ) . ']" value="' . esc_attr( $shipment['trackingNumber'] ) . '" maxlength="35" autocomplete="off">';
 			}
+			$status_label = $shipment['statusLabel'] ? $shipment['statusLabel'] : $shipment['statusCode'];
+			if ( $status_label ) {
+				echo '<br><strong>' . esc_html__( 'Stav zásilky', 'balikovna-wc' ) . ':</strong> ' . esc_html( $status_label );
+			}
+			$event_time = self::format_tracking_datetime( $shipment['statusEventAt'] );
+			if ( $event_time ) {
+				echo '<br><strong>' . esc_html__( 'Čas poslední změny', 'balikovna-wc' ) . ':</strong> ' . esc_html( $event_time );
+			}
+			$checked_time = self::format_tracking_datetime( $shipment['statusCheckedAt'] );
+			if ( $checked_time ) {
+				echo '<br><strong>' . esc_html__( 'Naposledy zkontrolováno', 'balikovna-wc' ) . ':</strong> ' . esc_html( $checked_time );
+			}
 			if ( $shipment['trackingNumber'] ) {
 				echo '<br><a href="' . esc_url( self::tracking_url( $shipment['trackingNumber'] ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Sledovat zásilku', 'balikovna-wc' ) . '</a>';
 			}
 			echo '</p>';
 		}
+	}
+
+	private static function format_tracking_datetime( $value ) {
+		if ( ! $value ) {
+			return '';
+		}
+		$timestamp = is_numeric( $value ) ? (int) $value : strtotime( (string) $value );
+		if ( ! $timestamp ) {
+			return '';
+		}
+		$format  = function_exists( 'wc_date_format' ) ? wc_date_format() : get_option( 'date_format', 'j. n. Y' );
+		$format .= ' ' . ( function_exists( 'wc_time_format' ) ? wc_time_format() : get_option( 'time_format', 'H:i' ) );
+		return wp_date( $format, $timestamp, wp_timezone() );
 	}
 
 	public function save_tracking_numbers( $order_id, $order_or_post = null ) {
@@ -446,6 +508,7 @@ class Order {
 			$raw = sanitize_text_field( (string) $posted[ $item_id ] );
 			if ( '' === trim( $raw ) ) {
 				$item->delete_meta_data( self::META_TRACKING_NUMBER );
+				self::clear_tracking_status( $item );
 				$item->save();
 				continue;
 			}
@@ -455,6 +518,9 @@ class Order {
 					\WC_Admin_Meta_Boxes::add_error( __( 'Podací číslo smí obsahovat pouze písmena a číslice.', 'balikovna-wc' ) );
 				}
 				continue;
+			}
+			if ( $tracking_number !== $shipment['trackingNumber'] ) {
+				self::clear_tracking_status( $item );
 			}
 			$item->update_meta_data( self::META_TRACKING_NUMBER, $tracking_number );
 			$item->save();

@@ -294,7 +294,16 @@ final class ShippingAndOrderTest extends TestCase {
 	}
 
 	public function test_manual_tracking_is_saved_per_shipping_item(): void {
-		$first  = new WC_Order_Item_Shipping( 'balikovna_plus', '4', array(), 10 );
+		$first  = new WC_Order_Item_Shipping(
+			'balikovna_plus',
+			'4',
+			array(
+				Order::META_TRACKING_NUMBER => 'DR0000000000A',
+				Order::META_STATUS_CODE     => '44/00',
+				Order::META_STATUS_LABEL    => 'V přepravě',
+			),
+			10
+		);
 		$second = new WC_Order_Item_Shipping( 'cp_do_ruky', '5', array( Order::META_TRACKING_NUMBER => 'DR1111111111C' ), 11 );
 		$order  = new WC_Order( array( $first, $second ) );
 		$_POST  = array(
@@ -307,7 +316,70 @@ final class ShippingAndOrderTest extends TestCase {
 		Order::instance()->save_tracking_numbers( 123, $order );
 
 		$this->assertSame( 'DR1234567890E', $first->get_meta( Order::META_TRACKING_NUMBER ) );
+		$this->assertSame( '', $first->get_meta( Order::META_STATUS_CODE ) );
+		$this->assertSame( '', $first->get_meta( Order::META_STATUS_LABEL ) );
 		$this->assertSame( 'DR1111111111C', $second->get_meta( Order::META_TRACKING_NUMBER ) );
+	}
+
+	public function test_removing_tracking_number_clears_stale_status(): void {
+		$item = new WC_Order_Item_Shipping(
+			'cp_na_postu',
+			'7',
+			array(
+				Order::META_TRACKING_NUMBER => 'NP1234567890A',
+				Order::META_STATUS_CODE     => '81/00',
+				Order::META_STATUS_LABEL    => 'Uloženo',
+			),
+			10
+		);
+		$_POST = array(
+			Order::TRACKING_NONCE_NAME => 'valid-nonce',
+			'balikovna_tracking_numbers' => array( '10' => '' ),
+		);
+
+		Order::instance()->save_tracking_numbers( 123, new WC_Order( array( $item ) ) );
+
+		$this->assertSame( '', $item->get_meta( Order::META_TRACKING_NUMBER ) );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_CODE ) );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_LABEL ) );
+	}
+
+	public function test_shipping_item_crud_change_clears_status_from_previous_tracking_number(): void {
+		$item = new WC_Order_Item_Shipping(
+			'cp_do_ruky',
+			'7',
+			array(
+				Order::META_TRACKING_NUMBER        => 'DR1234567890E',
+				Order::META_STATUS_TRACKING_NUMBER => 'DR0000000000A',
+				Order::META_STATUS_CODE            => '91/00',
+				Order::META_STATUS_LABEL           => 'DORUČENO',
+			),
+			10
+		);
+
+		Order::instance()->remove_stale_shipping_metadata( $item, null );
+
+		$this->assertSame( 'DR1234567890E', $item->get_meta( Order::META_TRACKING_NUMBER ) );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_CODE ) );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_LABEL ) );
+	}
+
+	public function test_shipping_item_crud_change_clears_failed_attempt_metadata(): void {
+		$item = new WC_Order_Item_Shipping(
+			'cp_do_ruky',
+			'7',
+			array(
+				Order::META_TRACKING_NUMBER        => 'DR1234567890E',
+				Order::META_STATUS_TRACKING_NUMBER => 'DR0000000000A',
+				Order::META_STATUS_ATTEMPTED_AT    => 1786521600,
+			),
+			10
+		);
+
+		Order::instance()->remove_stale_shipping_metadata( $item, null );
+
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_TRACKING_NUMBER ) );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_ATTEMPTED_AT ) );
 	}
 
 	public function test_invalid_manual_tracking_does_not_replace_existing_number(): void {
@@ -333,6 +405,33 @@ final class ShippingAndOrderTest extends TestCase {
 
 		$this->assertStringContainsString( 'DR1234567890E', $output );
 		$this->assertStringContainsString( 'parcelNumbers=DR1234567890E', $output );
+	}
+
+	public function test_order_admin_displays_per_shipment_status_and_localized_times(): void {
+		$item = new WC_Order_Item_Shipping(
+			'balikovna',
+			'4',
+			array(
+				Order::META_TRACKING_NUMBER  => 'BA1234567890A',
+				Order::META_STATUS_CODE      => '44/01',
+				Order::META_STATUS_LABEL     => 'V PŘEPRAVĚ',
+				Order::META_STATUS_EVENT_AT  => '2026-08-12T10:00:00+02:00',
+				Order::META_STATUS_CHECKED_AT => 1786521600,
+			),
+			10
+		);
+
+		ob_start();
+		Order::instance()->admin_after_shipping( new WC_Order( array( $item ) ) );
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'BA1234567890A', $output );
+		$this->assertStringContainsString( 'Stav zásilky', $output );
+		$this->assertStringContainsString( 'V PŘEPRAVĚ', $output );
+		$this->assertStringContainsString( 'Čas poslední změny', $output );
+		$this->assertStringContainsString( '12. 8. 2026 10:00', $output );
+		$this->assertStringContainsString( 'Naposledy zkontrolováno', $output );
+		$this->assertStringContainsString( 'Sledovat zásilku', $output );
 	}
 
 	public function test_modern_summary_never_fills_a_second_shipping_item(): void {

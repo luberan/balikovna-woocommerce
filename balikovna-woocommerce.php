@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Balíkovna for WooCommerce
  * Plugin URI:  https://github.com/luberan/balikovna-woocommerce
- * Description: Integrace Balíkovny, Balíkovny plus a dalších služeb České pošty do WooCommerce. Výdejní místa, Podání Online CSV a ruční Track & Trace.
+ * Description: Integrace Balíkovny, Balíkovny plus a dalších služeb České pošty do WooCommerce. Výdejní místa, CSV, Track & Trace a synchronizace stavů.
  * x-release-please-start-version
  * Version:     1.27.1
  * x-release-please-end
@@ -26,6 +26,23 @@ define( 'BALIKOVNA_WC_MIN_WC_VERSION', '10.8' );
 define( 'BALIKOVNA_WC_FILE', __FILE__ );
 define( 'BALIKOVNA_WC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BALIKOVNA_WC_URL', plugin_dir_url( __FILE__ ) );
+
+register_deactivation_hook(
+	__FILE__,
+	function () {
+		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-scheduler.php';
+		\Balikovna_WC\Tracking_Scheduler::unschedule();
+	}
+);
+
+add_action(
+	'deactivate_woocommerce/woocommerce.php',
+	function () {
+		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-scheduler.php';
+		\Balikovna_WC\Tracking_Scheduler::unschedule();
+	},
+	1
+);
 
 // HPOS compatibility.
 add_action(

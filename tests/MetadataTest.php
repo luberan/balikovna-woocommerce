@@ -69,6 +69,13 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( "'parcelNumbers'", $order );
 	}
 
+	public function test_tracking_scheduler_cleans_up_when_woocommerce_is_deactivated(): void {
+		$plugin = file_get_contents( $this->rootPath( 'balikovna-woocommerce.php' ) );
+
+		$this->assertStringContainsString( "'deactivate_woocommerce/woocommerce.php'", $plugin );
+		$this->assertStringContainsString( 'Tracking_Scheduler::unschedule()', $plugin );
+	}
+
 	public function test_workflows_are_valid_and_actions_are_immutable(): void {
 		foreach ( array( '.github/workflows/ci.yml', '.github/workflows/release-please.yml' ) as $path ) {
 			$contents = file_get_contents( $this->rootPath( $path ) );

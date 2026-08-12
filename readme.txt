@@ -9,7 +9,7 @@ Stable tag: 1.27.1
 <!-- x-release-please-end -->
 License: GPLv3 or later
 
-Integrace České pošty (Balíkovna, Balík na adresu, Balíkovna plus, Balík Do ruky, Balík Na poštu) do WooCommerce: shipping metody, výdejní místa, ruční Track & Trace a CSV export pro Podání Online.
+Integrace České pošty do WooCommerce: shipping metody, výdejní místa, CSV, Track & Trace a automatická synchronizace stavů přes B2B nAPI.
 
 == Description ==
 
@@ -23,6 +23,11 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balíkovna plus, Balík 
 * Podpora **klasického shortcode checkoutu** i **Block Checkoutu** (Store API rozšíření).
 * Uložení zvoleného místa k objednávce, zobrazení v adminu, v e-mailech (zákazník i admin) a na stránce Děkujeme / Můj účet.
 * Ruční podací číslo per shipping item a oficiální Track & Trace odkaz v administraci, e-mailu a detailu objednávky.
+* Automatická synchronizace agregovaných stavů přes oficiální B2B-ZSK/CIS nAPI přibližně každých 30 minut.
+* Stav, čas události a čas poslední kontroly samostatně u každého shipping itemu; všech pět metod ČP je podporováno.
+* Packeta-like nastavení limitu objednávek, stáří, sledovaných WooCommerce/carrier stavů a volitelného mapování na stav objednávky.
+* Dynamická podpora vlastních stavů z `wc_get_order_statuses()`; plugin sám `wc-shipped` ani `wc-ready-pickup` neregistruje.
+* Konzervativní vícezásilková logika - objednávka se dokončí až po doručení všech sledovaných zásilek.
 * Sloupec **Balíkovna** v přehledu objednávek (HPOS i klasické).
 * Hromadná akce **Export Balíkovna (CSV Podání Online)** v přehledu objednávek - CSV ve Windows-1250, středník jako oddělovač, per-package hmotnost a hodnota obsahu, atomická validace všech řádků.
 * HPOS ready, kompatibilní s `cart_checkout_blocks`.
@@ -36,6 +41,10 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balíkovna plus, Balík 
 2. Nastavte název, typ ceny, případně váhovou tabulku nebo práh dopravy zdarma. U Balíkovny plus nastavte smluvní prefix DR/DV/DE a limit 31,5 nebo 50 kg.
 3. Zákazník v checkoutu zvolí službu ČP a klikne na „Vybrat výdejní místo" (u Balíkovny / Balíku Na poštu).
 4. Po podání zásilky zadejte v detailu objednávky její podací číslo; následující zákaznický e-mail bude obsahovat Track & Trace odkaz.
+5. Pro automatické stavy otevřete **WooCommerce → Nastavení → Doprava → Sledování stavu zásilek**, zadejte B2B nAPI `Api-Token` a `secretKey`, zvolte prostředí a použijte **Otestovat připojení**.
+6. Nastavte počet objednávek na běh (výchozí 100), okno 14 dní, sledované WooCommerce stavy a carrier stavy. Volitelně zapněte mapování carrier → WooCommerce.
+
+Výchozí mapování: `PODÁNO`/`V PŘEPRAVĚ` → `wc-shipped` (pokud existuje), `ULOŽENO` → `wc-ready-pickup` (pokud existuje), `DORUČENO` → `wc-completed`. WooCommerce e-maily spustí běžná změna stavu; plugin nevytváří vlastní e-mailové šablony.
 
 == Filtry pro vývojáře ==
 
@@ -52,6 +61,12 @@ Integrace České pošty (Balíkovna, Balík na adresu, Balíkovna plus, Balík 
 * `balikovna_wc_valid_recipient_phone` - vlastní ověření normalizovaného telefonu příjemce.
 * `balikovna_wc_recipient_contact_errors` - úprava výsledných chyb kontaktu pro zvolené služby.
 * `balikovna_wc_tracking_url` - úprava Track & Trace URL (`$url`, `$tracking_number`).
+* `balikovna_wc_tracking_interval` - interval Action Scheduleru (výchozí 30 minut, minimum 15 minut).
+* `balikovna_wc_tracking_batch_size` - maximální počet objednávek pro aktuální běh.
+* `balikovna_wc_tracking_shipment_eligible` - povolení synchronizace konkrétního shipping itemu.
+* `balikovna_wc_parsed_carrier_status` - úprava parsovaného objektu stavu před uložením.
+* `balikovna_wc_carrier_status_mapping` - úprava mapování carrier kódu na WooCommerce stav.
+* `balikovna_wc_status_dictionary_ttl` - platnost cache číselníku (výchozí 24 hodin).
 * `balikovna_wc_debug` - vynucený diagnostický mód i bez `WP_DEBUG`.
 * `balikovna_wc_point_validation_result` - vlastní validační výsledek pobočky.
 * `balikovna_wc_points_directory` - vlastní kanonický seznam poboček pro daný typ.
@@ -65,18 +80,23 @@ Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce 
 
 == Externí služby a soukromí ==
 
-Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta obdrží běžná HTTP metadata návštěvy. Geolokaci předá prohlížeč widgetu jen po souhlasu zákazníka. Při zapnutém `phone=true` zadává zákazník telefon přímo ve widgetu České pošty a plugin jej může uložit jako WooCommerce `billing_phone`. Server pluginu stahuje veřejně dostupný JSON seznam poboček pro ověření výběru, bez údajů zákazníka nebo objednávky. Endpoint nemá zveřejněný verzovaný integrační kontrakt; zdroj je proto filtrovatelný a nouzová data mají maximální stáří. Zásady provozovatele: https://www.ceskaposta.cz/ochrana-osobnich-udaju
+Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta obdrží běžná HTTP metadata návštěvy. Geolokaci předá prohlížeč widgetu jen po souhlasu zákazníka. Při zapnutém `phone=true` zadává zákazník telefon přímo ve widgetu České pošty a plugin jej může uložit jako WooCommerce `billing_phone`. Server pluginu stahuje veřejně dostupný JSON seznam poboček pro ověření výběru, bez údajů zákazníka nebo objednávky.
+
+Při nAPI sledování server posílá podací číslo a autentizační hlavičky na pevné hosty `https://b2b.postaonline.cz:444/restservices/ZSKService/v1` a `https://b2b.postaonline.cz:444/restservices/CISService/v1`, případně na oficiální testovací varianty `b2b-test.postaonline.cz:444`. Používá pouze `GET /parcelStatuses/current/idParcel/{idParcel}` a `GET /statusesOverview`. `secretKey` se neposílá; lokálně podepisuje bodyless řetězec `;timestamp;nonce` pomocí HMAC-SHA256. Plugin ukládá jen aktuální stav a časy ke shipping itemu, ne kompletní odpověď. Zásady provozovatele: https://www.ceskaposta.cz/ochrana-osobnich-udaju
 
 == Známá omezení ==
 
 * Plugin aktuálně vytváří objednávku a CSV pro Podání Online; zásilku automaticky nezakládá u České pošty.
-* Není implementováno B2B-ZSK nAPI, tisk štítků, automatická synchronizace stavů, storna, vratky ani podací reporty. Tracking používá ručně zadané podací číslo.
+* nAPI integrace je pouze pro čtení stavů. Nevytváří zásilky, štítky, storna, vratky, svozy, manifesty ani jiné write operace.
+* Automatické sledování vyžaduje smluvní B2B nAPI údaje a existující podací číslo na shipping itemu.
+* Neznámé carrier stavy se dál kontrolují, ale bez výchozí automatické změny objednávky.
+* Action Scheduler vyžaduje funkční WP-Cron nebo externí pravidelné volání `wp-cron.php`. Hook je `balikovna_wc_sync_shipment_statuses`, log source `balikovna-woocommerce-tracking`.
 * Kódy produktů a doplňkových služeb musí odpovídat smlouvě a konfiguraci Podání Online.
 * Automatické testy používají runtime stuby a nenahrazují browserový end-to-end test na skutečné instalaci WooCommerce.
 
 == Roadmap ==
 
-* B2B-ZSK nAPI - vytvoření zásilek, tisk štítků, automatické stavy, storna a reporty.
+* B2B-ZSK nAPI write operace - vytvoření zásilek, tisk štítků, storna, svozy a reporty.
 * Vratky a související B2B workflow.
 * Alternativní picker až nad stabilním a dokumentovaným číselníkem výdejních míst.
 * Reálné end-to-end testy Classic/Block Checkoutu, pay-for-order a HPOS.
