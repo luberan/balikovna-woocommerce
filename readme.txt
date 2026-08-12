@@ -103,6 +103,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.28.0 =
+* 🚀 Nové funkce: add automatic shipment status synchronization
+
 = 1.27.1 =
 * 🐛 Opravy chyb: restore Balikovna rates for incomplete products
 
