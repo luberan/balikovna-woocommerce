@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.0
 Requires PHP: 7.4
 <!-- x-release-please-start-version -->
-Stable tag: 1.27.1
+Stable tag: 1.28.0
 <!-- x-release-please-end -->
 License: GPLv3 or later
 

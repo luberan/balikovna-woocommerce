@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.27.1...v1.28.0) (2026-08-12)
+
+
+### 🚀 Nové funkce
+
+* add automatic shipment status synchronization ([c1eb1ac](https://github.com/luberan/balikovna-woocommerce/commit/c1eb1ac748f35637d1724a41abfad240be4ad019))
+
 ## [1.27.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.27.0...v1.27.1) (2026-08-11)
 
 
