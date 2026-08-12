@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.0...v1.28.1) (2026-08-12)
+
+
+### 🐛 Opravy chyb
+
+* reconcile shipment tracking settings ([4a10aa8](https://github.com/luberan/balikovna-woocommerce/commit/4a10aa80d203861188448f6fd253edf855fd1c78))
+
 ## [1.28.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.27.1...v1.28.0) (2026-08-12)
 
 
