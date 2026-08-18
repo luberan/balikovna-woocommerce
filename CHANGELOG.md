@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.1...v1.28.2) (2026-08-18)
+
+
+### 🐛 Opravy chyb
+
+* update references to rowError in checkout.js for consistency ([bf77c57](https://github.com/luberan/balikovna-woocommerce/commit/bf77c578ce86f6f1d58f6b44ba426bfac1652e40))
+
 ## [1.28.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.0...v1.28.1) (2026-08-12)
 
 
