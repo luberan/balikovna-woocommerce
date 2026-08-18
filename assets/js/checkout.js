@@ -240,7 +240,7 @@
 				return;
 			}
 			selections[active.context.packageKey] = response.data;
-			active.rowError.prop('hidden', true).empty();
+			active.$rowError.prop('hidden', true).empty();
 			if (modal === active) closeModal(false, true);
 			renderPickers();
 			var nextTrigger = $('.balikovna-picker[data-package-key="' + active.context.packageKey + '"] .balikovna-open')[0];
@@ -253,8 +253,8 @@
 				active.saving = false;
 				active.$close.prop('disabled', false);
 				active.$message.addClass('balikovna-error').text(message);
-			} else if (active.rowError[0] && document.contains(active.rowError[0])) {
-				active.rowError.prop('hidden', false).text(message);
+			} else if (active.$rowError[0] && document.contains(active.$rowError[0])) {
+				active.$rowError.prop('hidden', false).text(message);
 			}
 		});
 	}

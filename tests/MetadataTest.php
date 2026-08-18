@@ -65,6 +65,15 @@ final class MetadataTest extends TestCase {
 		$this->assertStringNotContainsString( 'node --check assets/js/checkout.js', $ci );
 	}
 
+	public function test_classic_checkout_uses_stored_row_error_reference(): void {
+		$js = file_get_contents( $this->rootPath( 'assets/js/checkout.js' ) );
+
+		$this->assertStringContainsString( '$rowError: $rowError', $js );
+		$this->assertStringContainsString( "active.\$rowError.prop('hidden', true).empty()", $js );
+		$this->assertStringContainsString( 'active.$rowError[0]', $js );
+		$this->assertStringNotContainsString( 'active.rowError', $js );
+	}
+
 	public function test_blocks_schema_exposes_selection_phone(): void {
 		$schema = ( new Balikovna_WC\Blocks() )->schema_callback();
 		$this->assertSame(
