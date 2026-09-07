@@ -61,6 +61,19 @@ final class TrackingAdminLifecycleTest extends TestCase {
 		$this->assertSame( array(), $GLOBALS['balikovna_test_scheduled_actions'] );
 	}
 
+	public function test_continuation_schedules_while_running_but_deduplicates_pending_actions(): void {
+		$scheduler = new Tracking_Scheduler( function () {} );
+		$scheduler->init();
+		$this->assertArrayHasKey( Tracking_Scheduler::CONTINUATION_HOOK, $GLOBALS['balikovna_test_actions'] );
+		Tracking_Scheduler::schedule_continuation();
+		$GLOBALS['balikovna_test_scheduled_actions'][0]['status'] = 'in-progress';
+		Tracking_Scheduler::schedule_continuation();
+		Tracking_Scheduler::schedule_continuation();
+		$this->assertCount( 2, $GLOBALS['balikovna_test_scheduled_actions'] );
+		Tracking_Scheduler::unschedule();
+		$this->assertSame( array(), $GLOBALS['balikovna_test_scheduled_actions'] );
+	}
+
 	public function test_scheduler_registers_after_action_scheduler_is_initialized(): void {
 		$GLOBALS['balikovna_test_did_actions']['action_scheduler_init'] = 1;
 		$scheduler = new Tracking_Scheduler(

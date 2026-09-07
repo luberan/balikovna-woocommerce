@@ -77,6 +77,12 @@ add_action(
 				'balikovna-woocommerce'
 			);
 			$checker->setBranch( 'main' );
+			add_filter(
+				$checker->getUniqueName( 'vcs_update_detection_strategies' ),
+				function ( $strategies ) {
+					return array_intersect_key( $strategies, array( 'latest_release' => true ) );
+				}
+			);
 			$api = $checker->getVcsApi();
 			if ( $api && method_exists( $api, 'enableReleaseAssets' ) ) {
 				$api->enableReleaseAssets(

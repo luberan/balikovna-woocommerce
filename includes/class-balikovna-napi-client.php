@@ -100,6 +100,16 @@ class Napi_Client {
 			return $response;
 		}
 
+		if ( ! isset( $response['idParcel'] ) || ! is_string( $response['idParcel'] ) || strtoupper( trim( $response['idParcel'] ) ) !== $tracking_number ) {
+			return new Napi_Error(
+				'parcel_id_mismatch',
+				__( 'Česká pošta vrátila stav s jiným nebo chybějícím podacím číslem.', 'balikovna-wc' ),
+				200,
+				false,
+				true
+			);
+		}
+
 		$status = Shipment_Status::from_status_info( $response );
 		if ( is_wp_error( $status ) ) {
 			return new Napi_Error( 'malformed_response', $status->get_error_message(), 200, false, true );

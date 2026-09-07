@@ -47,6 +47,29 @@ final class ExportTest extends TestCase {
 		}
 	}
 
+	public function test_csv_phone_is_international_without_an_apostrophe(): void {
+		$export = new Balikovna_Test_Export();
+		$rows = $export->rows( $this->address_order() );
+		$csv = str_getcsv( trim( $export->encodeRow( $rows[0] ) ), ';', '"', '' );
+		$this->assertSame( '00420777123456', $csv[10] );
+		$this->assertSame( '+420777123456', $rows[0][10] );
+	}
+
+	public function test_csv_phone_normalization_does_not_allow_formulas(): void {
+		$export = new Balikovna_Test_Export();
+		foreach ( array( '+1+1', '=1+1', '+420777123456' . "\n", '+420777123456;=1+1', '@SUM(1,1)' ) as $phone ) {
+			$row = array_fill( 0, 15, '' );
+			$row[10] = $phone;
+			$csv = str_getcsv( trim( $export->encodeRow( $row ) ), ';', '"', '' );
+			$this->assertSame( "'" . $phone, $csv[10] );
+		}
+		$row[0] = '+420777123456';
+		$row[10] = '00420777123456';
+		$csv = str_getcsv( trim( $export->encodeRow( $row ) ), ';', '"', '' );
+		$this->assertSame( "'+420777123456", $csv[0] );
+		$this->assertSame( '00420777123456', $csv[10] );
+	}
+
 	public function test_post_office_destination_uses_selected_office(): void {
 		$export = new Balikovna_Test_Export();
 		$order  = new WC_Order( array(), array(), array( 'shipping_address_1' => 'Customer street', 'shipping_postcode' => '60200', 'shipping_city' => 'Brno' ) );
@@ -65,6 +88,89 @@ final class ExportTest extends TestCase {
 			array( new WC_Order_Item_Product( array( Balikovna_WC\Order::META_UNIT_WEIGHT => '2.500000' ), 2, null ) )
 		);
 		$this->assertSame( '5.00', $export->weight( $order ) );
+	}
+
+	private function address_order( array $address = array(), array $shipping_items = array(), array $products = array() ) {
+		if ( ! $shipping_items ) {
+			$shipping_items = array( new WC_Order_Item_Shipping( 'balikovna_na_adresu', '4', array(
+				Balikovna_WC\Order::META_PACKAGE_WEIGHT => '2',
+				Balikovna_WC\Order::META_PACKAGE_VALUE => '100',
+			) ) );
+		}
+		return new WC_Order( $shipping_items, array(), array_merge( array(
+			'shipping_first_name' => 'Recipient',
+			'shipping_last_name' => 'Customer',
+			'shipping_address_1' => 'Delivery street 1',
+			'shipping_postcode' => '10000',
+			'shipping_city' => 'Praha',
+			'shipping_country' => 'CZ',
+			'billing_first_name' => 'Buyer',
+			'billing_last_name' => 'Person',
+			'billing_company' => 'Buyer Company',
+			'billing_address_1' => 'Billing street 2',
+			'billing_address_2' => 'Building 99',
+			'billing_postcode' => '60200',
+			'billing_city' => 'Brno',
+			'billing_country' => 'CZ',
+			'billing_email' => 'buyer@example.test',
+			'billing_phone' => '+420777123456',
+		), $address ), $products );
+	}
+
+	public function test_shipping_recipient_never_inherits_billing_company_or_address_line(): void {
+		$rows = ( new Balikovna_Test_Export() )->rows( $this->address_order() );
+
+		$this->assertIsArray( $rows );
+		$this->assertSame( array( 'Customer', 'Recipient', 'Delivery street 1', '10000', 'Praha' ), array_slice( $rows[0], 0, 5 ) );
+		$this->assertSame( 'F', $rows[0][13] );
+	}
+
+	public function test_missing_shipping_address_uses_billing_as_a_complete_address(): void {
+		$order = $this->address_order( array(
+			'shipping_first_name' => '', 'shipping_last_name' => '', 'shipping_address_1' => '',
+			'shipping_postcode' => '', 'shipping_city' => '',
+		) );
+		$rows = ( new Balikovna_Test_Export() )->rows( $order );
+
+		$this->assertIsArray( $rows );
+		$this->assertSame( array( 'Buyer Company', '', 'Billing street 2 Building 99', '60200', 'Brno' ), array_slice( $rows[0], 0, 5 ) );
+		$this->assertSame( 'P', $rows[0][13] );
+	}
+
+	public function test_partial_shipping_address_does_not_borrow_required_billing_fields(): void {
+		$export = new Balikovna_Test_Export();
+		foreach ( array( 'shipping_address_1', 'shipping_postcode', 'shipping_city', 'shipping_last_name', 'shipping_country' ) as $missing_field ) {
+			$result = $export->rows( $this->address_order( array( $missing_field => '' ) ) );
+			$this->assertInstanceOf( WP_Error::class, $result, $missing_field );
+		}
+	}
+
+	public function test_changed_contents_recalculates_single_shipment_before_export(): void {
+		$order = $this->address_order( array(), array(), array( new WC_Order_Item_Product( array( Balikovna_WC\Order::META_UNIT_WEIGHT => '2' ), 1, null, 100, 0 ) ) );
+		$shipping = $order->get_shipping_methods();
+		$shipping[0]->update_meta_data( Balikovna_WC\Order::META_CONTENTS_SIGNATURE, Balikovna_WC\Order::contents_signature( $order ) );
+		$changed = $this->address_order( array(), $shipping, array( new WC_Order_Item_Product( array( Balikovna_WC\Order::META_UNIT_WEIGHT => '2' ), 3, null, 300, 0 ) ) );
+
+		$rows = ( new Balikovna_Test_Export() )->rows( $changed );
+
+		$this->assertIsArray( $rows );
+		$this->assertSame( '6.00', $rows[0][5] );
+		$this->assertSame( '300.00', $rows[0][6] );
+	}
+
+	public function test_changed_multi_package_contents_cannot_export_stale_or_whole_order_values(): void {
+		foreach ( array( 'balikovna_na_adresu', 'flat_rate' ) as $second_method ) {
+			$order = $this->address_order();
+			$shipping = $order->get_shipping_methods();
+			$shipping[0]->update_meta_data( Balikovna_WC\Order::META_CONTENTS_SIGNATURE, Balikovna_WC\Order::contents_signature( $order ) );
+			$shipping[] = new WC_Order_Item_Shipping( $second_method, '5', array(
+				Balikovna_WC\Order::META_PACKAGE_WEIGHT => '1',
+				Balikovna_WC\Order::META_PACKAGE_VALUE => '50',
+			) );
+			$changed = $this->address_order( array(), $shipping, array( new WC_Order_Item_Product( array( Balikovna_WC\Order::META_UNIT_WEIGHT => '2' ), 3, null, 300, 0 ) ) );
+
+			$this->assertInstanceOf( WP_Error::class, ( new Balikovna_Test_Export() )->rows( $changed ) );
+		}
 	}
 
 	public function test_rows_use_per_shipment_value_and_company_subject(): void {

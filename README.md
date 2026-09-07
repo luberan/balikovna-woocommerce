@@ -22,6 +22,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 - Podpora **klasického checkoutu** (`wp-admin → WooCommerce → checkout shortcode`) i **Block Checkoutu** (Store API extension)
 - **Cenotvorba** per metoda: fixní cena / podle hmotnosti (tabulka `max_kg|cena`) / volitelný práh „zdarma od“ z mezisoučtu celého košíku napříč shipping packages
 - Produkty Balíkovna se nabízejí jen pro CZ zásilky do 15 kg a 50 × 50 × 50 cm. Známé parametry se vždy kontrolují; u fixní ceny chybějící katalogový údaj sazbu neskryje, váhová cenotvorba však vyžaduje vyplněnou hmotnost.
+- Doprava zdarma nemění dostupnost metody: ve váhovém režimu musí být hmotnost známá a pokrytá platnou váhovou tabulkou i po dosažení finančního prahu.
 - Checkout pro Balíkovnu vyžaduje platný e-mail a české mobilní číslo s předvolbou `+420` nebo `00420`
 - **Kódy služeb ČP** (CSV sloupec I) konfigurovatelné per metoda v admin nastavení
 - Uložení místa k objednávce, sloupec v přehledu objednávek, zobrazení v e-mailech a na stránce „Děkujeme"
@@ -29,20 +30,28 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 - Automatická **synchronizace stavů zásilek** přes oficiální B2B-ZSK/CIS nAPI přibližně každých 30 minut:
   - využívá stávající podací číslo na konkrétním shipping itemu a podporuje všech pět shipping metod,
   - stav, čas události a čas poslední kontroly ukládá samostatně ke každé zásilce,
+  - odmítá odpovědi s jiným nebo chybějícím podacím číslem; při této chybě zachová poslední známý stav a pokus zopakuje při další synchronizaci,
+  - jednotlivý běh má rozpočet 25 sekund a nejvýše 10 dotazů na zásilky; před dalším dotazem ponechává 17 sekund na HTTP timeout a uložení výsledku. Rozpočet zahrnuje i obnovu číselníku. Nejde o násilné přerušení běžícího PHP nebo databázového dotazu,
+  - zbývající objednávky i dokončené zásilky aktuální objednávky ukládá průběžně. Po vyčerpání rozpočtu plánuje pokračování přes Action Scheduler nejdříve za minutu; při přerušení procesu nebo nedostupném plánovači uloženou práci převezme další pravidelný či ruční běh,
+  - souběžné běhy chrání zámkem s atomickou kontrolou původní hodnoty při převzetí, prodloužení i uvolnění. Proces, který ztratí zámek během API volání, odpověď neuloží a skončí,
   - dynamicky načítá číselník agregovaných stavů přes `statusesOverview` a bezpečně zachovává poslední funkční cache,
   - umí volitelně mapovat stabilní kódy ČP na libovolné stavy z `wc_get_order_statuses()`, včetně stavů registrovaných jiným pluginem,
   - mění stav přes standardní `WC_Order::update_status()`, takže existující WooCommerce e-maily reagují přirozeně a plugin je neduplikuje,
-  - u více zásilek postupuje konzervativně; objednávku dokončí až po doručení všech sledovaných zásilek.
+  - u více zásilek postupuje konzervativně; chybějící sledovací číslo u kterékoli zásilky České pošty blokuje automatickou změnu stavu. Objednávku dokončí až po doručení všech jejích zásilek České pošty.
 - Hromadný **CSV export pro Podání Online** – jeden řádek pro každou zásilku, formát sloupců A–O, Windows-1250, středník
   - Pro typ NB (Balíkovna): adresa `Balíkova` + ID balíkovny v PSČ dle pokynů ČP
   - Pro typ NP (Balík Na poštu): adresa, PSČ a město vybrané pošty
   - Hodnota obsahu a hmotnost se ukládají samostatně pro každý shipping package; neúplná objednávka zastaví celý export
+  - Bloková pokladna obnovuje hmotnost i hodnotu obsahu také při zachování stejné sazby dopravy. Snapshoty jsou vázané na obsah objednávky; po jeho změně se jediná zásilka přepočítá z položek, ale u více balíků se export zastaví, protože nové rozdělení obsahu nelze spolehlivě určit. Prosté uložení položek v administraci snapshoty nemění.
+  - Příjemce a adresa se přebírají jako celek z dodacích údajů; fakturační údaje se použijí jen při chybějících dodacích údajích. Prázdná dodací firma nebo druhý řádek adresy se nedoplňuje z fakturace.
   - Finanční částky se exportují pouze v CZK, dobírka v celých korunách a jen na první zásilce objednávky
+  - Telefon ve sloupci K používá mezinárodní zápis `00420…` namísto `+420…`, bez vloženého apostrofu. Ochrana ostatních hodnot CSV proti vzorcům zůstává aktivní.
   - Import v Podání Online musí být nakonfigurovaný pro uvedené sloupce A–O a kódy odpovídající smlouvě odesílatele
 - **HPOS** ready (High-Performance Order Storage), kompatibilní s Cart/Checkout blocks
 - **Diagnostický mód** (`WP_DEBUG` nebo filtr) – do konzole loguje přijaté `postMessage` payloady widgetu
 - Logo služby ČP v shipping metodě (klasický checkout)
 - **Automatické aktualizace** z GitHub Releases (knihovna [Plugin Update Checker](https://github.com/YahnisElsts/plugin-update-checker), MIT) – v admin Pluginy se nové verze zobrazují jako u pluginů z wordpress.org
+- Aktualizace se nabízí pouze s přiloženým instalačním souborem `balikovna-woocommerce.zip`; chybějící release asset se nenahrazuje zdrojovým archivem tagu ani větve.
 - Připraveno pro **i18n** (`languages/balikovna-wc.pot`)
 
 ## Kompatibilita

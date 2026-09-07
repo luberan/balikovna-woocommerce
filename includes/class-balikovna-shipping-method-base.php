@@ -192,6 +192,17 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 			return null;
 		}
 
+		$cost = max( 0.0, (float) $this->cost );
+		if ( 'weight' === $this->cost_type ) {
+			if ( empty( $metrics['weightComplete'] ) ) {
+				return null;
+			}
+			$cost = $this->resolve_weight_cost( $metrics['weightKg'] );
+			if ( null === $cost ) {
+				return null;
+			}
+		}
+
 		if ( '' !== trim( (string) $this->free_shipping_min ) ) {
 			$threshold = (float) $this->free_shipping_min;
 			$subtotal  = $this->cart_contents_total( $package );
@@ -200,14 +211,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 			}
 		}
 
-		if ( 'weight' === $this->cost_type ) {
-			if ( empty( $metrics['weightComplete'] ) ) {
-				return null;
-			}
-			return $this->resolve_weight_cost( $metrics['weightKg'] );
-		}
-
-		return max( 0.0, (float) $this->cost );
+		return $cost;
 	}
 
 	protected function cart_contents_total( $package ) {

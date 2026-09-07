@@ -105,6 +105,31 @@ final class TrackingApiTest extends TestCase {
 		$this->assertSame( 'GET', $transport->requests[0]['method'] );
 	}
 
+	public function test_status_for_a_different_or_missing_parcel_is_rejected(): void {
+		foreach ( array( 'DR9999999999E', '', null, 123456789, array( 'BA1234567890A' ), 'BA1234567890A<script>' ) as $parcel_id ) {
+			$body = array(
+				'parcelStatus' => array( 'statusID' => '91', 'reasonID' => '00', 'statusDescription' => 'DORUČENO' ),
+			);
+			if ( null !== $parcel_id ) {
+				$body['idParcel'] = $parcel_id;
+			}
+			$client = $this->client( array( $this->response( 200, json_encode( $body ) ) ) );
+			$result = $client->status_info( 'BA1234567890A' );
+
+			$this->assertInstanceOf( Napi_Error::class, $result );
+			$this->assertSame( 'parcel_id_mismatch', $result->get_code() );
+			$this->assertTrue( $result->is_transient() );
+			$this->assertFalse( $result->is_global() );
+			$this->assertStringNotContainsString( 'DR9999999999E', $result->get_message() );
+			$this->assertStringNotContainsString( 'BA1234567890A', $result->get_message() );
+		}
+	}
+
+	public function test_parcel_id_comparison_accepts_case_and_surrounding_spaces(): void {
+		$client = $this->client( array( $this->response( 200, '{"idParcel":" ba1234567890a ","parcelStatus":{"statusID":"44","reasonID":"01"}}' ) ) );
+		$this->assertInstanceOf( Shipment_Status::class, $client->status_info( 'ba 1234567890 a' ) );
+	}
+
 	public function test_malformed_status_response_is_rejected(): void {
 		$client = $this->client(
 			array( $this->response( 200, '{"idParcel":"BA1234567890A","parcelStatus":{"reasonID":"00"}}' ) )

@@ -41,13 +41,19 @@ final class Balikovna_Test_Product {
 
 final class Balikovna_Test_Cart {
 	private $contents;
+	private $packages;
 
-	public function __construct( array $contents ) {
+	public function __construct( array $contents, array $packages = array() ) {
 		$this->contents = $contents;
+		$this->packages = $packages;
 	}
 
 	public function get_cart() {
 		return $this->contents;
+	}
+
+	public function get_shipping_packages() {
+		return $this->packages;
 	}
 }
 
@@ -55,6 +61,7 @@ final class ShippingAndOrderTest extends TestCase {
 	protected function setUp(): void {
 		$GLOBALS['balikovna_test_wc']->session = new Balikovna_Test_Session();
 		$GLOBALS['balikovna_test_wc']->cart    = null;
+		$GLOBALS['balikovna_test_orders']      = array();
 		$_POST = array();
 	}
 
@@ -65,6 +72,30 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertNull( $method->resolve( '', 1 ) );
 		$this->assertNull( $method->resolve( 'invalid', 1 ) );
 		$this->assertNull( $method->resolve( '5|-10', 1 ) );
+	}
+
+	public function test_free_shipping_cannot_bypass_weight_table_availability(): void {
+		$method = new Balikovna_Test_Shipping_Method();
+		$package = function ( $weight ) {
+			return array(
+				'destination' => array( 'country' => 'CZ' ),
+				'contents' => array( array(
+					'data' => new Balikovna_Test_Product( $weight, array( 20, 15, 10 ) ),
+					'quantity' => 1, 'line_total' => 2000, 'line_tax' => 0,
+				) ),
+			);
+		};
+		$method->resolve( '5|79', 1 );
+		foreach ( array( '', '1000' ) as $threshold ) {
+			$this->assertNull( $method->cost_for( $package( 10 ), 'balikovna', $threshold, '', 'weight' ) );
+			$this->assertNull( $method->cost_for( $package( '' ), 'balikovna', $threshold, '', 'weight' ) );
+		}
+		$this->assertSame( 79.0, $method->cost_for( $package( 5 ), 'balikovna', '', '', 'weight' ) );
+		$this->assertSame( 0.0, $method->cost_for( $package( 5 ), 'balikovna', '1000', '', 'weight' ) );
+		foreach ( array( '', 'invalid', '5|-10' ) as $table ) {
+			$method->resolve( $table, 1 );
+			$this->assertNull( $method->cost_for( $package( 1 ), 'balikovna', '1000', '', 'weight' ) );
+		}
 	}
 
 	public function test_balikovna_limits_apply_before_flat_and_free_pricing(): void {
@@ -252,6 +283,65 @@ final class ShippingAndOrderTest extends TestCase {
 			)
 		);
 		$this->assertSame( array(), Order::get_shipments( $order ) );
+	}
+
+	public function test_draft_refreshes_snapshots_for_each_package_without_rate_change(): void {
+		WC()->session->set( 'chosen_shipping_methods', array( 'balikovna_na_adresu:4', 'balikovna_na_adresu:4' ) );
+		$packages = array(
+			array( 'contents' => array( array( 'data' => new Balikovna_Test_Product( 2, array( 20, 15, 10 ) ), 'quantity' => 3, 'line_total' => 300, 'line_tax' => 63 ) ) ),
+			array( 'contents' => array( array( 'data' => new Balikovna_Test_Product( 1, array( 20, 15, 10 ) ), 'quantity' => 2, 'line_total' => 80, 'line_tax' => 0 ) ) ),
+		);
+		WC()->cart = new Balikovna_Test_Cart( array(), $packages );
+		$items = array();
+		foreach ( array( '0', '1' ) as $package_key ) {
+			$items[] = new WC_Order_Item_Shipping( 'balikovna_na_adresu', '4', array(
+				Order::META_PACKAGE_KEY => $package_key,
+				Order::META_PACKAGE_WEIGHT => '2',
+				Order::META_PACKAGE_VALUE => '100',
+			) );
+		}
+
+		Order::sync_shipping_points( new WC_Order( $items ) );
+
+		$this->assertSame( '6.000000', $items[0]->get_meta( Order::META_PACKAGE_WEIGHT ) );
+		$this->assertSame( '363.00', $items[0]->get_meta( Order::META_PACKAGE_VALUE ) );
+		$this->assertSame( '2.000000', $items[1]->get_meta( Order::META_PACKAGE_WEIGHT ) );
+		$this->assertSame( '80.00', $items[1]->get_meta( Order::META_PACKAGE_VALUE ) );
+	}
+
+	public function test_draft_without_matching_package_invalidates_old_snapshots(): void {
+		WC()->session->set( 'chosen_shipping_methods', array( 'balikovna_na_adresu:4' ) );
+		$item = new WC_Order_Item_Shipping( 'balikovna_na_adresu', '4', array(
+			Order::META_PACKAGE_KEY => 'missing',
+			Order::META_PACKAGE_WEIGHT => '2',
+			Order::META_PACKAGE_VALUE => '100',
+		) );
+
+		$item->update_meta_data( Order::META_CONTENTS_SIGNATURE, 'old-contents' );
+		Order::sync_shipping_points( new WC_Order( array( $item ) ) );
+
+		$this->assertSame( '0', $item->get_meta( Order::META_PACKAGE_WEIGHT ) );
+		$this->assertSame( '', $item->get_meta( Order::META_PACKAGE_VALUE ) );
+		$this->assertSame( '', $item->get_meta( Order::META_CONTENTS_SIGNATURE ) );
+	}
+
+	public function test_admin_save_preserves_snapshots_until_contents_change(): void {
+		$item = new WC_Order_Item_Shipping( 'balikovna_na_adresu', '4', array(
+			Order::META_PACKAGE_WEIGHT => '2',
+			Order::META_PACKAGE_VALUE => '100',
+		) );
+		$original = new WC_Order( array( $item ), array(), array(), array( new WC_Order_Item_Product( array(), 1, null, 100, 0 ) ) );
+		$GLOBALS['balikovna_test_orders'][1] = $original;
+		Order::instance()->capture_order_contents( 1 );
+		Order::instance()->refresh_order_summary( 1 );
+		$this->assertSame( '2', $item->get_meta( Order::META_PACKAGE_WEIGHT ) );
+		$this->assertSame( '100', $item->get_meta( Order::META_PACKAGE_VALUE ) );
+
+		$GLOBALS['balikovna_test_orders'][1] = new WC_Order( array( $item ), array(), array(), array( new WC_Order_Item_Product( array(), 3, null, 300, 0 ) ) );
+		Order::instance()->refresh_order_summary( 1 );
+
+		$this->assertSame( '', $item->get_meta( Order::META_PACKAGE_WEIGHT ) );
+		$this->assertSame( '', $item->get_meta( Order::META_PACKAGE_VALUE ) );
 	}
 
 	public function test_stale_plus_parcel_type_is_removed_after_shipping_method_change(): void {

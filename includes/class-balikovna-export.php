@@ -165,14 +165,16 @@ class Export {
 		$cod_methods    = (array) apply_filters( 'balikovna_wc_cod_methods', array( 'cod' ) );
 		$is_cod         = in_array( $order->get_payment_method(), $cod_methods, true );
 		$default_subj   = (string) apply_filters( 'balikovna_wc_default_subject', 'F' );
-		$company        = $order->get_shipping_company() ? $order->get_shipping_company() : $order->get_billing_company();
-		$last_name      = $order->get_shipping_last_name() ? $order->get_shipping_last_name() : $order->get_billing_last_name();
-		$first_name     = $order->get_shipping_first_name() ? $order->get_shipping_first_name() : $order->get_billing_first_name();
+		$address_type   = $this->recipient_address_type( $order );
+		$company        = $order->{ 'get_' . $address_type . '_company' }();
+		$last_name      = $order->{ 'get_' . $address_type . '_last_name' }();
+		$first_name     = $order->{ 'get_' . $address_type . '_first_name' }();
 		$recipient_a    = $company ? $company : $last_name;
 		$recipient_b    = $company ? '' : $first_name;
 		$subject        = $company ? 'P' : $default_subj;
 		$phone          = Services::normalize_recipient_phone( $order->get_billing_phone() );
-		$shipment_count = count( $shipments );
+		$single_package = 1 === count( $order->get_shipping_methods() );
+		$signature      = Order::contents_signature( $order );
 		$rows           = array();
 		if ( '' === trim( $recipient_a ) ) {
 			return $this->order_error( $order, __( 'nemá vyplněného příjemce nebo firmu.', 'balikovna-wc' ) );
@@ -192,7 +194,7 @@ class Export {
 
 			$country = ! empty( $service['pickup'] )
 				? ( ! empty( $point['country'] ) ? (string) $point['country'] : 'CZ' )
-				: ( $order->get_shipping_country() ? $order->get_shipping_country() : $order->get_billing_country() );
+				: $order->{ 'get_' . $address_type . '_country' }();
 			if ( ! empty( $service['countries'] ) && ! in_array( strtoupper( $country ), $service['countries'], true ) ) {
 				return $this->order_error( $order, __( 'má nepodporovanou zemi doručení.', 'balikovna-wc' ) );
 			}
@@ -202,16 +204,18 @@ class Export {
 				return $this->order_error( $order, __( 'nemá úplnou adresu příjemce.', 'balikovna-wc' ) );
 			}
 
-			$weight = '' !== $shipment['weightKg']
+			$stored_signature = (string) $shipment['item']->get_meta( Order::META_CONTENTS_SIGNATURE, true );
+			$snapshot_current = '' === $stored_signature || hash_equals( $stored_signature, $signature );
+			$weight           = $snapshot_current && '' !== $shipment['weightKg']
 				? wc_format_decimal( $shipment['weightKg'], 2 )
-				: ( 1 === $shipment_count ? $this->calc_weight( $order ) : '' );
+				: ( $single_package ? $this->calc_weight( $order ) : '' );
 			if ( (float) $weight <= 0 ) {
 				return $this->order_error( $order, __( 'nemá spolehlivě určenou hmotnost každé zásilky.', 'balikovna-wc' ) );
 			}
 
-			$contents_value = '' !== $shipment['contentsValue']
+			$contents_value = $snapshot_current && '' !== $shipment['contentsValue']
 				? wc_format_decimal( $shipment['contentsValue'], 2 )
-				: ( 1 === $shipment_count ? $this->calc_contents_value( $order ) : '' );
+				: ( $single_package ? $this->calc_contents_value( $order ) : '' );
 			if ( '' === $contents_value ) {
 				return $this->order_error( $order, __( 'nemá uloženou hodnotu obsahu každé zásilky.', 'balikovna-wc' ) );
 			}
@@ -271,15 +275,23 @@ class Export {
 			);
 		}
 
-		$street1  = $order->get_shipping_address_1();
-		$street2  = $order->get_shipping_address_2();
-		$postcode = $order->get_shipping_postcode();
-		$city     = $order->get_shipping_city();
+		$address_type = $this->recipient_address_type( $order );
+		$street1      = $order->{ 'get_' . $address_type . '_address_1' }();
+		$street2      = $order->{ 'get_' . $address_type . '_address_2' }();
 		return array(
-			trim( ( $street1 ? $street1 : $order->get_billing_address_1() ) . ' ' . ( $street2 ? $street2 : $order->get_billing_address_2() ) ),
-			$postcode ? $postcode : $order->get_billing_postcode(),
-			$city ? $city : $order->get_billing_city(),
+			trim( $street1 . ' ' . $street2 ),
+			$order->{ 'get_' . $address_type . '_postcode' }(),
+			$order->{ 'get_' . $address_type . '_city' }(),
 		);
+	}
+
+	private function recipient_address_type( \WC_Order $order ) {
+		foreach ( array( 'first_name', 'last_name', 'company', 'address_1', 'address_2', 'postcode', 'city' ) as $field ) {
+			if ( '' !== trim( (string) $order->{ 'get_shipping_' . $field }() ) ) {
+				return 'shipping';
+			}
+		}
+		return 'billing';
 	}
 
 	/**
@@ -297,6 +309,9 @@ class Export {
 	}
 
 	protected function fputcsv_cp1250( $handle, array $row ) {
+		if ( isset( $row[10] ) && preg_match( '/^\+[1-9][0-9]{7,14}$/D', (string) $row[10] ) ) {
+			$row[10] = '00' . substr( (string) $row[10], 1 );
+		}
 		$converted = array_map(
 			function ( $v ) {
 				$v = (string) $v;

@@ -54,12 +54,33 @@ function wc_get_weight( $weight, $unit ) { return (float) $weight; }
 function wc_get_dimension( $dimension, $unit ) { return (float) $dimension; }
 function wc_get_order_statuses() { return $GLOBALS['balikovna_test_order_statuses']; }
 function wc_get_orders( $args ) { return is_callable( $GLOBALS['balikovna_test_order_query'] ) ? call_user_func( $GLOBALS['balikovna_test_order_query'], $args ) : (object) array( 'orders' => array(), 'total' => 0, 'max_num_pages' => 0 ); }
+function wc_get_order( $order_id ) { return $GLOBALS['balikovna_test_orders'][ $order_id ] ?? false; }
+function wp_json_encode( $value ) { return json_encode( $value ); }
+function maybe_serialize( $value ) { return is_array( $value ) || is_object( $value ) ? serialize( $value ) : $value; }
+function wp_cache_delete( $key, $group = '' ) { return true; }
+class Balikovna_Test_Lock_Database {
+	public $options = 'wp_options';
+	public $before_query;
+	public function prepare( $sql, ...$args ) { return array( $sql, $args ); }
+	public function query( $query ) {
+		if ( $this->before_query ) { $callback = $this->before_query; $this->before_query = null; $callback(); }
+		list( $sql, $args ) = $query;
+		$update = 0 === strpos( $sql, 'UPDATE ' );
+		$key = $args[ $update ? 1 : 0 ];
+		$expected = $args[ $update ? 2 : 1 ];
+		if ( maybe_serialize( get_option( $key ) ) !== $expected ) return 0;
+		if ( $update ) { update_option( $key, unserialize( $args[0] ) ); } else { delete_option( $key ); }
+		return 1;
+	}
+}
 function wc_get_logger() { return $GLOBALS['balikovna_test_logger']; }
 function wc_date_format() { return 'j. n. Y'; }
 function wc_time_format() { return 'H:i'; }
 function as_has_scheduled_action( $hook, $args = array(), $group = '' ) { foreach ( $GLOBALS['balikovna_test_scheduled_actions'] as $action ) { if ( $hook === $action['hook'] && $group === $action['group'] && $args === $action['args'] ) return $action['timestamp']; } return false; }
 function as_schedule_recurring_action( $timestamp, $interval, $hook, $args = array(), $group = '', $unique = false ) { if ( $unique && as_has_scheduled_action( $hook, $args, $group ) ) return 0; $GLOBALS['balikovna_test_scheduled_actions'][] = compact( 'timestamp', 'interval', 'hook', 'args', 'group', 'unique' ); return count( $GLOBALS['balikovna_test_scheduled_actions'] ); }
 function as_next_scheduled_action( $hook, $args = array(), $group = '' ) { return as_has_scheduled_action( $hook, $args, $group ); }
+function as_schedule_single_action( $timestamp, $hook, $args = array(), $group = '', $unique = false ) { if ( $unique && as_has_scheduled_action( $hook, $args, $group ) ) return 0; $GLOBALS['balikovna_test_scheduled_actions'][] = compact( 'timestamp', 'hook', 'args', 'group' ); return count( $GLOBALS['balikovna_test_scheduled_actions'] ); }
+function as_get_scheduled_actions( $query, $format = 'OBJECT' ) { return array_keys( array_filter( $GLOBALS['balikovna_test_scheduled_actions'], function ( $action ) use ( $query ) { return $query['hook'] === $action['hook'] && $query['group'] === $action['group'] && $query['status'] === ( $action['status'] ?? 'pending' ); } ) ); }
 function as_unschedule_all_actions( $hook, $args = array(), $group = '' ) { $GLOBALS['balikovna_test_scheduled_actions'] = array_values( array_filter( $GLOBALS['balikovna_test_scheduled_actions'], function ( $action ) use ( $hook, $args, $group ) { return $hook !== $action['hook'] || $group !== $action['group'] || $args !== $action['args']; } ) ); }
 
 class WC_Admin_Settings { public static $errors = array(); public static $messages = array(); public static function add_error( $message ) { self::$errors[] = $message; } public static function add_message( $message ) { self::$messages[] = $message; } }
@@ -85,6 +106,8 @@ class WC_Order_Item_Product {
 	public function __construct( array $meta = array(), $quantity = 1, $product = null, $total = 0, $total_tax = 0 ) { $this->meta = $meta; $this->quantity = $quantity; $this->product = $product; $this->total = $total; $this->total_tax = $total_tax; }
 	public function get_meta( $key, $single = true ) { return $this->meta[ $key ] ?? ''; }
 	public function get_quantity() { return $this->quantity; }
+	public function get_product_id() { return 0; }
+	public function get_variation_id() { return 0; }
 	public function get_product() { return $this->product; }
 	public function get_total() { return $this->total; }
 	public function get_total_tax() { return $this->total_tax; }

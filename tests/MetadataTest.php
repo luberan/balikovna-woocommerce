@@ -28,6 +28,46 @@ final class MetadataTest extends TestCase {
 	public function test_updater_requires_the_release_asset(): void {
 		$plugin = file_get_contents( $this->rootPath( 'balikovna-woocommerce.php' ) );
 		$this->assertStringContainsString( 'Api::REQUIRE_RELEASE_ASSETS', $plugin );
+		$this->assertStringContainsString( "\$checker->getUniqueName( 'vcs_update_detection_strategies' )", $plugin );
+		$this->assertStringContainsString( "array_intersect_key( \$strategies, array( 'latest_release' => true ) )", $plugin );
+	}
+
+	public function test_updater_never_falls_back_to_source_archives(): void {
+		require_once $this->rootPath( 'includes/lib/plugin-update-checker/plugin-update-checker.php' );
+		$plugin = file_get_contents( $this->rootPath( 'balikovna-woocommerce.php' ) );
+		$this->assertSame( 1, preg_match( '/function \( \$strategies \) \{[^}]+\}/', $plugin, $matches ) );
+		$filter = eval( 'return ' . $matches[0] . ';' );
+		$filter_name = 'balikovna_test_release_strategies';
+		remove_all_filters( $filter_name );
+		add_filter( $filter_name, $filter );
+		$api = new class() extends \YahnisElsts\PluginUpdateChecker\v5p7\Vcs\GitHubApi {
+			public $release;
+			public $requests = array();
+			public function __construct() {}
+			protected function api( $url, $queryParams = array() ) {
+				$this->requests[] = $url;
+				if ( '/repos/:user/:repo/releases/latest' !== $url ) {
+					throw new RuntimeException( 'Unexpected source archive fallback: ' . $url );
+				}
+				return $this->release;
+			}
+		};
+		$api->enableReleaseAssets( '/^balikovna-woocommerce\.zip$/i', \YahnisElsts\PluginUpdateChecker\v5p7\Vcs\Api::REQUIRE_RELEASE_ASSETS );
+		$api->setStrategyFilterName( $filter_name );
+		$api->release = (object) array(
+			'tag_name' => 'v9.0.0', 'zipball_url' => 'https://example.test/source.zip',
+			'created_at' => '2026-09-07T00:00:00Z', 'assets' => array(),
+		);
+		$this->assertNull( $api->chooseReference( 'main' ) );
+		$asset = (object) array( 'name' => 'other.zip', 'browser_download_url' => 'https://example.test/balikovna-woocommerce.zip', 'download_count' => 0 );
+		$api->release->assets = array( $asset );
+		$this->assertNull( $api->chooseReference( 'main' ) );
+		$asset->name = 'balikovna-woocommerce.zip';
+		$this->assertSame( $asset->browser_download_url, $api->chooseReference( 'main' )->downloadUrl );
+		$api->release = new WP_Error( 'unavailable', 'Release unavailable' );
+		$this->assertNull( $api->chooseReference( 'main' ) );
+		$this->assertCount( 4, $api->requests );
+		remove_all_filters( $filter_name );
 	}
 
 	public function test_blocks_bridge_has_cart_schema_and_update_callback(): void {

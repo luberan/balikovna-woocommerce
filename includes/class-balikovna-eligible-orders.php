@@ -13,6 +13,12 @@ class Eligible_Orders {
 
 	const CURSOR_OPTION = 'balikovna_wc_tracking_order_page';
 
+	private $clock;
+
+	public function __construct( $clock = null ) {
+		$this->clock = is_callable( $clock ) ? $clock : 'time';
+	}
+
 	/**
 	 * Return at most the configured number of eligible orders.
 	 *
@@ -134,6 +140,6 @@ class Eligible_Orders {
 
 	private function cutoff_timestamp( array $settings ) {
 		$days = max( 1, min( Tracking_Settings::MAX_TRACKING_DAYS, (int) ( $settings['tracking_days'] ?? Tracking_Settings::DEFAULT_TRACKING_DAYS ) ) );
-		return time() - ( $days * DAY_IN_SECONDS );
+		return (int) call_user_func( $this->clock ) - ( $days * DAY_IN_SECONDS );
 	}
 }

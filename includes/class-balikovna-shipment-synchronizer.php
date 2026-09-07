@@ -14,6 +14,10 @@ class Shipment_Synchronizer {
 	const LOCK_OPTION        = 'balikovna_wc_tracking_sync_lock';
 	const DIAGNOSTICS_OPTION = 'balikovna_wc_tracking_diagnostics';
 	const LOCK_TTL           = 5 * MINUTE_IN_SECONDS;
+	const PENDING_OPTION     = 'balikovna_wc_tracking_pending_batch';
+	const BATCH_SECONDS      = 25;
+	const REQUEST_RESERVE    = 17;
+	const MAX_REQUESTS       = 10;
 
 	private $client;
 	private $dictionary;
@@ -22,6 +26,11 @@ class Shipment_Synchronizer {
 	private $logger;
 	private $clock;
 	private $lock_token = '';
+	private $deadline   = 0;
+	private $requests   = 0;
+	private $pending    = array();
+	private $paused     = false;
+	private $lock_lost  = false;
 
 	public function __construct(
 		Napi_Client $client,
@@ -67,8 +76,18 @@ class Shipment_Synchronizer {
 
 		try {
 			$this->lock_token  = $lock_token;
-			$dictionary_result = $this->dictionary->refresh();
-			$this->refresh_lock();
+			$this->deadline    = $this->now() + self::BATCH_SECONDS;
+			$this->requests    = 0;
+			$this->paused      = false;
+			$this->lock_lost   = false;
+			$this->pending     = get_option( self::PENDING_OPTION, array() );
+			$dictionary_error  = $this->dictionary->get_last_error();
+			$resume_dictionary = ! empty( $this->pending['orders'] ) && $this->dictionary->get()
+				&& ! in_array( $dictionary_error['code'] ?? '', array( 'authentication_failed', 'rate_limited' ), true );
+			$dictionary_result = $resume_dictionary ? $this->dictionary->get() : $this->dictionary->refresh();
+			if ( ! $this->refresh_lock() ) {
+				return $this->lost_lock_error();
+			}
 			$dictionary_must_stop = $dictionary_result instanceof Napi_Error
 				&& ( ! $this->dictionary->get() || in_array( $dictionary_result->get_code(), array( 'authentication_failed', 'rate_limited' ), true ) );
 			if ( $dictionary_must_stop ) {
@@ -84,20 +103,58 @@ class Shipment_Synchronizer {
 				)
 			);
 
-			$orders    = $this->orders->find( $settings );
+			$orders = array();
+			if ( empty( $this->pending['orders'] ) ) {
+				$orders        = $this->orders->find( $settings );
+				$this->pending = array(
+					'orders'    => array_map(
+						function ( $order ) {
+							return $order->get_id();
+						},
+						$orders
+					),
+					'done'      => array(),
+					'had_error' => false,
+				);
+				$this->save_pending();
+			}
+			$loaded = array();
+			foreach ( $orders as $order ) {
+				$loaded[ $order->get_id() ] = $order;
+			}
 			$processed = 0;
 			$checked   = 0;
-			foreach ( $orders as $order ) {
-				$this->refresh_lock();
+			while ( ! empty( $this->pending['orders'] ) ) {
+				if ( ! $this->can_continue() ) {
+					break;
+				}
+				$order_id = reset( $this->pending['orders'] );
+				$order    = $loaded[ $order_id ] ?? wc_get_order( $order_id );
+				if ( ! $order instanceof \WC_Order ) {
+					$this->finish_pending_order();
+					continue;
+				}
 				$result   = $this->sync_order( $order, $settings );
 				$checked += (int) $result['checked'];
-				++$processed;
+				if ( $this->paused ) {
+					break;
+				}
 				if ( $result['global_error'] instanceof Napi_Error ) {
+					$this->pending['had_error'] = true;
+					$this->save_pending();
 					$this->record_global_error( $result['global_error'] );
 					return $result['global_error'];
 				}
+				$this->finish_pending_order();
+				++$processed;
 			}
 
+			if ( $this->lock_lost ) {
+				return $this->lost_lock_error();
+			}
+			if ( ! empty( $this->pending['orders'] ) ) {
+				Tracking_Scheduler::schedule_continuation();
+			}
 			if ( $checked > 0 ) {
 				$this->record_success();
 			}
@@ -105,10 +162,13 @@ class Shipment_Synchronizer {
 				'orders'    => $processed,
 				'shipments' => $checked,
 				'skipped'   => false,
+				'pending'   => ! empty( $this->pending['orders'] ),
 			);
 		} finally {
 			$this->release_lock( $lock_token );
 			$this->lock_token = '';
+			$this->deadline   = 0;
+			$this->pending    = array();
 		}
 	}
 
@@ -126,7 +186,7 @@ class Shipment_Synchronizer {
 		}
 
 		$checked      = 0;
-		$had_error    = false;
+		$had_error    = ! empty( $this->pending['had_error'] );
 		$mapping_work = false;
 		foreach ( Order::get_shipments( $order ) as $shipment ) {
 			$item            = $shipment['item'];
@@ -142,13 +202,27 @@ class Shipment_Synchronizer {
 				$stored_code = '';
 			}
 
-			$eligible = (bool) apply_filters( 'balikovna_wc_tracking_shipment_eligible', true, $shipment, $order, $settings );
-			if ( $eligible && Tracking_Settings::should_poll( $stored_code, $settings ) ) {
-				$this->refresh_lock();
+			$eligible     = (bool) apply_filters( 'balikovna_wc_tracking_shipment_eligible', true, $shipment, $order, $settings );
+			$progress_key = $item->get_id() . ':' . $tracking_number;
+			if ( $eligible && empty( $this->pending['done'][ $progress_key ] ) && Tracking_Settings::should_poll( $stored_code, $settings ) ) {
+				if ( ! $this->can_continue( true ) ) {
+					return array(
+						'checked'      => $checked,
+						'global_error' => null,
+					);
+				}
+				++$this->requests;
 				$item->update_meta_data( Order::META_STATUS_ATTEMPTED_AT, $this->now() );
 				$item->update_meta_data( Order::META_STATUS_TRACKING_NUMBER, $tracking_number );
 				$result = $this->client->status_info( $tracking_number );
-				$this->refresh_lock();
+				if ( ! $this->refresh_lock() ) {
+					$this->lock_lost = true;
+					$this->paused    = true;
+					return array(
+						'checked'      => $checked,
+						'global_error' => null,
+					);
+				}
 				if ( $result instanceof Napi_Error ) {
 					$item->save();
 					$this->logger->api_error( $result, $order->get_id(), $item->get_id() );
@@ -159,6 +233,7 @@ class Shipment_Synchronizer {
 						);
 					}
 					$had_error = true;
+					$this->checkpoint_shipment( $progress_key, true );
 					continue;
 				}
 
@@ -177,6 +252,7 @@ class Shipment_Synchronizer {
 				$item->update_meta_data( Order::META_STATUS_TRACKING_NUMBER, $tracking_number );
 				$item->save();
 				$this->dictionary->remember( $result );
+				$this->checkpoint_shipment( $progress_key, false );
 
 				if ( $old_code !== $result->get_code() ) {
 					do_action( 'balikovna_wc_shipment_status_changed', $order, $item, $result, $old_code, $old_label );
@@ -189,6 +265,12 @@ class Shipment_Synchronizer {
 			}
 		}
 
+		if ( ! $this->can_continue() ) {
+			return array(
+				'checked'      => $checked,
+				'global_error' => null,
+			);
+		}
 		if ( ! $had_error && $mapping_work && ! empty( $settings['auto_order_status'] ) ) {
 			$shipments = Order::get_shipments( $order );
 			$mapped    = $this->mapper->apply( $order, $shipments, $settings );
@@ -201,6 +283,47 @@ class Shipment_Synchronizer {
 			'checked'      => $checked,
 			'global_error' => null,
 		);
+	}
+
+	private function can_continue( $request = false ) {
+		if ( ! $this->deadline ) {
+			return true;
+		}
+		if ( ! $this->refresh_lock() ) {
+			$this->lock_lost = true;
+		}
+		$this->paused = $this->lock_lost || $this->now() + ( $request ? self::REQUEST_RESERVE : 0 ) >= $this->deadline
+			|| ( $request && $this->requests >= self::MAX_REQUESTS );
+		return ! $this->paused;
+	}
+
+	private function save_pending() {
+		if ( ! $this->refresh_lock() ) {
+			$this->lock_lost = true;
+			$this->paused    = true;
+			return;
+		}
+		update_option( self::PENDING_OPTION, $this->pending, false );
+	}
+
+	private function checkpoint_shipment( $key, $error ) {
+		if ( ! $this->deadline ) {
+			return;
+		}
+		$this->pending['done'][ $key ] = true;
+		$this->pending['had_error']    = ! empty( $this->pending['had_error'] ) || $error;
+		$this->save_pending();
+	}
+
+	private function finish_pending_order() {
+		array_shift( $this->pending['orders'] );
+		$this->pending['done']      = array();
+		$this->pending['had_error'] = false;
+		$this->save_pending();
+	}
+
+	private function lost_lock_error() {
+		return new Napi_Error( 'synchronization_lock_lost', __( 'Synchronizace stavu zásilek již probíhá.', 'balikovna-wc' ), 0, false, true );
 	}
 
 	private function mark_mapping_evaluated( \WC_Order $order, array $shipments, array $settings ) {
@@ -227,7 +350,9 @@ class Shipment_Synchronizer {
 		$now      = $this->now();
 		$existing = get_option( self::LOCK_OPTION, array() );
 		if ( is_array( $existing ) && isset( $existing['expires'] ) && (int) $existing['expires'] <= $now ) {
-			delete_option( self::LOCK_OPTION );
+			if ( ! $this->compare_lock( $existing ) ) {
+				return false;
+			}
 		}
 		$token = function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'balikovna-', true );
 		$added = add_option(
@@ -244,21 +369,34 @@ class Shipment_Synchronizer {
 
 	private function refresh_lock() {
 		if ( '' === $this->lock_token ) {
-			return;
+			return true;
 		}
 		$lock = get_option( self::LOCK_OPTION, array() );
 		if ( ! is_array( $lock ) || ! isset( $lock['token'] ) || ! hash_equals( (string) $lock['token'], $this->lock_token ) ) {
-			return;
+			return false;
 		}
-		$lock['expires'] = $this->now() + self::LOCK_TTL;
-		update_option( self::LOCK_OPTION, $lock, false );
+		$renewed            = $lock;
+		$renewed['expires'] = max( $this->now() + self::LOCK_TTL, (int) $lock['expires'] + 1 );
+		return $this->compare_lock( $lock, $renewed );
 	}
 
 	private function release_lock( $token ) {
 		$lock = get_option( self::LOCK_OPTION, array() );
 		if ( is_array( $lock ) && isset( $lock['token'] ) && hash_equals( (string) $lock['token'], (string) $token ) ) {
-			delete_option( self::LOCK_OPTION );
+			$this->compare_lock( $lock );
 		}
+	}
+
+	private function compare_lock( array $expected, $replacement = null ) {
+		global $wpdb;
+		if ( null === $replacement ) {
+			$result = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND BINARY option_value = %s", self::LOCK_OPTION, maybe_serialize( $expected ) ) );
+		} else {
+			$result = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND BINARY option_value = %s", maybe_serialize( $replacement ), self::LOCK_OPTION, maybe_serialize( $expected ) ) );
+		}
+		wp_cache_delete( self::LOCK_OPTION, 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+		return 1 === $result;
 	}
 
 	private function record_success() {

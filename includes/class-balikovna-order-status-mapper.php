@@ -54,7 +54,7 @@ class Order_Status_Mapper {
 		$entries = array();
 		foreach ( $shipments as $shipment ) {
 			if ( empty( $shipment['trackingNumber'] ) ) {
-				continue;
+				return '';
 			}
 			$item = $shipment['item'];
 			$code = (string) $item->get_meta( Order::META_STATUS_CODE, true );

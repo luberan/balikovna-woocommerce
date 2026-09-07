@@ -11,9 +11,10 @@ defined( 'ABSPATH' ) || exit;
 
 class Tracking_Scheduler {
 
-	const HOOK     = 'balikovna_wc_sync_shipment_statuses';
-	const GROUP    = 'balikovna-woocommerce';
-	const INTERVAL = 30 * MINUTE_IN_SECONDS;
+	const HOOK              = 'balikovna_wc_sync_shipment_statuses';
+	const GROUP             = 'balikovna-woocommerce';
+	const INTERVAL          = 30 * MINUTE_IN_SECONDS;
+	const CONTINUATION_HOOK = 'balikovna_wc_continue_shipment_statuses';
 
 	private $callback;
 
@@ -23,6 +24,7 @@ class Tracking_Scheduler {
 
 	public function init() {
 		add_action( self::HOOK, $this->callback );
+		add_action( self::CONTINUATION_HOOK, $this->callback );
 		add_action( 'action_scheduler_init', array( $this, 'ensure_scheduled' ) );
 		if ( did_action( 'action_scheduler_init' ) ) {
 			$this->ensure_scheduled();
@@ -68,6 +70,24 @@ class Tracking_Scheduler {
 		}
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			as_unschedule_all_actions( self::HOOK, array(), self::GROUP );
+			as_unschedule_all_actions( self::CONTINUATION_HOOK, array(), self::GROUP );
+		}
+	}
+
+	public static function schedule_continuation() {
+		if ( function_exists( 'as_schedule_single_action' ) ) {
+			$pending = function_exists( 'as_get_scheduled_actions' ) ? as_get_scheduled_actions(
+				array(
+					'hook'     => self::CONTINUATION_HOOK,
+					'group'    => self::GROUP,
+					'status'   => 'pending',
+					'per_page' => 1,
+				),
+				'ids'
+			) : array();
+			if ( ! $pending ) {
+				as_schedule_single_action( time() + MINUTE_IN_SECONDS, self::CONTINUATION_HOOK, array(), self::GROUP, false );
+			}
 		}
 	}
 

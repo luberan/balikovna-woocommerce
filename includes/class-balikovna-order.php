@@ -16,6 +16,7 @@ class Order {
 	const META_RATE_ID                 = '_balikovna_rate_id';
 	const META_PACKAGE_WEIGHT          = '_balikovna_weight_kg';
 	const META_PACKAGE_VALUE           = '_balikovna_contents_value';
+	const META_CONTENTS_SIGNATURE      = '_balikovna_contents_signature';
 	const META_UNIT_WEIGHT             = '_balikovna_unit_weight_kg';
 	const META_DATA_VERSION            = '_balikovna_data_version';
 	const META_PARCEL_TYPE             = 'balikovna_parcel_type';
@@ -45,6 +46,7 @@ class Order {
 		add_action( 'woocommerce_checkout_create_order_shipping_item', array( $this, 'add_shipping_item_metadata' ), 10, 4 );
 		add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'snapshot_line_item_weight' ), 10, 4 );
 		add_action( 'woocommerce_before_order_item_object_save', array( $this, 'remove_stale_shipping_metadata' ), 10, 2 );
+		add_action( 'woocommerce_before_save_order_items', array( $this, 'capture_order_contents' ), 10, 1 );
 		add_action( 'woocommerce_saved_order_items', array( $this, 'refresh_order_summary' ), 10, 1 );
 
 		// Admin order screen.
@@ -90,6 +92,7 @@ class Order {
 		$item->update_meta_data( self::META_RATE_ID, $rate_id );
 		$item->update_meta_data( self::META_PACKAGE_WEIGHT, self::package_weight_kg( $package ) );
 		$item->update_meta_data( self::META_PACKAGE_VALUE, self::package_contents_value( $package ) );
+		$item->update_meta_data( self::META_CONTENTS_SIGNATURE, self::contents_signature( $order ) );
 		$item->update_meta_data( self::META_DATA_VERSION, self::DATA_VERSION );
 
 		if ( empty( $service['pickup'] ) ) {
@@ -152,6 +155,7 @@ class Order {
 			$item->delete_meta_data( self::META_RATE_ID );
 			$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
 			$item->delete_meta_data( self::META_PACKAGE_VALUE );
+			$item->delete_meta_data( self::META_CONTENTS_SIGNATURE );
 			$item->delete_meta_data( self::META_PARCEL_TYPE );
 			$item->delete_meta_data( self::META_TRACKING_NUMBER );
 			self::clear_tracking_status( $item );
@@ -165,6 +169,8 @@ class Order {
 	public static function sync_shipping_points( \WC_Order $order ) {
 		$selections    = Checkout::get_session_selections();
 		$chosen_rates  = Checkout::chosen_shipping_rates();
+		$cart          = WC()->cart ?? null;
+		$packages      = $cart && is_callable( array( $cart, 'get_shipping_packages' ) ) ? $cart->get_shipping_packages() : array();
 		$items         = $order->get_shipping_methods();
 		$assignments   = array();
 		$explicit_keys = array();
@@ -195,6 +201,7 @@ class Order {
 				$item->delete_meta_data( self::META_RATE_ID );
 				$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
 				$item->delete_meta_data( self::META_PACKAGE_VALUE );
+				$item->delete_meta_data( self::META_CONTENTS_SIGNATURE );
 				$item->delete_meta_data( self::META_PARCEL_TYPE );
 				$item->delete_meta_data( self::META_TRACKING_NUMBER );
 				self::clear_tracking_status( $item );
@@ -221,6 +228,16 @@ class Order {
 				$item->update_meta_data( self::META_PACKAGE_KEY, $package_key );
 			} else {
 				$item->delete_meta_data( self::META_PACKAGE_KEY );
+			}
+
+			if ( null !== $package_key && isset( $packages[ $package_key ]['contents'] ) && is_array( $packages[ $package_key ]['contents'] ) ) {
+				$item->update_meta_data( self::META_PACKAGE_WEIGHT, self::package_weight_kg( $packages[ $package_key ] ) );
+				$item->update_meta_data( self::META_PACKAGE_VALUE, self::package_contents_value( $packages[ $package_key ] ) );
+				$item->update_meta_data( self::META_CONTENTS_SIGNATURE, self::contents_signature( $order ) );
+			} else {
+				$item->update_meta_data( self::META_PACKAGE_WEIGHT, '0' );
+				$item->delete_meta_data( self::META_PACKAGE_VALUE );
+				$item->delete_meta_data( self::META_CONTENTS_SIGNATURE );
 			}
 
 			if ( ! empty( $service['pickup'] ) && null !== $package_key && ! empty( $selections[ $package_key ]['point'] ) && $rate_id === $selections[ $package_key ]['rateId'] ) {
@@ -325,9 +342,51 @@ class Order {
 		}
 	}
 
+	public static function contents_signature( \WC_Order $order ) {
+		$contents = array();
+		foreach ( $order->get_items() as $item ) {
+			if ( ! $item instanceof \WC_Order_Item_Product ) {
+				continue;
+			}
+			$contents[] = array(
+				(int) $item->get_product_id(),
+				(int) $item->get_variation_id(),
+				wc_format_decimal( $item->get_quantity(), 6 ),
+				wc_format_decimal( $item->get_total(), 6 ),
+				wc_format_decimal( $item->get_total_tax(), 6 ),
+			);
+		}
+		return hash( 'sha256', (string) wp_json_encode( $contents ) );
+	}
+
+	public function capture_order_contents( $order_id ) {
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			return;
+		}
+		$signature = self::contents_signature( $order );
+		foreach ( self::get_shipments( $order ) as $shipment ) {
+			$item = $shipment['item'];
+			if ( '' === (string) $item->get_meta( self::META_CONTENTS_SIGNATURE, true ) ) {
+				$item->update_meta_data( self::META_CONTENTS_SIGNATURE, $signature );
+				$item->save();
+			}
+		}
+	}
+
 	public function refresh_order_summary( $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( $order ) {
+			$signature = self::contents_signature( $order );
+			foreach ( self::get_shipments( $order ) as $shipment ) {
+				$item   = $shipment['item'];
+				$stored = (string) $item->get_meta( self::META_CONTENTS_SIGNATURE, true );
+				if ( '' !== $stored && ! hash_equals( $stored, $signature ) ) {
+					$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
+					$item->delete_meta_data( self::META_PACKAGE_VALUE );
+					$item->save();
+				}
+			}
 			self::sync_order_summary( $order );
 			$order->save();
 		}

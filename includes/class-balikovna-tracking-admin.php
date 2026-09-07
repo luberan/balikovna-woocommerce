@@ -355,6 +355,10 @@ class Tracking_Admin {
 			\WC_Admin_Settings::add_error( __( 'Synchronizace je vypnutá nebo nejsou vyplněné přihlašovací údaje.', 'balikovna-wc' ) );
 			return;
 		}
+		if ( ! empty( $result['pending'] ) ) {
+			\WC_Admin_Settings::add_message( __( 'Část zásilek byla zpracována. Zbývající synchronizace bude pokračovat na pozadí.', 'balikovna-wc' ) );
+			return;
+		}
 		\WC_Admin_Settings::add_message(
 			sprintf(
 				/* translators: 1: number of orders, 2: number of parcel lookups. */
