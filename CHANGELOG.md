@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.3](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.2...v1.28.3) (2026-09-07)
+
+
+### 🐛 Opravy chyb
+
+* resolve checkout, export and tracking audit findings ([799ec8c](https://github.com/luberan/balikovna-woocommerce/commit/799ec8cbb8a6dbba61ad54c0ee539fec38e3d4eb))
+
 ## [1.28.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.1...v1.28.2) (2026-08-18)
 
 
