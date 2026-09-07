@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.4](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.3...v1.28.4) (2026-09-07)
+
+
+### 🔧 Kompatibilita
+
+* declare WordPress 7.1 compatibility ([fd2be87](https://github.com/luberan/balikovna-woocommerce/commit/fd2be87078941a3ba523f0944e8abb73c1b46284))
+
 ## [1.28.3](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.2...v1.28.3) (2026-09-07)
 
 
