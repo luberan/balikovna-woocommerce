@@ -58,7 +58,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 
 | | Minimum | Testováno |
 |---|---|---|
-| WordPress | 6.9 | 7.0 |
+| WordPress | 6.9 | 7.1 |
 | WooCommerce | 10.8 | 11.0.1 |
 | PHP | 7.4 | 8.5 |
 

@@ -19,6 +19,8 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( trim( $header[1] ), trim( $stable[1] ) );
 		$this->assertStringContainsString( 'Requires at least: 6.9', $plugin );
 		$this->assertStringContainsString( 'Requires at least: 6.9', $readme );
+		$this->assertMatchesRegularExpression( '/^Tested up to: 7\.1\r?$/m', $readme );
+		$this->assertStringContainsString( '| WordPress | 6.9 | 7.1 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $plugin );
 		$this->assertStringContainsString( 'WC tested up to: 11.0', $plugin );
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $readme );
