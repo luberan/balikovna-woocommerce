@@ -107,6 +107,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.28.3 =
+* 🐛 Opravy chyb: resolve checkout, export and tracking audit findings
+
 = 1.28.2 =
 * 🐛 Opravy chyb: update references to rowError in checkout.js for consistency
 
