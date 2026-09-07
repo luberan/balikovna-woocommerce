@@ -107,6 +107,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.28.4 =
+* 🔧 Kompatibilita: declare WordPress 7.1 compatibility
+
 = 1.28.3 =
 * 🐛 Opravy chyb: resolve checkout, export and tracking audit findings
 
