@@ -44,6 +44,11 @@ for (const checkout of ['block', 'classic']) {
         await expect(page.locator('.balikovna-modal')).toHaveCount(0);
         await expect(page.locator('.balikovna-selected').nth(index)).toContainText(index === 0 ? 'Praha 10' : 'Brno');
       }
+      const phone = page.locator(checkout === 'block' ? '#shipping-phone' : '#billing_phone');
+      await phone.fill('');
+      await phone.pressSequentially('+420700000001');
+      await phone.blur();
+      await expect(phone).toHaveValue('+420700000001');
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
       let checkoutResponse;
       await page.route(url => checkout === 'block'
