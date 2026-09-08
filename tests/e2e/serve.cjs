@@ -10,6 +10,7 @@ const logPath = path.join(site, 'php-server.log');
 const serverLog = fs.openSync(logPath, 'a');
 const php = spawn(process.env.BALIKOVNA_PHP_BINARY || 'php', [
   ...JSON.parse(process.env.BALIKOVNA_PHP_ARGS || '[]'),
+  '-d', 'opcache.jit=disable', '-d', 'opcache.jit_buffer_size=0',
   '-S', `${url.hostname}:${url.port || 8873}`, '-t', site,
 ], { stdio: ['ignore', serverLog, serverLog] });
 let stopping = false;

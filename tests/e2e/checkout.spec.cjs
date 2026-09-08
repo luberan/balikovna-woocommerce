@@ -45,8 +45,21 @@ for (const checkout of ['block', 'classic']) {
         await expect(page.locator('.balikovna-selected').nth(index)).toContainText(index === 0 ? 'Praha 10' : 'Brno');
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      let checkoutResponse;
+      await page.route(url => checkout === 'block'
+        ? (url.searchParams.get('rest_route') || url.pathname).endsWith('/wc/store/v1/checkout')
+        : url.searchParams.get('wc-ajax') === 'checkout', async route => {
+        if (route.request().method() !== 'POST') return route.continue();
+        const response = await route.fetch();
+        checkoutResponse = { ok: response.ok(), body: await response.text() };
+        await route.fulfill({ response });
+      });
       await submit.click();
-      await page.waitForURL(url => url.searchParams.has('order-received'), { timeout: 45000 });
+      await expect.poll(() => checkoutResponse, { message: 'Checkout API response' }).toBeDefined();
+      expect(checkoutResponse.ok, checkoutResponse.body).toBe(true);
+      const checkoutResult = JSON.parse(checkoutResponse.body);
+      expect(checkout === 'block' ? checkoutResult.payment_result?.payment_status : checkoutResult.result, checkoutResponse.body).toBe('success');
+      await page.waitForURL(url => url.searchParams.has('order-received'), { timeout: 45000, waitUntil: 'domcontentloaded' });
       const orderId = new URL(page.url()).searchParams.get('order-received');
       const result = JSON.parse(execFileSync(process.env.BALIKOVNA_PHP_BINARY || 'php', [
         ...JSON.parse(process.env.BALIKOVNA_PHP_ARGS || '[]'),

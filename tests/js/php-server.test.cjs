@@ -13,6 +13,7 @@ function startServer() {
   const exits = [];
   const errors = [];
   const signals = new Map();
+  const starts = [];
   const modules = {
     'node:fs': {
       existsSync: () => true,
@@ -20,7 +21,7 @@ function startServer() {
       readFileSync: () => 'PHP failure details',
     },
     'node:path': path,
-    'node:child_process': { spawn: () => child },
+    'node:child_process': { spawn: (...args) => { starts.push(args); return child; } },
   };
   vm.runInNewContext(source, {
     require: name => modules[name],
@@ -32,8 +33,19 @@ function startServer() {
       exit: code => exits.push(code),
     },
   }, { filename: 'serve.cjs' });
-  return { child, exits, errors, signals };
+  return { child, exits, errors, signals, starts };
 }
+
+test('PHP checkout server disables JIT without disabling OPcache', () => {
+  const server = startServer();
+  const [binary, args] = server.starts[0];
+  assert.equal(binary, 'php');
+  for (const setting of ['opcache.jit=disable', 'opcache.jit_buffer_size=0']) {
+    assert.ok(args.includes(setting));
+    assert.equal(args[args.indexOf(setting) - 1], '-d');
+  }
+  assert.ok(!args.includes('opcache.enable=0'));
+});
 
 test('PHP server termination by signal fails the launcher and exposes its log', () => {
   const server = startServer();
