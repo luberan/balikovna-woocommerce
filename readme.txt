@@ -108,6 +108,10 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.28.5 =
+* 🛠 CI: disable checkout JIT and verify API responses
+* 🛠 CI: expose checkout server crashes and integration logs
+
 = 1.28.4 =
 * 🔧 Kompatibilita: declare WordPress 7.1 compatibility
 
