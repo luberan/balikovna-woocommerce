@@ -131,3 +131,12 @@ jobs:
         run: php vendor/phpunit/phpunit/phpunit --configuration phpunit.integration.xml.dist
       - name: Test Classic and Block checkout in Chromium
         run: npm run test:e2e
+      - name: Show integration failure logs
+        if: failure()
+        run: |
+          for log in "$BALIKOVNA_TEST_SITE/php-server.log" "$BALIKOVNA_TEST_SITE/wp-content/debug.log"; do
+            if [ -f "$log" ]; then
+              printf '\n--- %s ---\n' "$log"
+              tail -n 150 "$log"
+            fi
+          done
