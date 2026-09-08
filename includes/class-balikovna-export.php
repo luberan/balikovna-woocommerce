@@ -207,8 +207,15 @@ class Export {
 			$stored_signature = (string) $shipment['item']->get_meta( Order::META_CONTENTS_SIGNATURE, true );
 			$snapshot_current = '' === $stored_signature || hash_equals( $stored_signature, $signature );
 			$weight           = $snapshot_current && '' !== $shipment['weightKg']
-				? wc_format_decimal( $shipment['weightKg'], 2 )
-				: ( $single_package ? $this->calc_weight( $order ) : '' );
+				? $shipment['weightKg']
+				: ( $single_package ? $this->calc_weight( $order, 6 ) : '' );
+			if ( ! is_numeric( $weight ) || ! is_finite( (float) $weight ) || (float) $weight <= 0 ) {
+				return $this->order_error( $order, __( 'nemá spolehlivě určenou hmotnost každé zásilky.', 'balikovna-wc' ) );
+			}
+			if ( $shipment['maxWeightKg'] > 0 && (float) $weight > $shipment['maxWeightKg'] ) {
+				return $this->order_error( $order, __( 'překračuje hmotnostní limit zvolené služby nebo uložený smluvní limit zásilky.', 'balikovna-wc' ) );
+			}
+			$weight = wc_format_decimal( $weight, 2 );
 			if ( (float) $weight <= 0 ) {
 				return $this->order_error( $order, __( 'nemá spolehlivě určenou hmotnost každé zásilky.', 'balikovna-wc' ) );
 			}
@@ -330,21 +337,27 @@ class Export {
 		fputcsv( $handle, $converted, ';', '"', '' );
 	}
 
-	protected function calc_weight( \WC_Order $order ) {
-		$w = 0.0;
+	protected function calc_weight( \WC_Order $order, $decimals = 2 ) {
+		$weight = 0.0;
 		foreach ( $order->get_items() as $item ) {
-			/** @var \WC_Order_Item_Product $item */
-			$snapshot = $item->get_meta( Order::META_UNIT_WEIGHT, true );
-			if ( '' !== (string) $snapshot ) {
-				$w += (float) $snapshot * (int) $item->get_quantity();
+			if ( ! $item instanceof \WC_Order_Item_Product ) {
 				continue;
 			}
 			$product = $item->get_product();
-			if ( $product && '' !== (string) $product->get_weight() ) {
-				$w += wc_get_weight( (float) $product->get_weight(), 'kg' ) * (int) $item->get_quantity();
+			if ( 'no' === $item->get_meta( Order::META_REQUIRES_SHIPPING, true )
+				|| ( $product && is_callable( array( $product, 'needs_shipping' ) ) && ! $product->needs_shipping() ) ) {
+				continue;
 			}
+			$snapshot    = $item->get_meta( Order::META_UNIT_WEIGHT, true );
+			$unit_weight = '' !== (string) $snapshot
+				? (float) $snapshot
+				: ( $product && is_callable( array( $product, 'get_weight' ) ) ? wc_get_weight( (float) $product->get_weight(), 'kg' ) : 0.0 );
+			if ( $unit_weight <= 0 || ! is_finite( $unit_weight ) ) {
+				return '';
+			}
+			$weight += $unit_weight * (float) $item->get_quantity();
 		}
-		return wc_format_decimal( $w, 2 );
+		return $weight > 0 && is_finite( $weight ) ? wc_format_decimal( $weight, $decimals ) : '';
 	}
 
 	protected function calc_contents_value( \WC_Order $order ) {

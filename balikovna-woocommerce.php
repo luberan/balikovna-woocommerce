@@ -14,7 +14,7 @@
  * Requires PHP: 7.4
  * Requires at least: 6.9
  * WC requires at least: 10.8
- * WC tested up to: 11.0
+ * WC tested up to: 11.1
  *
  * @package Balikovna_WC
  */

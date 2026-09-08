@@ -1,0 +1,3 @@
+includes/lib/plugin-update-checker/vendor/ParsedownModern.php text eol=lf
+includes/lib/plugin-update-checker/vendor/parsedown-manifest.json text eol=lf
+includes/lib/plugin-update-checker/vendor/parsedown-license.txt text eol=lf

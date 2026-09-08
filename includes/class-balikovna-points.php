@@ -9,9 +9,12 @@ namespace Balikovna_WC;
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-balikovna-option-lock.php';
+
 class Points {
 
-	const API_URL = 'https://b2c.cpost.cz/locations/api/points';
+	const API_URL     = 'https://b2c.cpost.cz/locations/api/points';
+	const RETRY_DELAY = 5 * MINUTE_IN_SECONDS;
 
 	/**
 	 * Validate a client selection and replace it with canonical widget data.
@@ -136,21 +139,42 @@ class Points {
 			return $stale['directory'];
 		}
 
-		$url      = apply_filters( 'balikovna_wc_points_api_url', self::API_URL, $type );
-		$response = wp_safe_remote_get(
-			add_query_arg( 'type[]', $type, $url ),
-			array(
-				'timeout'             => 15,
-				'redirection'         => 0,
-				'limit_response_size' => 8 * MB_IN_BYTES,
-				'user-agent'          => 'Balikovna-WooCommerce/' . BALIKOVNA_WC_VERSION,
-			)
+		$fallback = $stale_valid && $stale_updated + $max_stale > time() ? $stale['directory'] : new \WP_Error(
+			'balikovna_points_unavailable',
+			__( 'Seznam výdejních míst se nyní nepodařilo ověřit. Zkuste výběr prosím znovu.', 'balikovna-wc' )
 		);
-
-		if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
-			$rows = json_decode( wp_remote_retrieve_body( $response ), true );
-			if ( is_array( $rows ) ) {
-				$directory = self::build_directory( $rows, $type );
+		if ( (int) get_transient( $cache_key . '_retry_after' ) > time() ) {
+			return $fallback;
+		}
+		$lock_name = $cache_key . '_refresh_lock';
+		$token     = Option_Lock::acquire( $lock_name, time(), MINUTE_IN_SECONDS );
+		if ( false === $token ) {
+			return $fallback;
+		}
+		try {
+			$cached = get_transient( $cache_key );
+			if ( is_array( $cached ) && $cached ) {
+				return $cached;
+			}
+			if ( (int) get_transient( $cache_key . '_retry_after' ) > time() ) {
+				return $fallback;
+			}
+			$url      = apply_filters( 'balikovna_wc_points_api_url', self::API_URL, $type );
+			$response = wp_safe_remote_get(
+				add_query_arg( 'type[]', $type, $url ),
+				array(
+					'timeout'             => 15,
+					'redirection'         => 0,
+					'limit_response_size' => 8 * MB_IN_BYTES,
+					'user-agent'          => 'Balikovna-WooCommerce/' . BALIKOVNA_WC_VERSION,
+				)
+			);
+			if ( ! Option_Lock::refresh( $lock_name, $token, time(), MINUTE_IN_SECONDS ) ) {
+				return $fallback;
+			}
+			if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
+				$rows      = json_decode( wp_remote_retrieve_body( $response ), true );
+				$directory = is_array( $rows ) ? self::build_directory( $rows, $type ) : array();
 				if ( $directory ) {
 					set_transient( $cache_key, $directory, $ttl );
 					update_option(
@@ -161,19 +185,15 @@ class Points {
 						),
 						false
 					);
+					delete_transient( $cache_key . '_retry_after' );
 					return $directory;
 				}
 			}
+			set_transient( $cache_key . '_retry_after', time() + self::RETRY_DELAY, self::RETRY_DELAY );
+			return $fallback;
+		} finally {
+			Option_Lock::release( $lock_name, $token );
 		}
-
-		if ( $stale_valid && $stale_updated + $max_stale > time() ) {
-			return $stale['directory'];
-		}
-
-		return new \WP_Error(
-			'balikovna_points_unavailable',
-			__( 'Seznam výdejních míst se nyní nepodařilo ověřit. Zkuste výběr prosím znovu.', 'balikovna-wc' )
-		);
 	}
 
 	/**

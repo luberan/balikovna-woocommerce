@@ -38,6 +38,26 @@ final class TrackingAdminLifecycleTest extends TestCase {
 		);
 	}
 
+	public function test_tracking_reads_settings_only_after_init_and_initializes_once(): void {
+		$tracking = new class extends Tracking {
+			public $reads = 0;
+			public function dictionary( ?array $settings = null ) {
+					if ( ! did_action( 'init' ) ) { throw new RuntimeException( 'Tracking read settings before init.' ); }
+				++$this->reads;
+				return parent::dictionary( $settings );
+			}
+		};
+		$tracking->init();
+		$this->assertSame( 0, $tracking->reads );
+		$this->assertArrayNotHasKey( Tracking_Scheduler::HOOK, $GLOBALS['balikovna_test_actions'] );
+		$GLOBALS['balikovna_test_did_actions']['action_scheduler_init'] = 1;
+		do_action( 'init' );
+		$tracking->init();
+		$this->assertSame( 1, $tracking->reads );
+		$this->assertArrayHasKey( Tracking_Scheduler::HOOK, $GLOBALS['balikovna_test_actions'] );
+		$this->assertCount( 1, $GLOBALS['balikovna_test_scheduled_actions'] );
+	}
+
 	public function test_recurring_action_is_idempotent_and_deactivation_unschedules_it(): void {
 		$scheduler = new Tracking_Scheduler(
 			function () {

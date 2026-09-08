@@ -36,16 +36,18 @@ function wp_nonce_field( $action, $name ) { echo '<input type="hidden" name="' .
 function current_user_can() { return true; }
 function get_transient( $key ) { return $GLOBALS['balikovna_test_transients'][ $key ] ?? false; }
 function set_transient( $key, $value, $expiration ) { $GLOBALS['balikovna_test_transients'][ $key ] = $value; return true; }
+function delete_transient( $key ) { unset( $GLOBALS['balikovna_test_transients'][ $key ] ); return true; }
 function get_option( $key, $default = false ) { return $GLOBALS['balikovna_test_options'][ $key ] ?? $default; }
 function update_option( $key, $value, $autoload = null ) { $GLOBALS['balikovna_test_options'][ $key ] = $value; return true; }
 function add_option( $key, $value, $deprecated = '', $autoload = null ) { if ( array_key_exists( $key, $GLOBALS['balikovna_test_options'] ) ) return false; $GLOBALS['balikovna_test_options'][ $key ] = $value; return true; }
 function delete_option( $key ) { unset( $GLOBALS['balikovna_test_options'][ $key ] ); return true; }
+function wp_clear_scheduled_hook( $hook ) { $GLOBALS['balikovna_test_cleared_cron'][] = $hook; return 0; }
 function add_query_arg( $key, $value = null, $url = null ) { if ( is_array( $key ) ) { $url = (string) $value; $args = $key; } else { $args = array( $key => $value ); } return (string) $url . ( false === strpos( (string) $url, '?' ) ? '?' : '&' ) . http_build_query( $args, '', '&', PHP_QUERY_RFC3986 ); }
 function wp_generate_uuid4() { return '00000000-0000-4000-8000-000000000001'; }
 function wp_timezone() { return new DateTimeZone( 'Europe/Prague' ); }
 function wp_date( $format, $timestamp, $timezone = null ) { $date = new DateTimeImmutable( '@' . $timestamp ); return $date->setTimezone( $timezone ?: new DateTimeZone( 'UTC' ) )->format( $format ); }
 function wp_enqueue_script( $handle, $src = '', $dependencies = array(), $version = false, $in_footer = false ) { $GLOBALS['balikovna_test_enqueued_scripts'][ $handle ] = compact( 'src', 'dependencies', 'version', 'in_footer' ); }
-function wp_safe_remote_get() { return new WP_Error( 'network_disabled', 'Network disabled in unit tests.' ); }
+function wp_safe_remote_get( $url = '', $args = array() ) { return is_callable( $GLOBALS['balikovna_test_points_http'] ?? null ) ? call_user_func( $GLOBALS['balikovna_test_points_http'], $url, $args ) : new WP_Error( 'network_disabled', 'Network disabled in unit tests.' ); }
 function wp_remote_retrieve_response_code( $response ) { return is_array( $response ) ? ( $response['response']['code'] ?? 0 ) : 0; }
 function wp_remote_retrieve_body( $response ) { return is_array( $response ) ? ( $response['body'] ?? '' ) : ''; }
 function wc_format_decimal( $value, $decimals = false ) { $decimals = false === $decimals ? 2 : (int) $decimals; return number_format( (float) $value, $decimals, '.', '' ); }
@@ -105,6 +107,7 @@ class WC_Order_Item_Product {
 	private $meta; private $quantity; private $product; private $total; private $total_tax;
 	public function __construct( array $meta = array(), $quantity = 1, $product = null, $total = 0, $total_tax = 0 ) { $this->meta = $meta; $this->quantity = $quantity; $this->product = $product; $this->total = $total; $this->total_tax = $total_tax; }
 	public function get_meta( $key, $single = true ) { return $this->meta[ $key ] ?? ''; }
+	public function update_meta_data( $key, $value ) { $this->meta[ $key ] = $value; }
 	public function get_quantity() { return $this->quantity; }
 	public function get_product_id() { return 0; }
 	public function get_variation_id() { return 0; }
@@ -151,3 +154,10 @@ class WC_Order {
 	public function get_order_number() { return $this->address['order_number'] ?? '1'; }
 }
 function WC() { return $GLOBALS['balikovna_test_wc']; }
+
+class Balikovna_Test_Route_Exception extends Exception {
+	public $error_code;
+	public function __construct( $error_code, $message, $http_status = 400 ) { $this->error_code = $error_code; parent::__construct( $message, $http_status ); }
+	public function getErrorCode() { return $this->error_code; }
+}
+class_alias( Balikovna_Test_Route_Exception::class, 'Automattic\WooCommerce\StoreApi\Exceptions\RouteException' );

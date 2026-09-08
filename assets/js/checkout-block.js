@@ -182,13 +182,11 @@
 	}
 
 	window.addEventListener( 'message', function ( event ) {
-		if ( BalikovnaWCBlock.debug ) {
-			try { console.log( '[Balíkovna] postMessage origin=%s data=%o', event.origin, event.data ); } catch ( error ) {}
-		}
 		if ( ! activeModal || activeModal.saving ) return;
 		if ( event.origin !== activeModal.expectedOrigin || event.source !== activeModal.iframe.contentWindow ) return;
 		var point = normalizePoint( event.data );
 		if ( ! point ) return;
+		if ( BalikovnaWCBlock.debug ) console.log( '[Balikovna] Valid pickup selection received.' );
 
 		var modal = activeModal;
 		modal.saving = true;

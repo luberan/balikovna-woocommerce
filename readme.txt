@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 WC requires at least: 10.8
-WC tested up to: 11.0
+WC tested up to: 11.1
 <!-- x-release-please-start-version -->
 Stable tag: 1.28.4
 <!-- x-release-please-end -->
@@ -29,12 +29,13 @@ Integrace České pošty do WooCommerce: shipping metody, výdejní místa, CSV,
 * Stav, čas události a čas poslední kontroly samostatně u každého shipping itemu; všech pět metod ČP je podporováno.
 * Packeta-like nastavení limitu objednávek, stáří, sledovaných WooCommerce/carrier stavů a volitelného mapování na stav objednávky.
 * Dynamická podpora vlastních stavů z `wc_get_order_statuses()`; plugin sám `wc-shipped` ani `wc-ready-pickup` neregistruje.
-* Konzervativní vícezásilková logika - objednávka se dokončí až po doručení všech sledovaných zásilek.
+* Konzervativní vícezásilková logika - objednávka se dokončí až po doručení všech sledovaných zásilek; smíšené objednávky s jinými dopravci se automaticky nemění bez výslovného integračního souhlasu.
 * Sloupec **Balíkovna** v přehledu objednávek (HPOS i klasické).
 * Hromadná akce **Export Balíkovna (CSV Podání Online)** v přehledu objednávek - CSV ve Windows-1250, středník jako oddělovač, per-package hmotnost a hodnota obsahu, atomická validace všech řádků.
 * HPOS ready, kompatibilní s `cart_checkout_blocks`.
 * **Automatické aktualizace** z GitHub Releases (Plugin Update Checker, MIT) - po první instalaci se další verze zobrazují v WP admin → Aktualizace stejně jako u pluginů z wordpress.org.
-* **Diagnostický mód**: při zapnutém `WP_DEBUG` se do konzole prohlížeče logují přijaté `postMessage` zprávy z widgetu (vhodné pro vývoj a ladění integrace).
+* **Diagnostický mód**: vypisuje pouze pevné stavové zprávy; telefon, payload widgetu ani údaje výdejního místa se do konzole nezapisují.
+* Přihlašovací údaje jsou uložené pomocí AES-256-GCM nebo načítané z konfigurace serveru; odinstalace odstraní nastavení, údaje a cache, ale zachová objednávky.
 * Připraveno pro **i18n** (`languages/balikovna-wc.pot`).
 
 == Konfigurace ==

@@ -37,7 +37,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
   - dynamicky načítá číselník agregovaných stavů přes `statusesOverview` a bezpečně zachovává poslední funkční cache,
   - umí volitelně mapovat stabilní kódy ČP na libovolné stavy z `wc_get_order_statuses()`, včetně stavů registrovaných jiným pluginem,
   - mění stav přes standardní `WC_Order::update_status()`, takže existující WooCommerce e-maily reagují přirozeně a plugin je neduplikuje,
-  - u více zásilek postupuje konzervativně; chybějící sledovací číslo u kterékoli zásilky České pošty blokuje automatickou změnu stavu. Objednávku dokončí až po doručení všech jejích zásilek České pošty.
+  - u více zásilek postupuje konzervativně; chybějící sledovací číslo u kterékoli zásilky České pošty blokuje automatickou změnu stavu. Smíšené objednávky s jinými dopravci se automaticky nemění bez explicitního souhlasu koordinující integrace.
 - Hromadný **CSV export pro Podání Online** – jeden řádek pro každou zásilku, formát sloupců A–O, Windows-1250, středník
   - Pro typ NB (Balíkovna): adresa `Balíkova` + ID balíkovny v PSČ dle pokynů ČP
   - Pro typ NP (Balík Na poštu): adresa, PSČ a město vybrané pošty
@@ -48,7 +48,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
   - Telefon ve sloupci K používá mezinárodní zápis `00420…` namísto `+420…`, bez vloženého apostrofu. Ochrana ostatních hodnot CSV proti vzorcům zůstává aktivní.
   - Import v Podání Online musí být nakonfigurovaný pro uvedené sloupce A–O a kódy odpovídající smlouvě odesílatele
 - **HPOS** ready (High-Performance Order Storage), kompatibilní s Cart/Checkout blocks
-- **Diagnostický mód** (`WP_DEBUG` nebo filtr) – do konzole loguje přijaté `postMessage` payloady widgetu
+- **Diagnostický mód** (`WP_DEBUG` nebo filtr) vypisuje jen pevné stavové zprávy, nikdy payload widgetu, telefon ani výdejní místo
 - Logo služby ČP v shipping metodě (klasický checkout)
 - **Automatické aktualizace** z GitHub Releases (knihovna [Plugin Update Checker](https://github.com/YahnisElsts/plugin-update-checker), MIT) – v admin Pluginy se nové verze zobrazují jako u pluginů z wordpress.org
 - Aktualizace se nabízí pouze s přiloženým instalačním souborem `balikovna-woocommerce.zip`; chybějící release asset se nenahrazuje zdrojovým archivem tagu ani větve.
@@ -59,7 +59,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 | | Minimum | Testováno |
 |---|---|---|
 | WordPress | 6.9 | 7.1 |
-| WooCommerce | 10.8 | 11.0.1 |
+| WooCommerce | 10.8 | 11.1.0 |
 | PHP | 7.4 | 8.5 |
 
 ## Instalace
@@ -175,13 +175,33 @@ composer build  # čistý staging do build/balikovna-woocommerce
 
 CI běží PHP lint matrix 7.4–8.5 a blokující QA na PHP 7.4 i 8.5. Release ZIP se skládá stejným reprodukovatelným build skriptem.
 
-Automatické testy používají izolované WordPress/WooCommerce runtime stuby. Zdrojové API a hooky byly staticky prověřeny proti WooCommerce 11.0.1, CI však nenačítá skutečný WooCommerce ani HPOS databázi. Testy proto nenahrazují browserový end-to-end test Classic/Block Checkoutu, HPOS ani autentizovaný import Podání Online.
+Jednotkové testy používají izolované runtime stuby. Samostatná integrační CI matice spouští skutečný WordPress 7.1 a WooCommerce 11.1.0 na PHP 7.4/8.5, nad MariaDB 11.4.9 s CPT i HPOS. Playwright dokončuje Classic/Block Checkout s jedním i dvěma balíky a ověřuje trvalá metadata i CSV. Náhrada widgetu v těchto testech nepředstavuje autentizovaný import do Podání Online. Postup lokálního spuštění a přesný rozsah je v [tests/README.md](tests/README.md).
+
+PHPCompatibility je připnuté na 10.0.0-alpha2 a PHPCompatibilityWP na 3.0.0-alpha2, protože stabilní řada 9 nezná moderní PHP. Jde pouze o vývojové nástroje; nedistribuují se s pluginem. Rozšíření kontroly PHP nenahrazuje integrační a browserové testy. Přibalený Parsedown 1.8.0 je namespacovaný, běží v safe mode a jeho zdroj i licence se kontrolují proti Composer locku příkazem `composer vendor:check`.
 
 ## Externí služby a soukromí
 
 Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta obdrží běžná HTTP metadata návštěvy. Polohu pro funkci „Moje poloha“ předá prohlížeč widgetu pouze po souhlasu zákazníka. Pokud správce zapne `phone=true`, zákazník zadává telefon přímo ve widgetu České pošty; plugin jej následně převezme a může uložit jako WooCommerce `billing_phone`. Server pluginu stahuje z téhož hostu veřejně dostupný JSON seznam poboček pro ověření výběru; do tohoto požadavku neposílá údaje zákazníka ani objednávky. Endpoint seznamu nemá zveřejněný verzovaný integrační kontrakt, proto lze zdroj nahradit filtry `balikovna_wc_points_api_url` nebo `balikovna_wc_points_directory` a nouzová data se přijímají nejvýše 30 dní.
 
-Při zapnutém nAPI sledování server e-shopu posílá na výše uvedený pevný ZSK host pouze podací číslo potřebné pro `statusInfo` a autentizační hlavičky (`Api-Token`, timestamp, nonce a podpis). `Api-Token` i `secretKey` jsou přihlašovací údaje uložené v nastavení WordPressu; v HTML administrace se jejich uložené hodnoty nevypisují. `secretKey` se používá lokálně jako HMAC klíč a neposílá se. CIS `statusesOverview` neposílá podací číslo ani údaje zákazníka. Plugin ukládá jen aktuální kód/název stavu, čas události a časy kontroly ke konkrétnímu WooCommerce shipping itemu; neukládá kompletní API odpověď. Tyto diagnostické údaje se zákazníkům nezobrazují. Podmínky zpracování provozovatele jsou na [webu České pošty](https://www.ceskaposta.cz/ochrana-osobnich-udaju).
+Při zapnutém nAPI sledování server e-shopu posílá na výše uvedený pevný ZSK host pouze podací číslo potřebné pro `statusInfo` a autentizační hlavičky (`Api-Token`, timestamp, nonce a podpis). Uložené přihlašovací údaje se v HTML nevypisují. V databázi jsou chráněné AES-256-GCM; původní plaintext se automaticky migruje jen při dostupném platném klíči a OpenSSL, s atomickou kontrolou proti souběžnému uložení. `secretKey` se používá lokálně jako HMAC klíč a neposílá se. CIS `statusesOverview` neposílá podací číslo ani údaje zákazníka. Plugin ukládá jen aktuální kód/název stavu, čas události a časy kontroly ke konkrétnímu WooCommerce shipping itemu; neukládá kompletní API odpověď. Podmínky zpracování provozovatele jsou na [webu České pošty](https://www.ceskaposta.cz/ochrana-osobnich-udaju).
+
+### Ochrana přihlašovacích údajů
+
+- `BALIKOVNA_WC_API_TOKEN` a `BALIKOVNA_WC_SECRET_KEY` lze definovat jako konstanty v konfiguraci WordPressu nebo proměnné prostředí. Mají přednost před databází a jejich hodnoty se do ní nekopírují. Prázdná explicitní hodnota daný údaj vypne.
+- Volitelný `BALIKOVNA_WC_ENCRYPTION_KEY` obsahuje Base64 zápis 32 náhodných bajtů. Bez něj se šifrovací klíč odvozuje z platných `AUTH_KEY` a `AUTH_SALT` WordPressu pomocí HKDF. Klíč uchovávejte odděleně od databázových záloh a nikdy jej necommitujte.
+- Změna šifrovacího klíče nebo použitých WordPress salts zneplatní dříve uložené šifrované hodnoty. Obnovte původní klíč nebo zadejte nAPI údaje znovu. Plugin nečitelné hodnoty sám nepřepíše prázdným řetězcem a zobrazí chybu v nastavení.
+- Bez použitelného šifrovacího klíče a OpenSSL se nové databázové údaje neuloží v plaintextu. Existující nechráněné údaje zůstanou zachované pro řízenou migraci, ale nAPI z nich neběží, dokud není ochrana dostupná. Externě definované údaje šifrování databáze nepotřebují.
+- Odinstalace přes WordPress smaže API nastavení, pracovní dávky, zámky a cache na všech webech multisite. Objednávky, jejich výdejní místa, tracking a nastavení dopravních zón zůstávají zachované. Samotná deaktivace údaje nemaže. Smazání adresáře mimo WordPress odinstalační postup nespustí.
+
+### Pravidla synchronizace a exportu
+
+- Zápis výsledku API a automatického stavu používá krátkou transakci s řádkovými zámky InnoDB. Pod zámkem porovnává aktuální stav objednávky, úplný seznam shipping itemů a jejich podací čísla i stavová metadata. Síťové požadavky probíhají mimo transakci.
+- Při souběžném stornu, změně zásilky, nedostupném zámku, netransakční tabulce nebo již otevřené cizí transakci se zápis odloží; nevytváří se nechráněný fallback. Pro nAPI zápisy jsou potřebné InnoDB objednávkové a shipping-item tabulky. Chyba `order_write_deferred` se objeví ve WooCommerce logu.
+- Smíšené objednávky s dalšími dopravci standardně nemění celkový stav. Vlastní koordinátor může udělit souhlas filtrem `balikovna_wc_allow_mixed_carrier_mapping` až po ověření ostatních zásilek.
+- Kurzor synchronizace uchovává zbytek nedokončené stránky a znovu ověřuje jeho způsobilost, takže oříznutí dávky nezahazuje objednávky.
+- Export odmítne neúplnou, neplatnou nebo nadlimitní hmotnost. Nové sazby ukládají efektivní smluvní limit `balikovna_max_weight_kg`; starší Balíkovna plus bez snapshotu používá konzervativně 31,5 kg. Historický vyšší smluvní limit lze potvrdit uložením metadat příslušného shipping itemu přes WooCommerce CRUD.
+- Pro více kusů se kontroluje konzervativní stohovaný obal: maxima dvou delších stran a součet nejkratších stran všech kusů. Nehledá se optimální balení. Obchod s vlastní balicí logikou může dodat skutečné rozměry filtrem `balikovna_wc_package_metrics`; katalogové údaje nezahrnují automaticky tloušťku obalu.
+- Obnova seznamu poboček je chráněná sdíleným zámkem. Po selhání následuje pětiminutový odstup; během něj se použije pouze ještě povolená nouzová cache. Denní workflow `Pickup Directory Contract` sleduje velikost a parsovatelnost obou veřejných seznamů.
 
 ## Rozsah a známá omezení
 
@@ -200,7 +220,8 @@ Při zapnutém nAPI sledování server e-shopu posílá na výše uvedený pevn�
 - [ ] Tisk PDF štítků, storna, svozy, manifesty a podací reporty
 - [ ] Vratky a související B2B workflow
 - [ ] Alternativní picker až nad stabilním a dokumentovaným číselníkem výdejních míst
-- [ ] Reálné end-to-end testy Classic/Block Checkoutu, pay-for-order a HPOS
+- [x] Reálné integrační a end-to-end testy Classic/Block Checkoutu, CPT a HPOS
+- [ ] Akceptační testy skutečných platebních bran, nAPI a importu Podání Online
 - [ ] Integrace s Block Checkoutem na úrovni logo/branding shipping metody
 
 ## Bezpečnost

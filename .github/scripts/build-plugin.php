@@ -16,6 +16,7 @@ $buildRoot = $root . DIRECTORY_SEPARATOR . 'build';
 $target    = $buildRoot . DIRECTORY_SEPARATOR . $slug;
 $allowlist = array(
 	'balikovna-woocommerce.php',
+	'uninstall.php',
 	'LICENSE',
 	'README.md',
 	'readme.txt',
@@ -126,6 +127,14 @@ removeLegacyVersionMarker( $target . DIRECTORY_SEPARATOR . 'readme.txt' );
 
 if ( ! is_file( $target . '/includes/lib/plugin-update-checker/vendor/Parsedown.php' ) ) {
 	fail( 'Parsedown.php is missing from release staging.' );
+}
+
+$parserRoot = $target . '/includes/lib/plugin-update-checker/vendor/';
+$parserManifest = json_decode( (string) file_get_contents( $parserRoot . 'parsedown-manifest.json' ), true );
+if ( ! is_array( $parserManifest ) || version_compare( $parserManifest['version'] ?? '0', '1.8.0', '<' )
+	|| ( $parserManifest['scoped_sha256'] ?? '' ) !== hash_file( 'sha256', $parserRoot . 'ParsedownModern.php' )
+	|| ! is_file( $parserRoot . 'parsedown-license.txt' ) ) {
+	fail( 'Bundled Parsedown version, checksum or license is invalid.' );
 }
 
 fwrite( STDOUT, 'Staged ' . $slug . ' ' . $headerVersion . ' in ' . $target . PHP_EOL );

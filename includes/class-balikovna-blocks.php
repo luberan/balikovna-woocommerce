@@ -154,7 +154,8 @@ class Blocks {
 	}
 
 	public function update_order_from_request( $order, $request ) {
-		if ( ! $this->is_existing_order_request( $request ) ) {
+		$existing_order = $this->is_existing_order_request( $request );
+		if ( ! $existing_order ) {
 			Order::sync_shipping_points( $order );
 		}
 
@@ -165,7 +166,7 @@ class Blocks {
 			return;
 		}
 
-		$shipments = Order::get_shipments( $order, false );
+		$shipments = Order::get_shipments( $order, $existing_order );
 		foreach ( $shipments as $shipment ) {
 			if ( ! empty( $shipment['service']['pickup'] ) && empty( $shipment['point']['id'] ) ) {
 				throw new RouteException(

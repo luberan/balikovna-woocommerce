@@ -9,7 +9,15 @@ namespace Balikovna_WC;
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-balikovna-order-write-guard.php';
+
 class Order_Status_Mapper {
+
+	private $guard;
+
+	public function __construct( ?Order_Write_Guard $guard = null ) {
+		$this->guard = null === $guard ? new Order_Write_Guard() : $guard;
+	}
 
 	private static $progression = array(
 		'wc-shipped'      => 1,
@@ -42,7 +50,12 @@ class Order_Status_Mapper {
 			return '';
 		}
 
-		$updated = $order->update_status( substr( $target, 3 ) );
+		$updated = $this->guard->run(
+			$order,
+			function () use ( $order, $target ) {
+				return $order->update_status( substr( $target, 3 ) );
+			}
+		);
 		if ( false === $updated ) {
 			return false;
 		}
@@ -51,6 +64,11 @@ class Order_Status_Mapper {
 	}
 
 	public function resolve_target( \WC_Order $order, array $shipments, array $settings ) {
+		if ( count( $order->get_shipping_methods() ) !== count( $shipments )
+			&& ! apply_filters( 'balikovna_wc_allow_mixed_carrier_mapping', false, $order, $shipments, $settings ) ) {
+			return '';
+		}
+
 		$entries = array();
 		foreach ( $shipments as $shipment ) {
 			if ( empty( $shipment['trackingNumber'] ) ) {

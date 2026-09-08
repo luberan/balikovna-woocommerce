@@ -21,7 +21,6 @@ composer.phar
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
 .parcel-cache/
 .cache/
 
@@ -29,6 +28,9 @@ package-lock.json
 /.phpunit.result.cache
 /coverage/
 /tests/_output/
+/playwright-report/
+/test-results/
+/.phpunit.integration.result.cache
 
 # WordPress dev artifacts
 wp-cli.local.yml

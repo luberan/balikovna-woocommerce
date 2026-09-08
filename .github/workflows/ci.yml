@@ -54,6 +54,7 @@ jobs:
         run: |
           composer validate --strict
           composer audit --locked
+          php .github/scripts/vendor-parsedown.php --check
       - name: Run unit and metadata tests
         run: composer test
       - name: Run WordPress and PHP compatibility checks
@@ -63,6 +64,9 @@ jobs:
         run: >-
           find assets/js -type f -name "*.js" -print0 |
           xargs -0 -n1 node --check
+      - name: Test JavaScript security behavior
+        if: matrix.php == '8.5'
+        run: node --test tests/js/*.test.cjs
       - name: Verify translation template
         if: matrix.php == '8.5'
         run: |
@@ -77,3 +81,53 @@ jobs:
         if: matrix.php == '8.5'
         run: |
           php .github/scripts/build-plugin.php
+
+  integration:
+    name: WordPress 7.1 / WooCommerce 11.1 / PHP ${{ matrix.php }} / ${{ matrix.storage }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.5"]
+        storage: ["cpt", "hpos"]
+    services:
+      database:
+        image: mariadb:11.4.9
+        env:
+          MARIADB_ROOT_PASSWORD: integration-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      BALIKOVNA_TEST_SITE: /tmp/balikovna-integration
+      BALIKOVNA_TEST_DB_NAME: balikovna_test_ci
+      BALIKOVNA_TEST_DB_USER: root
+      BALIKOVNA_TEST_DB_PASSWORD: integration-only
+      BALIKOVNA_TEST_DB_HOST: 127.0.0.1
+      BALIKOVNA_TEST_DB_PORT: "3306"
+      BALIKOVNA_TEST_STORAGE: ${{ matrix.storage }}
+      BALIKOVNA_TEST_BASE_URL: http://127.0.0.1:8873
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, pdo_mysql, curl, zip, mbstring, openssl
+          tools: composer
+          coverage: none
+      - name: Install dependencies and build plugin
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          composer build
+          npm ci --ignore-scripts
+          npm audit
+          node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - name: Prepare isolated WordPress and WooCommerce
+        run: php .github/scripts/setup-integration.php
+      - name: Test real WordPress and InnoDB behavior
+        run: php vendor/phpunit/phpunit/phpunit --configuration phpunit.integration.xml.dist
+      - name: Test Classic and Block checkout in Chromium
+        run: npm run test:e2e

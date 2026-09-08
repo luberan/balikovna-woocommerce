@@ -15,6 +15,7 @@ class Tracking {
 
 	private $scheduler;
 	private $admin;
+	private $initialized = false;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -24,6 +25,19 @@ class Tracking {
 	}
 
 	public function init() {
+		if ( did_action( 'init' ) ) {
+			$this->initialize();
+			return;
+		}
+		add_action( 'init', array( $this, 'initialize' ), 20 );
+	}
+
+	public function initialize() {
+		if ( $this->initialized ) {
+			return;
+		}
+		$this->initialized = true;
+		Tracking_Settings::migrate_credentials();
 		$cached_dictionary = $this->dictionary()->get();
 		Tracking_Settings::reconcile_status_dictionary( $cached_dictionary, $cached_dictionary );
 

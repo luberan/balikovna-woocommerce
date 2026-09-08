@@ -34,12 +34,25 @@ class Eligible_Orders {
 		}
 
 		$limit          = max( 1, min( Tracking_Settings::MAX_BATCH_SIZE, (int) ( $settings['batch_size'] ?? Tracking_Settings::DEFAULT_BATCH_SIZE ) ) );
-		$page           = max( 1, (int) get_option( self::CURSOR_OPTION, 1 ) );
+		$cursor         = get_option( self::CURSOR_OPTION, 1 );
+		$page           = max( 1, (int) ( is_array( $cursor ) ? ( $cursor['page'] ?? 1 ) : $cursor ) );
 		$max_scan_pages = max( 1, min( 100, (int) apply_filters( 'balikovna_wc_tracking_scan_pages', 10, $settings ) ) );
 		$orders         = array();
 		$seen_order_ids = array();
 		$scanned        = 0;
 		$max_pages      = 0;
+
+		foreach ( is_array( $cursor ) ? (array) ( $cursor['remaining'] ?? array() ) : array() as $order_id ) {
+			$order_id = absint( $order_id );
+			if ( ! $order_id || isset( $seen_order_ids[ $order_id ] ) ) {
+				continue;
+			}
+			$seen_order_ids[ $order_id ] = true;
+			$order                       = wc_get_order( $order_id );
+			if ( $order instanceof \WC_Order && $this->is_order_eligible( $order, $settings ) && $this->has_work( $order, $settings ) ) {
+				$orders[] = $order;
+			}
+		}
 
 		while ( count( $orders ) < $limit && $scanned < $max_scan_pages ) {
 			$result = wc_get_orders(
@@ -94,7 +107,19 @@ class Eligible_Orders {
 			}
 		}
 
-		update_option( self::CURSOR_OPTION, $page, false );
+		update_option(
+			self::CURSOR_OPTION,
+			array(
+				'page'      => $page,
+				'remaining' => array_map(
+					function ( $order ) {
+						return $order->get_id();
+					},
+					array_slice( $orders, $limit )
+				),
+			),
+			false
+		);
 		return array_slice( $orders, 0, $limit );
 	}
 

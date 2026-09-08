@@ -9,6 +9,8 @@ namespace Balikovna_WC;
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-balikovna-option-lock.php';
+
 class Shipment_Synchronizer {
 
 	const LOCK_OPTION        = 'balikovna_wc_tracking_sync_lock';
@@ -25,6 +27,7 @@ class Shipment_Synchronizer {
 	private $mapper;
 	private $logger;
 	private $clock;
+	private $guard;
 	private $lock_token = '';
 	private $deadline   = 0;
 	private $requests   = 0;
@@ -38,7 +41,8 @@ class Shipment_Synchronizer {
 		Eligible_Orders $orders,
 		Order_Status_Mapper $mapper,
 		Tracking_Logger $logger,
-		$clock = null
+		$clock = null,
+		?Order_Write_Guard $guard = null
 	) {
 		$this->client     = $client;
 		$this->dictionary = $dictionary;
@@ -46,6 +50,7 @@ class Shipment_Synchronizer {
 		$this->mapper     = $mapper;
 		$this->logger     = $logger;
 		$this->clock      = is_callable( $clock ) ? $clock : 'time';
+		$this->guard      = null === $guard ? new Order_Write_Guard() : $guard;
 	}
 
 	/**
@@ -189,6 +194,7 @@ class Shipment_Synchronizer {
 		$had_error    = ! empty( $this->pending['had_error'] );
 		$mapping_work = false;
 		foreach ( Order::get_shipments( $order ) as $shipment ) {
+			$snapshot        = $this->guard->snapshot( $order );
 			$item            = $shipment['item'];
 			$tracking_number = $shipment['trackingNumber'];
 			if ( ! Napi_Client::is_valid_parcel_id( $tracking_number ) ) {
@@ -212,9 +218,8 @@ class Shipment_Synchronizer {
 					);
 				}
 				++$this->requests;
-				$item->update_meta_data( Order::META_STATUS_ATTEMPTED_AT, $this->now() );
-				$item->update_meta_data( Order::META_STATUS_TRACKING_NUMBER, $tracking_number );
-				$result = $this->client->status_info( $tracking_number );
+				$attempted_at = $this->now();
+				$result       = $this->client->status_info( $tracking_number );
 				if ( ! $this->refresh_lock() ) {
 					$this->lock_lost = true;
 					$this->paused    = true;
@@ -223,8 +228,32 @@ class Shipment_Synchronizer {
 						'global_error' => null,
 					);
 				}
+				$old_code  = $stored_code;
+				$old_label = (string) $item->get_meta( Order::META_STATUS_LABEL, true );
+				$known     = $this->dictionary->get();
+				$saved     = $this->guard->run(
+					$order,
+					function () use ( $item, $result, $known, $tracking_number, $attempted_at ) {
+						$item->update_meta_data( Order::META_STATUS_ATTEMPTED_AT, $attempted_at );
+						$item->update_meta_data( Order::META_STATUS_TRACKING_NUMBER, $tracking_number );
+						if ( $result instanceof Shipment_Status ) {
+							$label = $known[ $result->get_code() ]['name'] ?? $result->get_label();
+							$item->update_meta_data( Order::META_STATUS_CODE, $result->get_code() );
+							$item->update_meta_data( Order::META_STATUS_LABEL, $label );
+							$item->update_meta_data( Order::META_STATUS_EVENT_AT, $result->get_event_at() );
+							$item->update_meta_data( Order::META_STATUS_CHECKED_AT, $this->now() );
+						}
+						return (bool) $item->save();
+					},
+					$snapshot
+				);
+				if ( ! $saved ) {
+					$had_error = true;
+					$this->logger->api_error( $this->write_conflict(), $order->get_id(), $item->get_id() );
+					$this->checkpoint_shipment( $progress_key, true );
+					continue;
+				}
 				if ( $result instanceof Napi_Error ) {
-					$item->save();
 					$this->logger->api_error( $result, $order->get_id(), $item->get_id() );
 					if ( $result->is_global() ) {
 						return array(
@@ -238,19 +267,6 @@ class Shipment_Synchronizer {
 				}
 
 				++$checked;
-				$old_code  = $stored_code;
-				$old_label = (string) $item->get_meta( Order::META_STATUS_LABEL, true );
-				$label     = $result->get_label();
-				$known     = $this->dictionary->get();
-				if ( isset( $known[ $result->get_code() ]['name'] ) ) {
-					$label = (string) $known[ $result->get_code() ]['name'];
-				}
-				$item->update_meta_data( Order::META_STATUS_CODE, $result->get_code() );
-				$item->update_meta_data( Order::META_STATUS_LABEL, $label );
-				$item->update_meta_data( Order::META_STATUS_EVENT_AT, $result->get_event_at() );
-				$item->update_meta_data( Order::META_STATUS_CHECKED_AT, $this->now() );
-				$item->update_meta_data( Order::META_STATUS_TRACKING_NUMBER, $tracking_number );
-				$item->save();
 				$this->dictionary->remember( $result );
 				$this->checkpoint_shipment( $progress_key, false );
 
@@ -275,13 +291,32 @@ class Shipment_Synchronizer {
 			$shipments = Order::get_shipments( $order );
 			$mapped    = $this->mapper->apply( $order, $shipments, $settings );
 			if ( false !== $mapped ) {
-				$this->mark_mapping_evaluated( $order, $shipments, $settings );
+				$mapped = $this->guard->run(
+					$order,
+					function () use ( $order, $shipments, $settings ) {
+						$this->mark_mapping_evaluated( $order, $shipments, $settings );
+						return true;
+					}
+				);
+			}
+			if ( false === $mapped ) {
+				$this->logger->api_error( $this->write_conflict(), $order->get_id() );
 			}
 		}
 
 		return array(
 			'checked'      => $checked,
 			'global_error' => null,
+		);
+	}
+
+	private function write_conflict() {
+		return new Napi_Error(
+			'order_write_deferred',
+			__( 'Zápis byl odložen: objednávka nebo zásilka se změnila, případně nelze získat databázový zámek InnoDB.', 'balikovna-wc' ),
+			0,
+			false,
+			true
 		);
 	}
 
@@ -347,56 +382,18 @@ class Shipment_Synchronizer {
 	}
 
 	private function acquire_lock() {
-		$now      = $this->now();
-		$existing = get_option( self::LOCK_OPTION, array() );
-		if ( is_array( $existing ) && isset( $existing['expires'] ) && (int) $existing['expires'] <= $now ) {
-			if ( ! $this->compare_lock( $existing ) ) {
-				return false;
-			}
-		}
-		$token = function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'balikovna-', true );
-		$added = add_option(
-			self::LOCK_OPTION,
-			array(
-				'token'   => $token,
-				'expires' => $now + self::LOCK_TTL,
-			),
-			'',
-			false
-		);
-		return $added ? $token : false;
+		return Option_Lock::acquire( self::LOCK_OPTION, $this->now(), self::LOCK_TTL );
 	}
 
 	private function refresh_lock() {
 		if ( '' === $this->lock_token ) {
 			return true;
 		}
-		$lock = get_option( self::LOCK_OPTION, array() );
-		if ( ! is_array( $lock ) || ! isset( $lock['token'] ) || ! hash_equals( (string) $lock['token'], $this->lock_token ) ) {
-			return false;
-		}
-		$renewed            = $lock;
-		$renewed['expires'] = max( $this->now() + self::LOCK_TTL, (int) $lock['expires'] + 1 );
-		return $this->compare_lock( $lock, $renewed );
+		return Option_Lock::refresh( self::LOCK_OPTION, $this->lock_token, $this->now(), self::LOCK_TTL );
 	}
 
 	private function release_lock( $token ) {
-		$lock = get_option( self::LOCK_OPTION, array() );
-		if ( is_array( $lock ) && isset( $lock['token'] ) && hash_equals( (string) $lock['token'], (string) $token ) ) {
-			$this->compare_lock( $lock );
-		}
-	}
-
-	private function compare_lock( array $expected, $replacement = null ) {
-		global $wpdb;
-		if ( null === $replacement ) {
-			$result = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND BINARY option_value = %s", self::LOCK_OPTION, maybe_serialize( $expected ) ) );
-		} else {
-			$result = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND BINARY option_value = %s", maybe_serialize( $replacement ), self::LOCK_OPTION, maybe_serialize( $expected ) ) );
-		}
-		wp_cache_delete( self::LOCK_OPTION, 'options' );
-		wp_cache_delete( 'notoptions', 'options' );
-		return 1 === $result;
+		Option_Lock::release( self::LOCK_OPTION, $token );
 	}
 
 	private function record_success() {

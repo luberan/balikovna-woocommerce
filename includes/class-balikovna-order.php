@@ -15,9 +15,11 @@ class Order {
 	const META_PACKAGE_KEY             = '_balikovna_package_key';
 	const META_RATE_ID                 = '_balikovna_rate_id';
 	const META_PACKAGE_WEIGHT          = '_balikovna_weight_kg';
+	const META_MAX_WEIGHT              = 'balikovna_max_weight_kg';
 	const META_PACKAGE_VALUE           = '_balikovna_contents_value';
 	const META_CONTENTS_SIGNATURE      = '_balikovna_contents_signature';
 	const META_UNIT_WEIGHT             = '_balikovna_unit_weight_kg';
+	const META_REQUIRES_SHIPPING       = '_balikovna_requires_shipping';
 	const META_DATA_VERSION            = '_balikovna_data_version';
 	const META_PARCEL_TYPE             = 'balikovna_parcel_type';
 	const META_TRACKING_NUMBER         = '_balikovna_tracking_number';
@@ -114,10 +116,10 @@ class Order {
 	public function snapshot_line_item_weight( $item, $cart_item_key, $values, $order ) {
 		$product = isset( $values['data'] ) ? $values['data'] : null;
 		if ( $product && is_callable( array( $product, 'get_weight' ) ) ) {
-			$weight = '' !== (string) $product->get_weight()
-				? wc_get_weight( (float) $product->get_weight(), 'kg' )
-				: 0;
-			$item->update_meta_data( self::META_UNIT_WEIGHT, wc_format_decimal( $weight, 6 ) );
+			$physical = ! is_callable( array( $product, 'needs_shipping' ) ) || $product->needs_shipping();
+			$weight   = (float) $product->get_weight();
+			$item->update_meta_data( self::META_REQUIRES_SHIPPING, $physical ? 'yes' : 'no' );
+			$item->update_meta_data( self::META_UNIT_WEIGHT, $weight > 0 && is_finite( $weight ) ? wc_format_decimal( wc_get_weight( $weight, 'kg' ), 6 ) : '' );
 		}
 	}
 
@@ -154,6 +156,7 @@ class Order {
 			$item->delete_meta_data( self::META_PACKAGE_KEY );
 			$item->delete_meta_data( self::META_RATE_ID );
 			$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
+			$item->delete_meta_data( self::META_MAX_WEIGHT );
 			$item->delete_meta_data( self::META_PACKAGE_VALUE );
 			$item->delete_meta_data( self::META_CONTENTS_SIGNATURE );
 			$item->delete_meta_data( self::META_PARCEL_TYPE );
@@ -200,6 +203,7 @@ class Order {
 				$item->delete_meta_data( self::META_PACKAGE_KEY );
 				$item->delete_meta_data( self::META_RATE_ID );
 				$item->delete_meta_data( self::META_PACKAGE_WEIGHT );
+				$item->delete_meta_data( self::META_MAX_WEIGHT );
 				$item->delete_meta_data( self::META_PACKAGE_VALUE );
 				$item->delete_meta_data( self::META_CONTENTS_SIGNATURE );
 				$item->delete_meta_data( self::META_PARCEL_TYPE );
@@ -261,13 +265,21 @@ class Order {
 		$legacy_point   = $order->get_meta( self::META_KEY );
 		$legacy_service = (string) $order->get_meta( '_balikovna_service' );
 		$legacy_used    = false;
+		$legacy_matches = 0;
 		$shipping_items = $order->get_shipping_methods();
 		foreach ( $shipping_items as $item ) {
+			if ( $legacy_service === (string) $item->get_method_id() ) {
+				++$legacy_matches;
+			}
 			if ( $item->get_meta( self::META_DATA_VERSION, true ) ) {
 				$allow_legacy = false;
-				break;
 			}
 		}
+		if ( is_array( $legacy_point ) && empty( $legacy_point['type'] ) ) {
+			$legacy_config        = Services::get( $legacy_service );
+			$legacy_point['type'] = $legacy_config['pickup'] ?? '';
+		}
+		$allow_legacy = $allow_legacy && 1 === $legacy_matches && is_array( $legacy_point ) && Points::matches_service( $legacy_point, $legacy_service );
 
 		foreach ( $shipping_items as $item ) {
 			$service_id = (string) $item->get_method_id();
@@ -295,6 +307,7 @@ class Order {
 				'packageKey'      => (string) $item->get_meta( self::META_PACKAGE_KEY, true ),
 				'rateId'          => self::shipping_item_rate_id( $item ),
 				'weightKg'        => (string) $item->get_meta( self::META_PACKAGE_WEIGHT, true ),
+				'maxWeightKg'     => Services::weight_limit_kg( $service_id, $item->get_meta( self::META_MAX_WEIGHT, true ) ),
 				'contentsValue'   => (string) $item->get_meta( self::META_PACKAGE_VALUE, true ),
 				'parcelType'      => $parcel_type,
 				'trackingNumber'  => self::sanitize_tracking_number( $item->get_meta( self::META_TRACKING_NUMBER, true ) ),
@@ -403,11 +416,17 @@ class Order {
 		$items  = isset( $package['contents'] ) && is_array( $package['contents'] ) ? $package['contents'] : array();
 		foreach ( $items as $values ) {
 			$product = isset( $values['data'] ) ? $values['data'] : null;
-			if ( $product && '' !== (string) $product->get_weight() ) {
-				$weight += (float) $product->get_weight() * (int) ( $values['quantity'] ?? 0 );
+			if ( ! $product || ! is_callable( array( $product, 'get_weight' ) ) ) {
+				return '';
 			}
+			$unit_weight = (float) $product->get_weight();
+			$quantity    = (float) ( $values['quantity'] ?? 0 );
+			if ( $unit_weight <= 0 || ! is_finite( $unit_weight ) || $quantity <= 0 || ! is_finite( $quantity ) ) {
+				return '';
+			}
+			$weight += $unit_weight * $quantity;
 		}
-		return wc_format_decimal( wc_get_weight( $weight, 'kg' ), 6 );
+		return $weight > 0 && is_finite( $weight ) ? wc_format_decimal( wc_get_weight( $weight, 'kg' ), 6 ) : '';
 	}
 
 	private static function package_contents_value( $package ) {

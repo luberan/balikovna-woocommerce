@@ -1,0 +1,14 @@
+{
+  "name": "balikovna-woocommerce-tests",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test:js": "node --test tests/js/*.test.cjs",
+    "test:e2e": "node node_modules/@playwright/test/cli.js test --config=playwright.config.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

@@ -36,6 +36,7 @@ if ( !class_exists(Autoloader::class, false) ):
 			$this->staticMap = array(
 				$libraryPrefix . 'PucReadmeParser' => 'vendor/PucReadmeParser.php',
 				$libraryPrefix . 'Parsedown'       => 'vendor/Parsedown.php',
+				'Balikovna_WC\\Vendor\\Parsedown' => 'vendor/Parsedown.php',
 			);
 
 			//Add the generic, major-version-only factory class to the static map.

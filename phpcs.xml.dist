@@ -5,6 +5,7 @@
   <arg name="colors"/>
   <arg name="extensions" value="php"/>
   <file>balikovna-woocommerce.php</file>
+  <file>uninstall.php</file>
   <file>includes</file>
   <exclude-pattern>includes/lib/*</exclude-pattern>
   <rule ref="WordPress-Core">

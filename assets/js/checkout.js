@@ -260,17 +260,16 @@
 	}
 
 	window.addEventListener('message', function (event) {
-		if (BalikovnaWC.debug) {
-			try { console.log('[Balíkovna] postMessage origin=%s data=%o', event.origin, event.data); } catch (error) {}
-		}
 		if (!modal || !modal.$iframe[0].contentWindow) return;
 		if (event.origin !== modal.expectedOrigin || event.source !== modal.$iframe[0].contentWindow) return;
 		var point = normalizePoint(event.data);
-		if (point) saveSelection(point);
+		if (!point) return;
+		if (BalikovnaWC.debug) console.log('[Balikovna] Valid pickup selection received.');
+		saveSelection(point);
 	}, false);
 
 	$(function () {
-		if (BalikovnaWC.debug) console.log('[Balíkovna] debug mode ON. Services:', BalikovnaWC.services);
+		if (BalikovnaWC.debug) console.log('[Balikovna] Checkout ready.');
 		renderPickers();
 		$(document.body)
 			.off('updated_checkout.balikovna updated_shipping_method.balikovna')

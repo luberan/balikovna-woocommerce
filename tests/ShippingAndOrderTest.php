@@ -6,7 +6,11 @@ use Balikovna_WC\Shipping_Method_Base;
 use PHPUnit\Framework\TestCase;
 
 final class Balikovna_Test_Shipping_Method extends Shipping_Method_Base {
+	public $rates = array();
+	public $title = 'Test shipping';
 	public function __construct() {}
+	public function get_rate_id( $suffix = '' ) { return $this->id . ':1' . $suffix; }
+	public function add_rate( $args = array() ) { $this->rates[] = $args; }
 
 	public function resolve( $table, $weight ) {
 		$this->weight_table = $table;
@@ -126,6 +130,14 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertNull( $method->cost_for( $package( new Balikovna_Test_Product( 10, array( 40, 30, 20 ) ), 'SK' ) ) );
 	}
 
+	public function test_package_dimensions_bound_all_units_instead_of_only_one_product(): void {
+		$method = new Balikovna_Test_Shipping_Method();
+		$package = array( 'destination' => array( 'country' => 'CZ' ), 'contents' => array( array( 'data' => new Balikovna_Test_Product( 1, array( 30, 30, 30 ) ), 'quantity' => 2 ) ) );
+		$this->assertNull( $method->cost_for( $package ) );
+		$package['contents'][0]['data'] = new Balikovna_Test_Product( 1, array( 40, 30, 20 ) );
+		$this->assertSame( 79.0, $method->cost_for( $package ) );
+	}
+
 	public function test_strict_metrics_filter_rejects_incomplete_balikovna_products(): void {
 		add_filter(
 			'balikovna_wc_require_complete_package_metrics',
@@ -220,6 +232,15 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertNull( $method->cost_for( $package( 50.1, array( 150, 80, 60 ) ), 'balikovna_plus', '', '50' ) );
 		$this->assertNull( $method->cost_for( $package( 20, array( 180, 80, 50 ) ), 'balikovna_plus' ) );
 		$this->assertNull( $method->cost_for( $package( 20, array( 201, 50, 40 ) ), 'balikovna_plus' ) );
+	}
+
+	public function test_rate_snapshots_the_effective_contract_weight_limit(): void {
+		$method = new Balikovna_Test_Shipping_Method();
+		$package = array( 'destination' => array( 'country' => 'CZ' ), 'contents' => array( array( 'data' => new Balikovna_Test_Product( 40, array( 100, 50, 40 ) ), 'quantity' => 1 ) ) );
+		$method->cost_for( $package, 'balikovna_plus', '', '50' );
+		$method->calculate_shipping( $package );
+		$this->assertSame( 50.0, $method->rates[0]['meta_data'][ Order::META_MAX_WEIGHT ] );
+		$this->assertNull( $method->cost_for( $package, 'balikovna_na_adresu', '', '500' ) );
 	}
 
 	public function test_balikovna_requires_valid_recipient_contact(): void {

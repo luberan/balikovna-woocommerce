@@ -74,6 +74,32 @@ final class LifecycleTest extends TestCase {
 		$this->assertSame( '0', $item->get_meta( Order::META_PACKAGE_KEY ) );
 	}
 
+	public function test_legacy_point_is_only_accepted_for_an_unambiguous_existing_order(): void {
+		foreach ( array( array( true, 1, true ), array( true, 2, false ), array( false, 1, false ) ) as $case ) {
+			list( $existing, $item_count, $accepted ) = $case;
+			$items = array();
+			for ( $index = 0; $index < $item_count; ++$index ) {
+				$items[] = new WC_Order_Item_Shipping( 'balikovna', (string) ( 4 + $index ) );
+			}
+			$point = array( 'id' => 'B10000', 'name' => 'Praha 10' );
+			$order = new WC_Order( $items, array( Order::META_KEY => $point, '_balikovna_service' => 'balikovna' ), array( 'billing_email' => 'customer@example.test', 'billing_phone' => '+420777123456' ) );
+			$request = new class( $existing ) {
+				private $existing;
+				public function __construct( $existing ) { $this->existing = $existing; }
+				public function get_method() { return 'POST'; }
+				public function get_route() { return '/wc/store/v1/checkout' . ( $this->existing ? '/123' : '' ); }
+			};
+			try {
+				( new Blocks() )->update_order_from_request( $order, $request );
+				$this->assertTrue( $accepted, 'Only existing single-shipment legacy orders may pass.' );
+				$this->assertSame( 'B10000', Order::get_point( $order )['id'] );
+			} catch ( \Automattic\WooCommerce\StoreApi\Exceptions\RouteException $error ) {
+				$this->assertFalse( $accepted );
+				$this->assertSame( 'balikovna_point_required', $error->getErrorCode() );
+			}
+		}
+	}
+
 	public function test_blocks_checkout_applies_widget_phone_to_order(): void {
 		WC()->session->set( 'chosen_shipping_methods', array( 'balikovna:4' ) );
 		$point = Points::sanitize( array( 'id' => 'B10000', 'name' => 'Praha 10', 'type' => 'BALIKOVNY' ) );

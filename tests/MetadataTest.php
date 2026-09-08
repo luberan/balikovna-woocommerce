@@ -22,9 +22,15 @@ final class MetadataTest extends TestCase {
 		$this->assertMatchesRegularExpression( '/^Tested up to: 7\.1\r?$/m', $readme );
 		$this->assertStringContainsString( '| WordPress | 6.9 | 7.1 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $plugin );
-		$this->assertStringContainsString( 'WC tested up to: 11.0', $plugin );
+		$this->assertStringContainsString( 'WC tested up to: 11.1', $plugin );
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $readme );
-		$this->assertStringContainsString( 'WC tested up to: 11.0', $readme );
+		$this->assertStringContainsString( 'WC tested up to: 11.1', $readme );
+		$this->assertStringContainsString( '| WooCommerce | 10.8 | 11.1.0 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
+		$versions = json_decode( file_get_contents( $this->rootPath( 'tests/versions.json' ) ), true );
+		$composer = json_decode( file_get_contents( $this->rootPath( 'composer.json' ) ), true );
+		$this->assertSame( '7.1', $versions['wordpress'] );
+		$this->assertSame( $versions['woocommerce'], $composer['require-dev']['php-stubs/woocommerce-stubs'] );
+		$this->assertSame( $versions['wordpress'] . '.0', $composer['require-dev']['php-stubs/wordpress-stubs'] );
 	}
 
 	public function test_updater_requires_the_release_asset(): void {
@@ -140,7 +146,7 @@ final class MetadataTest extends TestCase {
 	}
 
 	public function test_workflows_are_valid_and_actions_are_immutable(): void {
-		foreach ( array( '.github/workflows/ci.yml', '.github/workflows/release-please.yml' ) as $path ) {
+		foreach ( array( '.github/workflows/ci.yml', '.github/workflows/release-please.yml', '.github/workflows/points-contract.yml' ) as $path ) {
 			$contents = file_get_contents( $this->rootPath( $path ) );
 			$this->assertIsArray( Yaml::parse( $contents ) );
 			preg_match_all( '/uses:\s*[^@\s]+@([^\s#]+)/', $contents, $matches );
@@ -167,5 +173,18 @@ final class MetadataTest extends TestCase {
 		$changelog = file_get_contents( $this->rootPath( 'CHANGELOG.md' ) );
 		preg_match_all( '~/commit/([0-9a-f]{7,40})~', $changelog, $matches );
 		$this->assertSame( count( array_unique( $matches[1] ) ), count( $matches[1] ) );
+	}
+
+	public function test_ci_runs_real_target_versions_and_bundled_dependency_checks(): void {
+		$ci = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/ci.yml' ) ) );
+		$integration = $ci['jobs']['integration'];
+		$this->assertSame( array( '7.4', '8.5' ), $integration['strategy']['matrix']['php'] );
+		$this->assertSame( array( 'cpt', 'hpos' ), $integration['strategy']['matrix']['storage'] );
+		$this->assertSame( 'mariadb:11.4.9', $integration['services']['database']['image'] );
+		$commands = implode( "\n", array_column( $integration['steps'], 'run' ) );
+		$this->assertStringContainsString( 'setup-integration.php', $commands );
+		$this->assertStringContainsString( 'phpunit.integration.xml.dist', $commands );
+		$this->assertStringContainsString( 'npm run test:e2e', $commands );
+		$this->assertStringContainsString( 'vendor-parsedown.php --check', implode( "\n", array_column( $ci['jobs']['quality']['steps'], 'run' ) ) );
 	}
 }

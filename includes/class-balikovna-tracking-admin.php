@@ -116,7 +116,19 @@ class Tracking_Admin {
 		$dictionary            = $dictionary_repository->get();
 		$posted                = $this->expand_status_groups( $posted, $dictionary, $existing );
 		$settings              = Tracking_Settings::sanitize( $posted, $existing, $dictionary );
-		update_option( Tracking_Settings::OPTION_NAME, $settings, false );
+		$clear_fields          = array();
+		if ( ! empty( $posted['clear_api_token'] ) ) {
+			$clear_fields[] = 'api_token';
+		}
+		if ( ! empty( $posted['clear_secret'] ) ) {
+			$clear_fields[] = 'secret_key';
+		}
+		$saved = Tracking_Settings::save( $settings, $clear_fields );
+		if ( is_wp_error( $saved ) ) {
+			\WC_Admin_Settings::add_error( $saved->get_error_message() );
+			return;
+		}
+		$settings = Tracking_Settings::get();
 
 		$action                = isset( $_POST['balikovna_tracking_action'] )
 			? sanitize_key( wp_unslash( $_POST['balikovna_tracking_action'] ) )
@@ -146,9 +158,19 @@ class Tracking_Admin {
 	}
 
 	private function render_connection_fields( array $settings ) {
-		$token_configured  = '' !== (string) ( $settings['api_token'] ?? '' );
-		$secret_configured = '' !== (string) ( $settings['secret_key'] ?? '' );
+		$stored            = get_option( Tracking_Settings::OPTION_NAME, array() );
+		$token_configured  = ! empty( $settings['api_token'] ) || ! empty( $stored['api_token'] );
+		$secret_configured = ! empty( $settings['secret_key'] ) || ! empty( $stored['secret_key'] );
+		$token_external    = null !== Credentials::external( 'api_token' );
+		$secret_external   = null !== Credentials::external( 'secret_key' );
 		echo '<h3>' . esc_html__( 'Připojení Česká pošta nAPI', 'balikovna-wc' ) . '</h3>';
+		$error = Tracking_Settings::credential_error();
+		if ( $error ) {
+			echo '<p class="notice notice-error">' . esc_html( $error->get_error_message() ) . '</p>';
+		}
+		if ( $token_external || $secret_external ) {
+			echo '<p>' . esc_html__( 'Přístupové údaje definované na serveru mají přednost a nelze je změnit tímto formulářem.', 'balikovna-wc' ) . '</p>';
+		}
 		echo '<table class="form-table" role="presentation"><tbody>';
 		$this->checkbox_row(
 			'enabled',
@@ -157,16 +179,16 @@ class Tracking_Admin {
 			__( 'Bez úplných přihlašovacích údajů se naplánovaná synchronizace bezpečně přeskočí.', 'balikovna-wc' )
 		);
 		echo '<tr><th scope="row"><label for="balikovna-api-token">' . esc_html__( 'Api-Token', 'balikovna-wc' ) . '</label></th><td>';
-		echo '<input type="password" class="regular-text" id="balikovna-api-token" name="' . esc_attr( self::FIELD ) . '[api_token]" value="" maxlength="160" autocomplete="new-password" placeholder="' . esc_attr( $token_configured ? __( 'Uloženo - prázdné pole hodnotu nezmění', 'balikovna-wc' ) : '' ) . '">';
+		echo '<input type="password" class="regular-text" id="balikovna-api-token" name="' . esc_attr( self::FIELD ) . '[api_token]" value=""' . ( $token_external ? ' disabled' : '' ) . ' maxlength="160" autocomplete="new-password" placeholder="' . esc_attr( $token_configured ? __( 'Uloženo - prázdné pole hodnotu nezmění', 'balikovna-wc' ) : '' ) . '">';
 		echo '<p class="description">' . esc_html__( 'Přihlašovací údaj nAPI. Uložená hodnota se z bezpečnostních důvodů nezobrazuje.', 'balikovna-wc' ) . '</p>';
-		if ( $token_configured ) {
+		if ( $token_configured && ! $token_external ) {
 			echo '<label><input type="checkbox" name="' . esc_attr( self::FIELD ) . '[clear_api_token]" value="1"> ' . esc_html__( 'Odstranit uložený Api-Token', 'balikovna-wc' ) . '</label>';
 		}
 		echo '</td></tr>';
 		echo '<tr><th scope="row"><label for="balikovna-secret-key">' . esc_html__( 'secretKey', 'balikovna-wc' ) . '</label></th><td>';
-		echo '<input type="password" class="regular-text" id="balikovna-secret-key" name="' . esc_attr( self::FIELD ) . '[secret_key]" value="" maxlength="512" autocomplete="new-password" placeholder="' . esc_attr( $secret_configured ? __( 'Uloženo - prázdné pole hodnotu nezmění', 'balikovna-wc' ) : '' ) . '">';
+		echo '<input type="password" class="regular-text" id="balikovna-secret-key" name="' . esc_attr( self::FIELD ) . '[secret_key]" value=""' . ( $secret_external ? ' disabled' : '' ) . ' maxlength="512" autocomplete="new-password" placeholder="' . esc_attr( $secret_configured ? __( 'Uloženo - prázdné pole hodnotu nezmění', 'balikovna-wc' ) : '' ) . '">';
 		echo '<p class="description">' . esc_html__( 'Tajný klíč se používá pouze k podpisu požadavků a nikdy se neposílá ani nezobrazuje.', 'balikovna-wc' ) . '</p>';
-		if ( $secret_configured ) {
+		if ( $secret_configured && ! $secret_external ) {
 			echo '<label><input type="checkbox" name="' . esc_attr( self::FIELD ) . '[clear_secret]" value="1"> ' . esc_html__( 'Odstranit uložený secretKey', 'balikovna-wc' ) . '</label>';
 		}
 		echo '</td></tr>';

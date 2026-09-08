@@ -1,5 +1,7 @@
 <?php
 
+use Balikovna_WC\Vendor\Parsedown;
+
 if ( !class_exists('PucReadmeParser', false) ):
 
 /**
@@ -257,11 +259,11 @@ class PucReadmeParser {
 		$text = call_user_func( array( __CLASS__, 'code_trick' ), $text, $markdown ); // A better parser than Markdown's for: backticks -> CODE
 
 		if ( $markdown ) { // Parse markdown.
-			if ( !class_exists('Parsedown', false) ) {
+			if ( !class_exists(Parsedown::class, false) ) {
 				/** @noinspection PhpIncludeInspection */
 				require_once(dirname(__FILE__) . '/Parsedown' . (version_compare(PHP_VERSION, '5.3.0', '>=') ? '' : 'Legacy') . '.php');
 			}
-			$instance = Parsedown::instance();
+			$instance = Parsedown::instance()->setSafeMode(true);
 			$text = $instance->text($text);
 		}
 

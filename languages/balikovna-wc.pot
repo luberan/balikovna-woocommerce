@@ -1,14 +1,14 @@
 # Translation template for Balíkovna for WooCommerce.
 msgid ""
 msgstr ""
-"Project-Id-Version: Balíkovna for WooCommerce 1.28.2\n"
+"Project-Id-Version: Balíkovna for WooCommerce 1.28.4\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/balikovna-woocommerce\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-07T12:46:03+00:00\n"
+"POT-Creation-Date: 2026-09-08T11:47:31+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: balikovna-wc\n"
@@ -49,47 +49,47 @@ msgstr ""
 msgid "Zvolená doprava se změnila. Vyberte místo znovu."
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:173
+#: includes/class-balikovna-blocks.php:174
 #: includes/class-balikovna-checkout.php:248
 msgid "Prosím zvolte výdejní místo pro každý balík."
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:244
+#: includes/class-balikovna-blocks.php:245
 #: includes/class-balikovna-checkout.php:97
 msgid "Vybrat výdejní místo"
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:245
+#: includes/class-balikovna-blocks.php:246
 #: includes/class-balikovna-checkout.php:98
 msgid "Změnit výdejní místo"
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:246
+#: includes/class-balikovna-blocks.php:247
 #: includes/class-balikovna-checkout.php:99
 msgid "Zvolené místo:"
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:247
+#: includes/class-balikovna-blocks.php:248
 #: includes/class-balikovna-checkout.php:100
 msgid "Prosím zvolte výdejní místo."
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:248
+#: includes/class-balikovna-blocks.php:249
 #: includes/class-balikovna-checkout.php:101
 msgid "Výběr výdejního místa"
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:249
+#: includes/class-balikovna-blocks.php:250
 #: includes/class-balikovna-checkout.php:102
 msgid "Zavřít"
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:250
+#: includes/class-balikovna-blocks.php:251
 #: includes/class-balikovna-checkout.php:103
 msgid "Ukládám výdejní místo…"
 msgstr ""
 
-#: includes/class-balikovna-blocks.php:251
+#: includes/class-balikovna-blocks.php:252
 #: includes/class-balikovna-checkout.php:104
 msgid "Výdejní místo se nepodařilo uložit. Zkuste to prosím znovu."
 msgstr ""
@@ -97,6 +97,10 @@ msgstr ""
 #: includes/class-balikovna-checkout.php:137
 #: includes/class-balikovna-checkout.php:138
 msgid "Výdejní místo"
+msgstr ""
+
+#: includes/class-balikovna-credentials.php:89
+msgid "Přihlašovací údaje nelze bezpečně uložit nebo přečíst. Ověřte OpenSSL a šifrovací klíč; po změně klíče zadejte údaje znovu."
 msgstr ""
 
 #: includes/class-balikovna-export.php:38
@@ -146,15 +150,20 @@ msgid "nemá úplnou adresu příjemce."
 msgstr ""
 
 #: includes/class-balikovna-export.php:213
+#: includes/class-balikovna-export.php:220
 msgid "nemá spolehlivě určenou hmotnost každé zásilky."
 msgstr ""
 
-#: includes/class-balikovna-export.php:220
+#: includes/class-balikovna-export.php:216
+msgid "překračuje hmotnostní limit zvolené služby nebo uložený smluvní limit zásilky."
+msgstr ""
+
+#: includes/class-balikovna-export.php:227
 msgid "nemá uloženou hodnotu obsahu každé zásilky."
 msgstr ""
 
 #. translators: 1: WooCommerce order number, 2: export validation error.
-#: includes/class-balikovna-export.php:254
+#: includes/class-balikovna-export.php:261
 #, php-format
 msgid "Objednávku %1$s nelze exportovat: %2$s"
 msgstr ""
@@ -207,63 +216,63 @@ msgstr ""
 msgid "Česká pošta odmítla požadavek na stav zásilky."
 msgstr ""
 
-#: includes/class-balikovna-order.php:493
-#: includes/class-balikovna-order.php:635
-#: includes/class-balikovna-order.php:682
+#: includes/class-balikovna-order.php:512
+#: includes/class-balikovna-order.php:654
+#: includes/class-balikovna-order.php:701
 msgid "Česká pošta - zásilky"
 msgstr ""
 
 #. translators: 1: shipping service name, 2: shipment sequence number.
-#: includes/class-balikovna-order.php:497
+#: includes/class-balikovna-order.php:516
 #, php-format
 msgid "%1$s - zásilka %2$d"
 msgstr ""
 
-#: includes/class-balikovna-order.php:508
-#: includes/class-balikovna-order.php:642
-#: includes/class-balikovna-order.php:692
+#: includes/class-balikovna-order.php:527
+#: includes/class-balikovna-order.php:661
+#: includes/class-balikovna-order.php:711
 msgid "Podací číslo"
 msgstr ""
 
-#: includes/class-balikovna-order.php:513
+#: includes/class-balikovna-order.php:532
 msgid "Stav zásilky"
 msgstr ""
 
-#: includes/class-balikovna-order.php:517
+#: includes/class-balikovna-order.php:536
 msgid "Čas poslední změny"
 msgstr ""
 
-#: includes/class-balikovna-order.php:521
+#: includes/class-balikovna-order.php:540
 msgid "Naposledy zkontrolováno"
 msgstr ""
 
-#: includes/class-balikovna-order.php:524
-#: includes/class-balikovna-order.php:693
+#: includes/class-balikovna-order.php:543
+#: includes/class-balikovna-order.php:712
 msgid "Sledovat zásilku"
 msgstr ""
 
-#: includes/class-balikovna-order.php:577
+#: includes/class-balikovna-order.php:596
 msgid "Podací číslo smí obsahovat pouze písmena a číslice."
 msgstr ""
 
-#: includes/class-balikovna-order.php:594
-#: includes/class-balikovna-order.php:598
+#: includes/class-balikovna-order.php:613
+#: includes/class-balikovna-order.php:617
 msgid "Česká pošta"
 msgstr ""
 
-#: includes/class-balikovna-order.php:643
+#: includes/class-balikovna-order.php:662
 msgid "Sledování zásilky"
 msgstr ""
 
-#: includes/class-balikovna-points.php:40
+#: includes/class-balikovna-points.php:43
 msgid "Vybrané výdejní místo nemá platné ID pro zvolenou dopravu."
 msgstr ""
 
-#: includes/class-balikovna-points.php:51
+#: includes/class-balikovna-points.php:54
 msgid "Vybrané výdejní místo již není dostupné. Zvolte prosím jiné."
 msgstr ""
 
-#: includes/class-balikovna-points.php:175
+#: includes/class-balikovna-points.php:144
 msgid "Seznam výdejních míst se nyní nepodařilo ověřit. Zkuste výběr prosím znovu."
 msgstr ""
 
@@ -307,11 +316,11 @@ msgstr ""
 msgid "Doručení na vybranou pobočku České pošty."
 msgstr ""
 
-#: includes/class-balikovna-services.php:111
+#: includes/class-balikovna-services.php:122
 msgid "Pro dopravu Balíkovna zadejte platnou e-mailovou adresu."
 msgstr ""
 
-#: includes/class-balikovna-services.php:116
+#: includes/class-balikovna-services.php:127
 msgid "Pro dopravu Balíkovna zadejte české mobilní číslo včetně předvolby +420."
 msgstr ""
 
@@ -323,9 +332,13 @@ msgstr ""
 msgid "Česká pošta vrátila stav zásilky bez identifikátoru."
 msgstr ""
 
-#: includes/class-balikovna-shipment-synchronizer.php:70
-#: includes/class-balikovna-shipment-synchronizer.php:322
+#: includes/class-balikovna-shipment-synchronizer.php:75
+#: includes/class-balikovna-shipment-synchronizer.php:361
 msgid "Synchronizace stavu zásilek již probíhá."
+msgstr ""
+
+#: includes/class-balikovna-shipment-synchronizer.php:316
+msgid "Zápis byl odložen: objednávka nebo zásilka se změnila, případně nelze získat databázový zámek InnoDB."
 msgstr ""
 
 #: includes/class-balikovna-shipping-method-base.php:79
@@ -417,15 +430,15 @@ msgstr ""
 msgid "Smluvně %s kg"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:379
+#: includes/class-balikovna-shipping-method-base.php:380
 msgid "Tabulka hmotností nesmí být prázdná."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:386
+#: includes/class-balikovna-shipping-method-base.php:387
 msgid "Každý řádek tabulky musí mít formát „kladná hmotnost|nezáporná cena“."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:392
+#: includes/class-balikovna-shipping-method-base.php:393
 msgid "Hmotnostní limity musí být kladné a nesmí se opakovat."
 msgstr ""
 
@@ -439,208 +452,212 @@ msgid "Pravidelná synchronizace aktuálních agregovaných stavů zásilek pře
 msgstr ""
 
 #. translators: %s: sanitized API error.
-#: includes/class-balikovna-tracking-admin.php:140
+#: includes/class-balikovna-tracking-admin.php:152
 #, php-format
 msgid "Nastavení bylo uloženo, ale číselník stavů se nepodařilo obnovit: %s"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:151
+#: includes/class-balikovna-tracking-admin.php:165
 msgid "Připojení Česká pošta nAPI"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:155
-msgid "Povolit sledování přes API"
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:157
-msgid "Bez úplných přihlašovacích údajů se naplánovaná synchronizace bezpečně přeskočí."
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:159
-msgid "Api-Token"
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:160
-#: includes/class-balikovna-tracking-admin.php:167
-msgid "Uloženo - prázdné pole hodnotu nezmění"
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:161
-msgid "Přihlašovací údaj nAPI. Uložená hodnota se z bezpečnostních důvodů nezobrazuje."
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:163
-msgid "Odstranit uložený Api-Token"
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:166
-msgid "secretKey"
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:168
-msgid "Tajný klíč se používá pouze k podpisu požadavků a nikdy se neposílá ani nezobrazuje."
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:170
-msgid "Odstranit uložený secretKey"
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:173
-msgid "Prostředí"
-msgstr ""
-
-#: includes/class-balikovna-tracking-admin.php:175
-msgid "Produkční"
+#: includes/class-balikovna-tracking-admin.php:171
+msgid "Přístupové údaje definované na serveru mají přednost a nelze je změnit tímto formulářem."
 msgstr ""
 
 #: includes/class-balikovna-tracking-admin.php:176
-msgid "Testovací"
+msgid "Povolit sledování přes API"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:179
-msgid "Otestovat připojení"
+#: includes/class-balikovna-tracking-admin.php:178
+msgid "Bez úplných přihlašovacích údajů se naplánovaná synchronizace bezpečně přeskočí."
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:183
-msgid "Výběr objednávek"
+#: includes/class-balikovna-tracking-admin.php:180
+msgid "Api-Token"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:181
+#: includes/class-balikovna-tracking-admin.php:188
+msgid "Uloženo - prázdné pole hodnotu nezmění"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:182
+msgid "Přihlašovací údaj nAPI. Uložená hodnota se z bezpečnostních důvodů nezobrazuje."
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:184
+msgid "Odstranit uložený Api-Token"
 msgstr ""
 
 #: includes/class-balikovna-tracking-admin.php:187
-msgid "Počet synchronizovaných objednávek během jednoho volání cronu"
+msgid "secretKey"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:189
+msgid "Tajný klíč se používá pouze k podpisu požadavků a nikdy se neposílá ani nezobrazuje."
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:191
+msgid "Odstranit uložený secretKey"
 msgstr ""
 
 #: includes/class-balikovna-tracking-admin.php:194
+msgid "Prostředí"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:196
+msgid "Produkční"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:197
+msgid "Testovací"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:200
+msgid "Otestovat připojení"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:204
+msgid "Výběr objednávek"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:208
+msgid "Počet synchronizovaných objednávek během jednoho volání cronu"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:215
 msgid "Počet dnů, kdy bude stav objednávky kontrolován"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:199
+#: includes/class-balikovna-tracking-admin.php:220
 msgid "Stavy objednávek, u kterých bude cron kontrolovat stav zásilky"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:207
+#: includes/class-balikovna-tracking-admin.php:228
 msgid "Stavy zásilek"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:209
+#: includes/class-balikovna-tracking-admin.php:230
 msgid "Číselník stavů zatím není k dispozici. Uložte přihlašovací údaje a otestujte připojení."
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:211
-#: includes/class-balikovna-tracking-admin.php:212
+#: includes/class-balikovna-tracking-admin.php:232
+#: includes/class-balikovna-tracking-admin.php:233
 msgid "Stavy zásilek, které budou kontrolovány"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:221
-#: includes/class-balikovna-tracking-admin.php:245
+#: includes/class-balikovna-tracking-admin.php:242
+#: includes/class-balikovna-tracking-admin.php:266
 msgid "Různé / částečné nastavení"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:230
+#: includes/class-balikovna-tracking-admin.php:251
 msgid "Povolit změny stavů objednávek"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:232
+#: includes/class-balikovna-tracking-admin.php:253
 msgid "Změny probíhají standardně přes WooCommerce a mohou spustit existující e-maily navázané na změnu stavu."
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:238
+#: includes/class-balikovna-tracking-admin.php:259
 msgid "Česká pošta status → WooCommerce status"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:240
+#: includes/class-balikovna-tracking-admin.php:261
 msgid "Česká pošta status"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:240
+#: includes/class-balikovna-tracking-admin.php:261
 msgid "Stav objednávky"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:247
+#: includes/class-balikovna-tracking-admin.php:268
 msgid "Stav objednávky / beze změny"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:265
+#: includes/class-balikovna-tracking-admin.php:286
 msgid "Provozní informace"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:267
+#: includes/class-balikovna-tracking-admin.php:288
 msgid "API nakonfigurováno"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:267
+#: includes/class-balikovna-tracking-admin.php:288
 msgid "Ano"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:267
+#: includes/class-balikovna-tracking-admin.php:288
 msgid "Ne"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:268
+#: includes/class-balikovna-tracking-admin.php:289
 msgid "Číselník stavů aktualizován"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:269
+#: includes/class-balikovna-tracking-admin.php:290
 msgid "Poslední úspěšná synchronizace"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:270
+#: includes/class-balikovna-tracking-admin.php:291
 msgid "Příští naplánovaná synchronizace"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:272
+#: includes/class-balikovna-tracking-admin.php:293
 msgid "Poslední globální chyba"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:275
+#: includes/class-balikovna-tracking-admin.php:296
 msgid "Upozornění číselníku"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:275
+#: includes/class-balikovna-tracking-admin.php:296
 msgid "Poslední obnovení selhalo; používá se dříve uložený číselník."
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:278
+#: includes/class-balikovna-tracking-admin.php:299
 msgid "Synchronizovat nyní"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:319
+#: includes/class-balikovna-tracking-admin.php:340
 msgid "Nejprve vyplňte Api-Token a secretKey."
 msgstr ""
 
 #. translators: %s: sanitized API error.
-#: includes/class-balikovna-tracking-admin.php:327
+#: includes/class-balikovna-tracking-admin.php:348
 #, php-format
 msgid "Připojení k nAPI CIS selhalo: %s"
 msgstr ""
 
 #. translators: %d: number of carrier status codes.
-#: includes/class-balikovna-tracking-admin.php:336
+#: includes/class-balikovna-tracking-admin.php:357
 #, php-format
 msgid "Připojení k nAPI CIS je funkční a číselník stavů byl úspěšně načten (%d kódů)."
 msgstr ""
 
 #. translators: %s: sanitized synchronization error.
-#: includes/class-balikovna-tracking-admin.php:348
+#: includes/class-balikovna-tracking-admin.php:369
 #, php-format
 msgid "Synchronizace se nepodařila: %s"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:355
+#: includes/class-balikovna-tracking-admin.php:376
 msgid "Synchronizace je vypnutá nebo nejsou vyplněné přihlašovací údaje."
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:359
+#: includes/class-balikovna-tracking-admin.php:380
 msgid "Část zásilek byla zpracována. Zbývající synchronizace bude pokračovat na pozadí."
 msgstr ""
 
 #. translators: 1: number of orders, 2: number of parcel lookups.
-#: includes/class-balikovna-tracking-admin.php:365
+#: includes/class-balikovna-tracking-admin.php:386
 #, php-format
 msgid "Synchronizace dokončena. Objednávky: %1$d, zásilky: %2$d."
 msgstr ""
 
 #. translators: 1: aggregate carrier status label, 2: number of API status/reason codes.
-#: includes/class-balikovna-tracking-admin.php:403
+#: includes/class-balikovna-tracking-admin.php:424
 #, php-format
 msgid "%1$s (%2$d kódů API)"
 msgstr ""

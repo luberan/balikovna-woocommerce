@@ -13,6 +13,13 @@ use Balikovna_WC\Tracking_Logger;
 use Balikovna_WC\Tracking_Settings;
 use PHPUnit\Framework\TestCase;
 
+final class Balikovna_Test_Write_Guard extends \Balikovna_WC\Order_Write_Guard {
+	public $allowed = true;
+	public function run( WC_Order $order, callable $write, ?array $expected = null ) {
+		return $this->allowed ? $write() : false;
+	}
+}
+
 final class Balikovna_Test_Sync_Transport implements Napi_Transport_Interface {
 	public $requests = array();
 	public $after_request;
@@ -104,7 +111,8 @@ final class TrackingSynchronizationTest extends TestCase {
 		);
 	}
 
-	private function synchronizer( array $responses, &$transport = null, &$logger = null, $clock = null ) {
+	private function synchronizer( array $responses, &$transport = null, &$logger = null, $clock = null, $guard = null ) {
+		$guard = $guard ?: new Balikovna_Test_Write_Guard();
 		$transport = new Balikovna_Test_Sync_Transport( $responses );
 		$client    = new Napi_Client(
 			new Napi_Authentication(
@@ -127,9 +135,10 @@ final class TrackingSynchronizationTest extends TestCase {
 			$client,
 			new Status_Dictionary( $client ),
 			new Eligible_Orders( $clock ),
-			new Order_Status_Mapper(),
+			new Order_Status_Mapper( $guard ),
 			$logger,
-			$clock
+			$clock,
+			$guard
 		);
 	}
 
@@ -182,7 +191,7 @@ final class TrackingSynchronizationTest extends TestCase {
 		$first = $this->item( 'BA1234567890A', $delivered );
 		$second = $this->item( '', $delivered, 11 );
 		$order = $this->order( array( $first, $second ) );
-		$mapper = new Order_Status_Mapper();
+		$mapper = new Order_Status_Mapper( new Balikovna_Test_Write_Guard() );
 		$settings = $this->settings();
 
 		$this->assertSame( '', $mapper->apply( $order, Order::get_shipments( $order ), $settings ) );
@@ -208,6 +217,18 @@ final class TrackingSynchronizationTest extends TestCase {
 		$this->assertSame( 1, $result['checked'] );
 		$this->assertCount( 1, $transport->requests );
 		$this->assertSame( array(), $order->status_updates );
+	}
+
+	public function test_mixed_carrier_order_requires_explicit_mapping_consent(): void {
+		$delivered = $this->item( 'BA1234567890A', array( Order::META_STATUS_CODE => '91/00', Order::META_STATUS_LABEL => 'DORUČENO' ) );
+		$other = $this->item( '', array(), 11, 'flat_rate' );
+		$order = $this->order( array( $delivered, $other ) );
+		$mapper = new Order_Status_Mapper( new Balikovna_Test_Write_Guard() );
+		$this->assertSame( '', $mapper->apply( $order, Order::get_shipments( $order ), $this->settings() ) );
+		$this->assertSame( array(), $order->status_updates );
+
+		add_filter( 'balikovna_wc_allow_mixed_carrier_mapping', function () { return true; } );
+		$this->assertSame( 'wc-completed', $mapper->apply( $order, Order::get_shipments( $order ), $this->settings() ) );
 	}
 
 	public function test_normal_status_flow_transitions_once_per_woocommerce_target(): void {
@@ -387,6 +408,21 @@ final class TrackingSynchronizationTest extends TestCase {
 		$this->assertSame( array(), $order->status_updates );
 	}
 
+	public function test_concurrent_order_change_discards_the_in_flight_response(): void {
+		$item = $this->item( 'BA1234567890A' );
+		$order = $this->order( array( $item ) );
+		$guard = new Balikovna_Test_Write_Guard();
+		$sync = $this->synchronizer( array( $this->response( '91', '00', 'DORUČENO' ) ), $transport, $logger, null, $guard );
+		$transport->after_request = function () use ( $guard ) { $guard->allowed = false; };
+		$result = $sync->sync_order( $order, $this->settings() );
+		$this->assertSame( 0, $result['checked'] );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_CODE ) );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_ATTEMPTED_AT ) );
+		$this->assertSame( 0, $item->save_count );
+		$this->assertSame( array(), $order->status_updates );
+		$this->assertSame( 'order_write_deferred', $logger->errors[0][0] );
+	}
+
 	public function test_foreign_parcel_response_preserves_status_and_does_not_complete_order(): void {
 		$item = $this->item( 'BA1234567890A', array(
 			Order::META_STATUS_CODE => '44/01',
@@ -457,6 +493,39 @@ final class TrackingSynchronizationTest extends TestCase {
 		$this->assertStringStartsWith( '>', $queries[0]['date_created'] );
 		$this->assertSame( true, $queries[0]['paginate'] );
 		$this->assertSame( 'objects', $queries[0]['return'] );
+	}
+
+	public function test_selector_preserves_page_overflow_and_rechecks_queued_orders(): void {
+		$orders = array();
+		foreach ( array( 101, 102, 103, 104 ) as $order_id ) {
+			$orders[] = $this->order(
+				array( $this->item( 102 === $order_id ? '' : 'BA1234567890A', array(), $order_id ) ),
+				'processing',
+				null,
+				$order_id
+			);
+			$GLOBALS['balikovna_test_orders'][ $order_id ] = end( $orders );
+		}
+		$GLOBALS['balikovna_test_order_query'] = function ( $args ) use ( $orders ) {
+			return (object) array(
+				'orders'        => array_slice( $orders, ( $args['page'] - 1 ) * $args['limit'], $args['limit'] ),
+				'max_num_pages' => (int) ceil( count( $orders ) / $args['limit'] ),
+			);
+		};
+		$repository = new Eligible_Orders( function () { return 1786521600; } );
+		$settings   = $this->settings( array( 'batch_size' => 2 ) );
+		$first      = $repository->find( $settings );
+		$this->assertSame( array( 101, 103 ), array_map( function ( $order ) { return $order->get_id(); }, $first ) );
+		$this->assertSame( array( 104 ), get_option( Eligible_Orders::CURSOR_OPTION )['remaining'] );
+
+		$settings['batch_size'] = 1;
+		$second = $repository->find( $settings );
+		$this->assertSame( array( 104 ), array_map( function ( $order ) { return $order->get_id(); }, $second ) );
+
+		update_option( Eligible_Orders::CURSOR_OPTION, array( 'page' => 1, 'remaining' => array( 104, 999 ) ) );
+		$GLOBALS['balikovna_test_orders'][104]->update_status( 'cancelled' );
+		$third = $repository->find( $settings );
+		$this->assertSame( array( 101 ), array_map( function ( $order ) { return $order->get_id(); }, $third ) );
 	}
 
 	public function test_order_age_filter_and_query_share_the_injected_clock(): void {

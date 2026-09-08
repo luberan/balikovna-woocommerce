@@ -90,6 +90,45 @@ final class ExportTest extends TestCase {
 		$this->assertSame( '5.00', $export->weight( $order ) );
 	}
 
+	public function test_partial_weight_is_never_snapshotted_or_exported_as_complete(): void {
+		$known = new class { public function get_weight() { return '2'; } };
+		$unknown = new class { public function get_weight() { return ''; } };
+		$shipping = new WC_Order_Item_Shipping( 'balikovna_na_adresu', '4' );
+		$lines = array( new WC_Order_Item_Product( array(), 1, $known, 100 ), new WC_Order_Item_Product( array(), 1, $unknown, 100 ) );
+		$order = $this->address_order( array(), array( $shipping ), $lines );
+		$package = array( 'contents' => array( array( 'data' => $known, 'quantity' => 1, 'line_total' => 100 ), array( 'data' => $unknown, 'quantity' => 1, 'line_total' => 100 ) ) );
+		Balikovna_WC\Order::instance()->add_shipping_item_metadata( $shipping, 0, $package, $order );
+		Balikovna_WC\Order::instance()->snapshot_line_item_weight( $lines[1], 'unknown', array( 'data' => $unknown ), $order );
+		$this->assertSame( '', $shipping->get_meta( Balikovna_WC\Order::META_PACKAGE_WEIGHT ) );
+		$this->assertSame( '', $lines[1]->get_meta( Balikovna_WC\Order::META_UNIT_WEIGHT ) );
+		$this->assertSame( '', ( new Balikovna_Test_Export() )->weight( $order ) );
+		$this->assertInstanceOf( WP_Error::class, ( new Balikovna_Test_Export() )->rows( $order ) );
+	}
+
+	public function test_unknown_deleted_product_fails_but_virtual_snapshot_does_not_add_weight(): void {
+		$known = new WC_Order_Item_Product( array( Balikovna_WC\Order::META_UNIT_WEIGHT => '2' ), 1 );
+		$unknown = new WC_Order_Item_Product( array(), 1 );
+		$this->assertSame( '', ( new Balikovna_Test_Export() )->weight( $this->address_order( array(), array(), array( $known, $unknown ) ) ) );
+		$virtual = new WC_Order_Item_Product( array( Balikovna_WC\Order::META_REQUIRES_SHIPPING => 'no' ), 1 );
+		$this->assertSame( '2.00', ( new Balikovna_Test_Export() )->weight( $this->address_order( array(), array(), array( $known, $virtual ) ) ) );
+	}
+
+	public function test_export_rechecks_service_limit_before_rounding_and_uses_contract_snapshot(): void {
+		$export = new Balikovna_Test_Export();
+		foreach ( array( '20', '15.004', 'INF' ) as $weight ) {
+			$item = new WC_Order_Item_Shipping( 'balikovna_na_adresu', '4', array( Balikovna_WC\Order::META_PACKAGE_WEIGHT => $weight, Balikovna_WC\Order::META_PACKAGE_VALUE => '100' ) );
+			$this->assertInstanceOf( WP_Error::class, $export->rows( $this->address_order( array(), array( $item ) ) ), $weight );
+		}
+		$item = new WC_Order_Item_Shipping( 'balikovna_plus', '4', array( Balikovna_WC\Order::META_PACKAGE_WEIGHT => '40', Balikovna_WC\Order::META_PACKAGE_VALUE => '100', Balikovna_WC\Order::META_MAX_WEIGHT => '50' ) );
+		$order = $this->address_order( array(), array( $item ) );
+		$this->assertSame( '40.00', $export->rows( $order )[0][5] );
+		$item->delete_meta_data( Balikovna_WC\Order::META_MAX_WEIGHT );
+		$this->assertInstanceOf( WP_Error::class, $export->rows( $order ) );
+		$item->update_meta_data( Balikovna_WC\Order::META_MAX_WEIGHT, '500' );
+		$item->update_meta_data( Balikovna_WC\Order::META_PACKAGE_WEIGHT, '60' );
+		$this->assertInstanceOf( WP_Error::class, $export->rows( $order ) );
+	}
+
 	private function address_order( array $address = array(), array $shipping_items = array(), array $products = array() ) {
 		if ( ! $shipping_items ) {
 			$shipping_items = array( new WC_Order_Item_Shipping( 'balikovna_na_adresu', '4', array(

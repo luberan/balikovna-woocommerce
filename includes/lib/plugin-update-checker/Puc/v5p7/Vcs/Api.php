@@ -2,7 +2,7 @@
 
 namespace YahnisElsts\PluginUpdateChecker\v5p7\Vcs;
 
-use Parsedown;
+use Balikovna_WC\Vendor\Parsedown;
 use PucReadmeParser;
 
 if ( !class_exists(Api::class, false) ):
@@ -305,7 +305,7 @@ if ( !class_exists(Api::class, false) ):
 				return null;
 			}
 
-			return Parsedown::instance()->text($changelog);
+			return Parsedown::instance()->setSafeMode(true)->text($changelog);
 		}
 
 		/**

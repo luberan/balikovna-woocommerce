@@ -181,6 +181,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 				'meta_data' => array(
 					'balikovna_service_codes' => $this->service_codes,
 					'balikovna_parcel_type'   => $this->parcel_type,
+					'balikovna_max_weight_kg' => Services::weight_limit_kg( $this->id, $this->max_weight_kg ),
 				),
 			)
 		);
@@ -242,9 +243,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		}
 
 		if ( isset( $this->service['max_weight_kg'] ) ) {
-			$max_weight = '' !== trim( (string) $this->max_weight_kg )
-				? (float) $this->max_weight_kg
-				: (float) $this->service['max_weight_kg'];
+			$max_weight = Services::weight_limit_kg( $this->id, $this->max_weight_kg );
 			if ( $metrics['weightKg'] > $max_weight || ( $require_complete && empty( $metrics['weightComplete'] ) ) ) {
 				return false;
 			}
@@ -318,7 +317,9 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 			if ( 3 === count( $dimensions ) ) {
 				rsort( $dimensions, SORT_NUMERIC );
 				foreach ( $dimensions as $index => $dimension ) {
-					$metrics['dimensionsCm'][ $index ] = max( $metrics['dimensionsCm'][ $index ], $dimension );
+					$metrics['dimensionsCm'][ $index ] = 2 === $index
+						? $metrics['dimensionsCm'][ $index ] + $dimension * $quantity
+						: max( $metrics['dimensionsCm'][ $index ], $dimension );
 				}
 				if ( 0.0 < min( $dimensions ) ) {
 					$metrics['volumeCm3'] += array_product( $dimensions ) * $quantity;

@@ -89,6 +89,17 @@ class Services {
 		return isset( $all[ $id ] ) ? $all[ $id ] : null;
 	}
 
+	public static function weight_limit_kg( $service_id, $configured = '' ) {
+		$service  = self::get( $service_id );
+		$standard = (float) ( $service['max_weight_kg'] ?? 0 );
+		if ( $standard <= 0 ) {
+			return 0.0;
+		}
+		$ceiling = (float) ( $service['contract_max_weight_kg'] ?? $standard );
+		$limit   = (float) $configured;
+		return $limit > 0 && is_finite( $limit ) ? min( $limit, $ceiling ) : $standard;
+	}
+
 	/**
 	 * Validate recipient contact requirements for selected services.
 	 *

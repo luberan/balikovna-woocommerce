@@ -2,7 +2,7 @@
 
 namespace YahnisElsts\PluginUpdateChecker\v5p7\Vcs;
 
-use Parsedown;
+use Balikovna_WC\Vendor\Parsedown;
 
 if ( !class_exists(GitHubApi::class, false) ):
 
@@ -137,7 +137,7 @@ if ( !class_exists(GitHubApi::class, false) ):
 				}
 
 				if ( !empty($release->body) ) {
-					$reference->changelog = Parsedown::instance()->text($release->body);
+					$reference->changelog = Parsedown::instance()->setSafeMode(true)->text($release->body);
 				}
 
 				return $reference;

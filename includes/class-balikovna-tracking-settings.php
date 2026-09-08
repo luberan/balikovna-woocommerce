@@ -9,6 +9,9 @@ namespace Balikovna_WC;
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-balikovna-credentials.php';
+require_once __DIR__ . '/class-balikovna-option-lock.php';
+
 class Tracking_Settings {
 
 	const OPTION_NAME           = 'balikovna_wc_tracking_settings';
@@ -18,12 +21,85 @@ class Tracking_Settings {
 	const MAX_TRACKING_DAYS     = 365;
 
 	public static function get( array $dictionary = array() ) {
+		$stored   = self::stored();
+		$settings = is_array( $stored ) ? array_merge( self::defaults(), $stored ) : self::defaults( $dictionary );
+		foreach ( Credentials::FIELDS as $field => $name ) {
+			$external = Credentials::external( $field );
+			if ( null !== $external ) {
+				$settings[ $field ] = $external;
+			}
+		}
+		if ( self::credential_error() ) {
+			$settings['api_token']  = '';
+			$settings['secret_key'] = '';
+		}
+		return $settings;
+	}
+
+	private static function stored() {
 		$stored = get_option( self::OPTION_NAME, null );
 		if ( ! is_array( $stored ) ) {
-			return self::defaults( $dictionary );
+			return null;
 		}
+		foreach ( Credentials::FIELDS as $field => $name ) {
+			$value            = Credentials::decrypt( $stored[ $field ] ?? '', $field );
+			$stored[ $field ] = is_wp_error( $value ) ? '' : $value;
+		}
+		return $stored;
+	}
 
-		return array_merge( self::defaults(), $stored );
+	public static function credential_error() {
+		$stored = get_option( self::OPTION_NAME, array() );
+		foreach ( Credentials::FIELDS as $field => $name ) {
+			if ( null !== Credentials::external( $field ) || empty( $stored[ $field ] ) ) {
+				continue;
+			}
+			$error = Credentials::configuration_error();
+			$value = Credentials::decrypt( $stored[ $field ], $field );
+			if ( $error || is_wp_error( $value ) ) {
+				return $error ? $error : $value;
+			}
+		}
+		return null;
+	}
+
+	public static function save( array $settings, array $clear_fields = array() ) {
+		$protected = Credentials::protect( $settings );
+		if ( is_wp_error( $protected ) ) {
+			return $protected;
+		}
+		$previous = get_option( self::OPTION_NAME, array() );
+		foreach ( Credentials::FIELDS as $field => $name ) {
+			if ( '' === $protected[ $field ] && null === Credentials::external( $field ) && ! in_array( $field, $clear_fields, true )
+				&& is_wp_error( Credentials::decrypt( $previous[ $field ] ?? '', $field ) ) ) {
+				$protected[ $field ] = $previous[ $field ];
+			}
+		}
+		return update_option( self::OPTION_NAME, $protected, false );
+	}
+
+	public static function migrate_credentials() {
+		$stored = get_option( self::OPTION_NAME, null );
+		if ( ! is_array( $stored ) ) {
+			return;
+		}
+		$needs_migration = false;
+		$decoded         = $stored;
+		foreach ( Credentials::FIELDS as $field => $name ) {
+			$raw             = (string) ( $stored[ $field ] ?? '' );
+			$needs_migration = $needs_migration || ( '' !== $raw && ( 0 !== strpos( $raw, Credentials::PREFIX ) || null !== Credentials::external( $field ) ) );
+			$value           = null !== Credentials::external( $field ) ? '' : Credentials::decrypt( $raw, $field );
+			if ( is_wp_error( $value ) ) {
+				return;
+			}
+			$decoded[ $field ] = $value;
+		}
+		if ( $needs_migration ) {
+			$protected = Credentials::protect( $decoded );
+			if ( ! is_wp_error( $protected ) ) {
+				Option_Lock::replace( self::OPTION_NAME, $stored, $protected );
+			}
+		}
 	}
 
 	public static function defaults( array $dictionary = array() ) {
@@ -51,9 +127,9 @@ class Tracking_Settings {
 		if ( ! $dictionary ) {
 			return;
 		}
-		$stored = get_option( self::OPTION_NAME, null );
+		$stored = self::stored();
 		if ( ! is_array( $stored ) ) {
-			update_option( self::OPTION_NAME, self::defaults( $dictionary ), false );
+			self::save( self::defaults( $dictionary ) );
 			return;
 		}
 		if ( ! empty( $stored['status_defaults_initialized'] ) ) {
@@ -65,7 +141,7 @@ class Tracking_Settings {
 		$stored['status_mappings']             = self::default_status_mappings( $dictionary );
 		$stored['status_defaults_initialized'] = true;
 		$stored['mapping_revision']            = max( 1, (int) ( $stored['mapping_revision'] ?? 0 ) ) + 1;
-		update_option( self::OPTION_NAME, array_merge( self::defaults(), $stored ), false );
+		self::save( array_merge( self::defaults(), $stored ) );
 	}
 
 	/**
@@ -80,7 +156,7 @@ class Tracking_Settings {
 			return false;
 		}
 
-		$stored = get_option( self::OPTION_NAME, null );
+		$stored = self::stored();
 		if ( ! is_array( $stored ) || empty( $stored['status_defaults_initialized'] ) ) {
 			self::initialize_status_defaults( $dictionary );
 			return true;
@@ -158,7 +234,7 @@ class Tracking_Settings {
 		$settings['known_status_codes'] = array_values( array_unique( $known_codes ) );
 		$settings['poll_statuses']      = array_values( array_unique( $poll_statuses ) );
 		$settings['status_mappings']    = $mappings;
-		update_option( self::OPTION_NAME, $settings, false );
+		self::save( $settings );
 		return true;
 	}
 
