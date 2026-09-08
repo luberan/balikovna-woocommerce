@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.28.5](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.4...v1.28.5) (2026-09-08)
+
+
+### 🛠 CI
+
+* disable checkout JIT and verify API responses ([fc39c28](https://github.com/luberan/balikovna-woocommerce/commit/fc39c28973ea0d5e03010988a432c77ea7ecf34d))
+* expose checkout server crashes and integration logs ([99e6d6d](https://github.com/luberan/balikovna-woocommerce/commit/99e6d6d211787c87903e9eb5edfdd27e80d0020a))
+
 ## [1.28.4](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.3...v1.28.4) (2026-09-07)
 
 
