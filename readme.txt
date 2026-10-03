@@ -114,6 +114,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.29.2 =
+* 🐛 Opravy chyb: render version headings and release notes in update details
+
 = 1.29.1 =
 * 🛠 Build: keep nested changelog entries in the release readme
 
