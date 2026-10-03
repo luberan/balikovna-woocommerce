@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.0...v1.29.1) (2026-10-03)
+
+
+### 🛠 Build
+
+* keep nested changelog entries in the release readme ([3f18758](https://github.com/luberan/balikovna-woocommerce/commit/3f18758173f24c3240cf4c41137ed79822453c5b))
+
 ## [1.29.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.5...v1.29.0) (2026-10-03)
 
 
