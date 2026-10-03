@@ -1,5 +1,55 @@
 # Changelog
 
+## [1.29.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.5...v1.29.0) (2026-10-03)
+
+
+### 🚀 Nové funkce
+
+* add retry delay, schedule check and memory limit filters ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+
+
+### 🐛 Opravy chyb
+
+* acquire the synchronization lock atomically ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* back off failing parcel lookups and require InnoDB tables ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* commit status changes before WooCommerce status hooks and emails ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* defer a failing order instead of blocking the sync queue ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* load the block checkout picker through IntegrationInterface ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* reject non-scalar request and API values ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* replace deprecated fatal user errors in bundled update checker ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* report an invalid weight table in the shipping zone modal ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* resolve review findings in sync, checkout, export and updates ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* show the offered release notes in the update details ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* start the update checker on init to avoid early translations ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* stop scheduled work on every site on network deactivation ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* subtract refunds from COD and keep the variable symbol numeric ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+
+
+### 🔧 Kompatibilita
+
+* declare the WooCommerce dependency with Requires Plugins ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+
+
+### ⚡ Výkon
+
+* skip tracking queries on front-end requests ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+* store the pickup directory in shards, refresh it in background ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+
+
+### ♻️ Refaktor
+
+* remove an unused order shipment helper ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+
+
+### 📚 Dokumentace
+
+* update known limitations, roadmap and developer notes ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+
+
+### 🛠 CI
+
+* check PHP 7.4 compatibility including bundled libraries ([052ca4e](https://github.com/luberan/balikovna-woocommerce/commit/052ca4ef305bd57fc34de464f8e4940e05982c8c))
+
 ## [1.28.5](https://github.com/luberan/balikovna-woocommerce/compare/v1.28.4...v1.28.5) (2026-09-08)
 
 
