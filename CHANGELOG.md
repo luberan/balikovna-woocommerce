@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.1...v1.29.2) (2026-10-03)
+
+
+### 🐛 Opravy chyb
+
+* render version headings and release notes in update details ([2125b99](https://github.com/luberan/balikovna-woocommerce/commit/2125b99ddfcfdccce016526f276073d53535f294))
+
 ## [1.29.1](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.0...v1.29.1) (2026-10-03)
 
 
