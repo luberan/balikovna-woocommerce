@@ -190,7 +190,7 @@ Jednotkové testy používají izolované runtime stuby. Samostatná integračn�
 
 PHPCompatibility je připnuté na 10.0.0-alpha2 a PHPCompatibilityWP na 3.0.0-alpha2, protože stabilní řada 9 nezná moderní PHP. Jde pouze o vývojové nástroje; nedistribuují se s pluginem. Rozšíření kontroly PHP nenahrazuje integrační a browserové testy. Přibalený Parsedown 1.8.0 je namespacovaný, běží v safe mode a jeho zdroj i licence se kontrolují proti Composer locku příkazem `composer vendor:check`.
 
-Přibalený Plugin Update Checker 5.7 obsahuje lokální úpravu pro PHP 8.4+, kterou upstream zatím nemá: místo `trigger_error()` s úrovní fatální chyby vyhazuje výjimky a `get_html_translation_table()` volá s explicitními příznaky, takže se chová stejně na PHP 7.4 i 8.x. Upravená místa jsou označená komentářem `Local patch`. Při aktualizaci knihovny je zachovejte; jejich ztrátu odhalí `composer lint` a `composer test`.
+Přibalený Plugin Update Checker 5.7 obsahuje lokální úpravy, které upstream nemá. Pro PHP 8.4+ místo `trigger_error()` s úrovní fatální chyby vyhazuje výjimky a `get_html_translation_table()` volá s explicitními příznaky, takže se chová stejně na PHP 7.4 i 8.x. Parsedown v něm běží v safe mode, proto readme parser převádí nadpisy verzí `= 1.2.3 =` na markdownové nadpisy místo surového `<h4>`, které by safe mode zobrazil jako text. Upravená místa jsou označená komentářem `Local patch`. Při aktualizaci knihovny je zachovejte; jejich ztrátu odhalí `composer lint` a `composer test`.
 
 ## Externí služby a soukromí
 

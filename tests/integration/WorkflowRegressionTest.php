@@ -273,6 +273,15 @@ final class WorkflowRegressionTest extends TestCase {
 		$this->assertSame( 'BA1234567890A', Order::get_shipments( new WC_Order( $order->get_id() ) )[0]['trackingNumber'] );
 	}
 
+	public function test_update_details_show_readme_versions_as_headings(): void {
+		require_once BALIKOVNA_WC_PATH . 'includes/lib/plugin-update-checker/vendor/PucReadmeParser.php';
+
+		$history = ( new PucReadmeParser() )->parse_readme_contents( file_get_contents( BALIKOVNA_WC_PATH . 'readme.txt' ) )['sections']['changelog'];
+
+		$this->assertMatchesRegularExpression( '#<h4>\d+\.\d+\.\d+</h4>\s*<ul>#', $history );
+		$this->assertStringNotContainsString( '&lt;h4&gt;', $history );
+	}
+
 	public function test_first_request_after_cleanup_schedules_update_checks_without_early_translations(): void {
 		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-cleanup.php';
 		wp_clear_scheduled_hook( Balikovna_WC\Cleanup::UPDATE_CRON_HOOK );

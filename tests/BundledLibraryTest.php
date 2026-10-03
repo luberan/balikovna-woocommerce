@@ -51,6 +51,17 @@ final class BundledLibraryTest extends TestCase {
 		$this->assertSame( "`it's & <b>`", $decoded );
 	}
 
+	public function test_readme_version_headings_survive_the_safe_mode_parser(): void {
+		require_once dirname( __DIR__ ) . '/includes/lib/plugin-update-checker/vendor/PucReadmeParser.php';
+		$readme = "=== Plugin ===\nStable tag: 1.0.1\n\nShort description.\n\n== Changelog ==\n\n= 1.0.1 =\n* Fix <script>alert(1)</script>\n\n= 1.0.0 =\n* Initial release\n";
+
+		$changelog = ( new PucReadmeParser() )->parse_readme_contents( $readme )['sections']['changelog'];
+
+		$this->assertSame( 2, preg_match_all( '#<h4>1\.0\.[01]</h4>#', $changelog ) );
+		$this->assertStringNotContainsString( '&lt;h4&gt;', $changelog );
+		$this->assertStringNotContainsString( '<script', $changelog, 'Safe mode still escapes raw markup.' );
+	}
+
 	/**
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled

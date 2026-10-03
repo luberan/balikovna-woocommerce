@@ -91,7 +91,7 @@ class Update_Checker {
 			$history = self::local_changelog();
 		}
 		if ( '' !== $notes && ! self::mentions_version( $history, $version ) ) {
-			$history = $notes . "\n" . $history;
+			$history = self::notes_as_history( $notes, $version ) . "\n" . $history;
 		}
 		if ( '' !== $history ) {
 			$sections['changelog'] = $history;
@@ -128,5 +128,38 @@ class Update_Checker {
 	private static function mentions_version( $html, $version ) {
 		return '' !== $version
 			&& 1 === preg_match( '#<h[1-6][^>]*>\s*(?:<a[^>]*>\s*)?v?' . preg_quote( $version, '#' ) . '(?![0-9A-Za-z.-])#', (string) $html );
+	}
+
+	/**
+	 * Render release-please notes like the readme.txt history.
+	 *
+	 * The notes start with an h2 that the WordPress dialog pushes below its
+	 * sidebar, so they become one h4 version heading with "Section: entry"
+	 * items without commit links, as in the readme changelog.
+	 *
+	 * @param string $notes   Release notes HTML from Plugin Update Checker.
+	 * @param string $version Offered version.
+	 * @return string
+	 */
+	private static function notes_as_history( $notes, $version ) {
+		$items = array();
+		$title = '';
+		foreach ( preg_split( '#(<h[1-6][^>]*>.*?</h[1-6]>)#is', $notes, -1, PREG_SPLIT_DELIM_CAPTURE ) as $part ) {
+			if ( preg_match( '#^<h([1-6])[^>]*>(.*?)</h\1>$#is', $part, $heading ) ) {
+				// The h2 names the release, lower headings its sections.
+				$title = (int) $heading[1] > 2 ? trim( wp_strip_all_tags( $heading[2] ) ) : '';
+				continue;
+			}
+			preg_match_all( '#<li[^>]*>(.*?)</li>#is', $part, $entries );
+			foreach ( $entries[1] as $entry ) {
+				$entry   = trim( preg_replace( '#\s*\(<a\b[^>]*>[0-9a-f]{7,40}</a>\)\s*$#i', '', $entry ) );
+				$items[] = '<li>' . ( '' !== $title ? esc_html( $title ) . ': ' : '' ) . $entry . '</li>';
+			}
+		}
+		if ( ! $items ) {
+			// Unknown format: keep the notes, but without headings that clear the sidebar.
+			return (string) preg_replace( '#<(/?)h[1-3](?=[\s>])#i', '<$1h4', $notes );
+		}
+		return '<h4>' . esc_html( $version ) . "</h4>\n<ul>\n" . implode( "\n", $items ) . "\n</ul>";
 	}
 }
