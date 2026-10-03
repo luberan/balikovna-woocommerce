@@ -190,10 +190,13 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( 1, preg_match( '/^msgid "(?!")/m', $pot ) );
 	}
 
-	public function test_changelog_does_not_repeat_commit_links(): void {
+	public function test_changelog_does_not_repeat_entries(): void {
 		$changelog = file_get_contents( $this->rootPath( 'CHANGELOG.md' ) );
-		preg_match_all( '~/commit/([0-9a-f]{7,40})~', $changelog, $matches );
-		$this->assertSame( count( array_unique( $matches[1] ) ), count( $matches[1] ) );
+		// Nested commits list several entries with one commit link; each entry appears once.
+		preg_match_all( '~^\* .*/commit/[0-9a-f]{7,40}.*$~m', $changelog, $matches );
+		$entries = array_map( 'trim', $matches[0] );
+		$this->assertNotEmpty( $entries );
+		$this->assertSame( count( array_unique( $entries ) ), count( $entries ) );
 	}
 
 	public function test_ci_runs_real_target_versions_and_bundled_dependency_checks(): void {

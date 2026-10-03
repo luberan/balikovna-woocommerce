@@ -2,13 +2,25 @@
 /**
  * Remove duplicate release-please commit entries from CHANGELOG.md.
  *
- * A commit is kept in its oldest listed release because that is the first
- * version that could have contained it. Empty release-loop sections are dropped.
+ * An entry is kept in its oldest listed release because that is the first
+ * version that could have contained it. Entries are identified by commit and
+ * text, because nested commits list several entries for one commit.
+ * Empty release-loop sections are dropped.
  *
  * Usage: php .github/scripts/normalize-changelog.php [CHANGELOG.md]
  */
 
 declare( strict_types=1 );
+
+/**
+ * Key of a changelog bullet, or null for lines that are not commit entries.
+ */
+function changelogEntryKey( string $line ): ?string {
+	if ( ! preg_match( '/^\* /', $line ) || ! preg_match( '~/commit/([0-9a-f]{7,40})~', $line, $commit ) ) {
+		return null;
+	}
+	return $commit[1] . ' ' . trim( $line );
+}
 
 $path = $argv[1] ?? dirname( __DIR__, 2 ) . '/CHANGELOG.md';
 if ( ! is_file( $path ) ) {
@@ -22,9 +34,11 @@ $sections = $sectionMatches[0];
 
 $remaining = array();
 foreach ( $sections as $section ) {
-	preg_match_all( '~/commit/([0-9a-f]{7,40})~', $section, $commits );
-	foreach ( $commits[1] as $commit ) {
-		$remaining[ $commit ] = ( $remaining[ $commit ] ?? 0 ) + 1;
+	foreach ( explode( "\n", $section ) as $line ) {
+		$key = changelogEntryKey( $line );
+		if ( null !== $key ) {
+			$remaining[ $key ] = ( $remaining[ $key ] ?? 0 ) + 1;
+		}
 	}
 }
 
@@ -45,10 +59,10 @@ foreach ( $sections as $section ) {
 		}
 
 		$keep = true;
-		if ( preg_match( '~/commit/([0-9a-f]{7,40})~', $line, $commitMatch ) ) {
-			$commit = $commitMatch[1];
-			--$remaining[ $commit ];
-			$keep = 0 === $remaining[ $commit ];
+		$key  = changelogEntryKey( $line );
+		if ( null !== $key ) {
+			--$remaining[ $key ];
+			$keep = 0 === $remaining[ $key ];
 		}
 		if ( $keep ) {
 			$groups[ $title ][] = $line;
