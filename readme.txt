@@ -114,6 +114,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.29.1 =
+* 🛠 Build: keep nested changelog entries in the release readme
+
 = 1.29.0 =
 * 🚀 Nové funkce: add retry delay, schedule check and memory limit filters
 * 🐛 Opravy chyb: acquire the synchronization lock atomically
