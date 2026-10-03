@@ -114,6 +114,28 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.29.0 =
+* 🚀 Nové funkce: add retry delay, schedule check and memory limit filters
+* 🐛 Opravy chyb: acquire the synchronization lock atomically
+* 🐛 Opravy chyb: back off failing parcel lookups and require InnoDB tables
+* 🐛 Opravy chyb: commit status changes before WooCommerce status hooks and emails
+* 🐛 Opravy chyb: defer a failing order instead of blocking the sync queue
+* 🐛 Opravy chyb: load the block checkout picker through IntegrationInterface
+* 🐛 Opravy chyb: reject non-scalar request and API values
+* 🐛 Opravy chyb: replace deprecated fatal user errors in bundled update checker
+* 🐛 Opravy chyb: report an invalid weight table in the shipping zone modal
+* 🐛 Opravy chyb: resolve review findings in sync, checkout, export and updates
+* 🐛 Opravy chyb: show the offered release notes in the update details
+* 🐛 Opravy chyb: start the update checker on init to avoid early translations
+* 🐛 Opravy chyb: stop scheduled work on every site on network deactivation
+* 🐛 Opravy chyb: subtract refunds from COD and keep the variable symbol numeric
+* 🔧 Kompatibilita: declare the WooCommerce dependency with Requires Plugins
+* ⚡ Výkon: skip tracking queries on front-end requests
+* ⚡ Výkon: store the pickup directory in shards, refresh it in background
+* ♻️ Refaktor: remove an unused order shipment helper
+* 📚 Dokumentace: update known limitations, roadmap and developer notes
+* 🛠 CI: check PHP 7.4 compatibility including bundled libraries
+
 = 1.28.5 =
 * 🛠 CI: disable checkout JIT and verify API responses
 * 🛠 CI: expose checkout server crashes and integration logs
