@@ -1,7 +1,9 @@
 <?php
 
 use Balikovna_WC\Checkout;
+use Balikovna_WC\Option_Lock;
 use Balikovna_WC\Points;
+use Balikovna_WC\Tracking_Scheduler;
 use PHPUnit\Framework\TestCase;
 
 final class PointsAndCheckoutTest extends TestCase {
@@ -11,6 +13,9 @@ final class PointsAndCheckoutTest extends TestCase {
 		$GLOBALS['balikovna_test_options'] = array();
 		$GLOBALS['balikovna_test_transients'] = array();
 		$GLOBALS['balikovna_test_points_http'] = null;
+		$GLOBALS['balikovna_test_scheduled_actions'] = array();
+		$GLOBALS['balikovna_test_memory_contexts'] = array();
+		$GLOBALS['balikovna_test_doing_ajax'] = false;
 		$GLOBALS['balikovna_test_wc']->session = new Balikovna_Test_Session();
 		add_filter(
 			'balikovna_wc_points_directory',
@@ -28,6 +33,11 @@ final class PointsAndCheckoutTest extends TestCase {
 			10,
 			2
 		);
+	}
+
+	protected function tearDown(): void {
+		$GLOBALS['balikovna_test_doing_ajax']  = false;
+		$GLOBALS['balikovna_test_points_http'] = null;
 	}
 
 	public function test_server_replaces_forged_point_fields_with_canonical_data(): void {
@@ -129,54 +139,123 @@ final class PointsAndCheckoutTest extends TestCase {
 		);
 	}
 
-	public function test_fresh_fallback_directory_avoids_a_network_dependency(): void {
+	public function test_fresh_sharded_directory_avoids_a_network_dependency(): void {
 		remove_all_filters();
-		$GLOBALS['balikovna_test_options']['balikovna_wc_points_balikovny_v1_stale'] = array(
-			'updated'   => time(),
-			'directory' => array(
-				'B10000' => Points::sanitize( array( 'id' => 'B10000', 'name' => 'Cached point', 'type' => 'BALIKOVNY' ) ),
-			),
-		);
-		$result = Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
-		$this->assertIsArray( $result );
-		$this->assertSame( 'Cached point', $result['name'] );
+		$this->seed_directory( 'BALIKOVNY', HOUR_IN_SECONDS, array( 'B10000' => 'Cached point' ) );
+		$calls = array();
+		$this->http( $calls, new WP_Error( 'offline', 'offline' ) );
+
+		$this->assertSame( 'Cached point', Points::validate( array( 'id' => 'B10000' ), 'balikovna' )['name'] );
+		$this->assertSame( 'balikovna_unknown_point', Points::validate( array( 'id' => 'B10001' ), 'balikovna' )->get_error_code() );
+		$this->assertSame( array(), $calls );
+		$this->assertSame( array(), $GLOBALS['balikovna_test_scheduled_actions'] );
 	}
 
-	public function test_outage_cooldown_and_refresh_lock_avoid_repeated_upstream_calls(): void {
+	public function test_stale_directory_is_served_while_refresh_runs_in_background(): void {
 		remove_all_filters();
-		$key = 'balikovna_wc_points_balikovny_v1';
-		update_option( $key . '_stale', array( 'updated' => time() - 8 * DAY_IN_SECONDS, 'directory' => array( 'B10000' => Points::sanitize( array( 'id' => 'B10000', 'name' => 'Cached', 'type' => 'BALIKOVNY' ) ) ) ) );
-		$calls = 0;
-		$GLOBALS['balikovna_test_points_http'] = function () use ( &$calls ) { ++$calls; return new WP_Error( 'offline', 'offline' ); };
+		$this->seed_directory( 'BALIKOVNY', 8 * DAY_IN_SECONDS, array( 'B10000' => 'Cached' ) );
+		$calls = array();
+		$this->http( $calls, new WP_Error( 'offline', 'offline' ) );
+
 		for ( $attempt = 0; $attempt < 3; ++$attempt ) {
 			$this->assertSame( 'Cached', Points::validate( array( 'id' => 'B10000' ), 'balikovna' )['name'] );
 		}
-		$this->assertSame( 1, $calls );
-		delete_transient( $key . '_retry_after' );
-		$token = Balikovna_WC\Option_Lock::acquire( $key . '_refresh_lock', time(), MINUTE_IN_SECONDS );
+		$this->assertSame( array(), $calls, 'Customer requests never download a stale directory.' );
+		$this->assertCount( 1, $GLOBALS['balikovna_test_scheduled_actions'] );
+		$this->assertSame( Tracking_Scheduler::POINTS_HOOK, $GLOBALS['balikovna_test_scheduled_actions'][0]['hook'] );
+		$this->assertSame( array( 'BALIKOVNY' ), $GLOBALS['balikovna_test_scheduled_actions'][0]['args'] );
+
+		Points::refresh_from_action( 'BALIKOVNY' );
+		$this->assertCount( 1, $calls );
+		$this->assertSame( array( 'balikovna_wc_points' ), $GLOBALS['balikovna_test_memory_contexts'] );
+		$GLOBALS['balikovna_test_scheduled_actions'] = array();
 		$this->assertSame( 'Cached', Points::validate( array( 'id' => 'B10000' ), 'balikovna' )['name'] );
-		$this->assertSame( 1, $calls );
-		Balikovna_WC\Option_Lock::release( $key . '_refresh_lock', $token );
-		Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
-		$this->assertSame( 2, $calls );
-		update_option( $key . '_stale', array( 'updated' => time() - 31 * DAY_IN_SECONDS, 'directory' => array( 'B10000' => array() ) ) );
-		$this->assertInstanceOf( WP_Error::class, Points::validate( array( 'id' => 'B10000' ), 'balikovna' ) );
-		$this->assertSame( 2, $calls );
+		$this->assertSame( array(), $GLOBALS['balikovna_test_scheduled_actions'], 'The outage cooldown suppresses rescheduling.' );
+		Points::refresh_from_action( 'BALIKOVNY' );
+		$this->assertCount( 1, $calls, 'The outage cooldown suppresses another download.' );
 	}
 
-	public function test_successful_refresh_replaces_stale_data_and_releases_lock(): void {
+	public function test_cold_outage_uses_one_upstream_attempt_and_respects_the_lock(): void {
 		remove_all_filters();
-		$key = 'balikovna_wc_points_balikovny_v1';
-		$GLOBALS['balikovna_test_points_http'] = function () {
-			return array( 'response' => array( 'code' => 200 ), 'body' => json_encode( array( array( 'id' => 'B10000', 'name' => 'Fresh point', 'type' => 'BALIKOVNY' ) ) ) );
-		};
-		$this->assertSame( 'Fresh point', Points::validate( array( 'id' => 'B10000' ), 'balikovna' )['name'] );
+		$key   = 'balikovna_wc_points_balikovny_v2';
+		$calls = array();
+		$this->http( $calls, new WP_Error( 'offline', 'offline' ) );
+
+		for ( $attempt = 0; $attempt < 3; ++$attempt ) {
+			$this->assertSame( 'balikovna_points_unavailable', Points::validate( array( 'id' => 'B10000' ), 'balikovna' )->get_error_code() );
+		}
+		$this->assertCount( 1, $calls );
+		$this->assertFalse( get_option( $key . '_refresh_lock' ) );
+
+		delete_transient( $key . '_retry_after' );
+		$token = Option_Lock::acquire( $key . '_refresh_lock', time(), MINUTE_IN_SECONDS );
+		$this->assertInstanceOf( WP_Error::class, Points::validate( array( 'id' => 'B10000' ), 'balikovna' ) );
+		$this->assertCount( 1, $calls );
+		Option_Lock::release( $key . '_refresh_lock', $token );
+		Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
+		$this->assertCount( 2, $calls );
+	}
+
+	public function test_refresh_sets_cooldown_before_download_so_a_crash_is_not_retried(): void {
+		remove_all_filters();
+		$calls = array();
+		$this->http(
+			$calls,
+			function () {
+				throw new Error( 'Allowed memory size exhausted' );
+			}
+		);
+
+		try {
+			Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
+			$this->fail( 'The simulated fatal error must propagate.' );
+		} catch ( Error $error ) {
+			$this->assertSame( 'Allowed memory size exhausted', $error->getMessage() );
+		}
+		$this->assertGreaterThan( time(), get_transient( 'balikovna_wc_points_balikovny_v2_retry_after' ) );
+		$this->assertInstanceOf( WP_Error::class, Points::validate( array( 'id' => 'B10000' ), 'balikovna' ) );
+		$this->assertCount( 1, $calls );
+	}
+
+	public function test_successful_refresh_stores_small_shards_and_removes_legacy_cache(): void {
+		remove_all_filters();
+		$key = 'balikovna_wc_points_balikovny_v2';
+		update_option( 'balikovna_wc_points_balikovny_v1_stale', array( 'updated' => time(), 'directory' => array() ) );
+		set_transient( 'balikovna_wc_points_balikovny_v1', array( 'legacy' ), DAY_IN_SECONDS );
+		$rows  = array(
+			array( 'id' => 'B10000', 'name' => 'Fresh point', 'type' => 'BALIKOVNY', 'address' => 'Ulice 1, Praha', 'municipality_name' => 'Praha', 'municipality_district_name' => 'Strašnice', 'coor_x_wgs84' => '14.49', 'coor_y_wgs84' => '50.07' ),
+			array( 'id' => 'B10001', 'name' => 'Neighbour', 'type' => 'BALIKOVNY' ),
+			array( 'id' => 'B60200', 'name' => 'Brno', 'type' => 'BALIKOVNY' ),
+			array( 'id' => 'P10003', 'name' => 'Other type', 'type' => 'POST_OFFICE' ),
+		);
+		$calls = array();
+		$this->http( $calls, array( 'response' => array( 'code' => 200 ), 'body' => json_encode( $rows ) ) );
+
+		$point = Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
+
+		$this->assertSame( 'Fresh point', $point['name'] );
+		$this->assertSame( 'Ulice 1', $point['street'] );
+		$this->assertSame( 'Praha - Strašnice', $point['city'] );
+		$this->assertSame( '50.07', $point['lat'] );
+		$this->assertSame( '14.49', $point['lng'] );
+		$this->assertSame( array( 'B10000', 'B10001' ), array_keys( get_option( $key . '_10' ) ) );
+		$this->assertSame( array( 'B60200' ), array_keys( get_option( $key . '_60' ) ) );
+		$this->assertSame( array( '10', '60' ), get_option( $key )['shards'] );
+		$this->assertSame( array( 'state' => 'fresh', 'count' => 3 ), array_intersect_key( Points::directory_status( 'BALIKOVNY' ), array( 'state' => 1, 'count' => 1 ) ) );
 		$this->assertFalse( get_option( $key . '_refresh_lock' ) );
 		$this->assertFalse( get_transient( $key . '_retry_after' ) );
-		$this->assertSame( 'Fresh point', get_transient( $key )['B10000']['name'] );
+		$this->assertFalse( get_option( 'balikovna_wc_points_balikovny_v1_stale' ) );
+		$this->assertFalse( get_transient( 'balikovna_wc_points_balikovny_v1' ) );
+
+		update_option( $key, array_merge( get_option( $key ), array( 'updated' => time() - 8 * DAY_IN_SECONDS ) ) );
+		$this->http( $calls, array( 'response' => array( 'code' => 200 ), 'body' => json_encode( array( $rows[2] ) ) ) );
+		Points::refresh_from_action( 'BALIKOVNY' );
+		$this->assertFalse( get_option( $key . '_10' ), 'Emptied shards are removed.' );
+		$this->assertSame( 'balikovna_unknown_point', Points::validate( array( 'id' => 'B10000' ), 'balikovna' )->get_error_code() );
+		$this->assertSame( 'Brno', Points::validate( array( 'id' => 'B60200' ), 'balikovna' )['name'] );
 	}
 
-	public function test_expired_fallback_directory_is_rejected_after_network_failure(): void {
+	public function test_expired_directory_is_rejected_after_network_failure(): void {
 		remove_all_filters();
 		add_filter(
 			'balikovna_wc_points_max_stale_age',
@@ -184,16 +263,62 @@ final class PointsAndCheckoutTest extends TestCase {
 				return 14 * DAY_IN_SECONDS;
 			}
 		);
-		$GLOBALS['balikovna_test_options']['balikovna_wc_points_balikovny_v1_stale'] = array(
-			'updated'   => time() - ( 15 * DAY_IN_SECONDS ),
-			'directory' => array(
-				'B10000' => Points::sanitize( array( 'id' => 'B10000', 'name' => 'Expired point', 'type' => 'BALIKOVNY' ) ),
-			),
-		);
+		$this->seed_directory( 'BALIKOVNY', 15 * DAY_IN_SECONDS, array( 'B10000' => 'Expired point' ) );
+		$calls = array();
+		$this->http( $calls, new WP_Error( 'offline', 'offline' ) );
 
 		$result = Points::validate( array( 'id' => 'B10000' ), 'balikovna' );
 
 		$this->assertInstanceOf( WP_Error::class, $result );
 		$this->assertSame( 'balikovna_points_unavailable', $result->get_error_code() );
+		$this->assertCount( 1, $calls );
+	}
+
+	public function test_admin_maintenance_schedules_only_used_or_stale_directories(): void {
+		remove_all_filters();
+		$GLOBALS['wpdb']->zone_methods = array( 'balikovna', 'flat_rate' );
+		Points::maintain();
+		$this->assertSame( array( array( 'BALIKOVNY' ) ), array_column( $GLOBALS['balikovna_test_scheduled_actions'], 'args' ) );
+
+		$GLOBALS['balikovna_test_scheduled_actions'] = array();
+		$this->seed_directory( 'BALIKOVNY', HOUR_IN_SECONDS, array( 'B10000' => 'Fresh' ) );
+		$this->seed_directory( 'POST_OFFICE', 8 * DAY_IN_SECONDS, array( 'P10003' => 'Stale' ) );
+		Points::maintain();
+		$this->assertSame( array( array( 'POST_OFFICE' ) ), array_column( $GLOBALS['balikovna_test_scheduled_actions'], 'args' ) );
+
+		$GLOBALS['balikovna_test_scheduled_actions'] = array();
+		$GLOBALS['balikovna_test_doing_ajax']        = true;
+		Points::maintain();
+		$this->assertSame( array(), $GLOBALS['balikovna_test_scheduled_actions'] );
+		$calls = array();
+		$this->http( $calls, new WP_Error( 'offline', 'offline' ) );
+		Points::refresh_from_action( 'UNKNOWN' );
+		$this->assertSame( array(), $calls );
+	}
+
+	private function seed_directory( $type, $age, array $points ) {
+		$key    = 'balikovna_wc_points_' . strtolower( $type ) . '_v2';
+		$shards = array();
+		foreach ( $points as $id => $name ) {
+			$shards[ substr( $id, 1, 2 ) ][ $id ] = Points::sanitize( array( 'id' => $id, 'name' => $name, 'type' => $type ) );
+		}
+		foreach ( $shards as $shard => $entries ) {
+			update_option( $key . '_' . $shard, $entries );
+		}
+		update_option(
+			$key,
+			array(
+				'updated' => time() - $age,
+				'count'   => count( $points ),
+				'shards'  => array_map( 'strval', array_keys( $shards ) ),
+			)
+		);
+	}
+
+	private function http( array &$calls, $response ) {
+		$GLOBALS['balikovna_test_points_http'] = function ( $url ) use ( &$calls, $response ) {
+			$calls[] = $url;
+			return is_callable( $response ) ? $response() : $response;
+		};
 	}
 }

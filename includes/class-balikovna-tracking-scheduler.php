@@ -15,20 +15,36 @@ class Tracking_Scheduler {
 	const GROUP             = 'balikovna-woocommerce';
 	const INTERVAL          = 30 * MINUTE_IN_SECONDS;
 	const CONTINUATION_HOOK = 'balikovna_wc_continue_shipment_statuses';
+	const POINTS_HOOK       = 'balikovna_wc_refresh_points';
 
 	private $callback;
+	private $should_schedule;
 
-	public function __construct( $callback ) {
-		$this->callback = $callback;
+	/**
+	 * @param callable      $callback        Synchronization callback.
+	 * @param callable|null $should_schedule Returns whether the recurring action is wanted; null keeps it scheduled.
+	 */
+	public function __construct( $callback, $should_schedule = null ) {
+		$this->callback        = $callback;
+		$this->should_schedule = is_callable( $should_schedule ) ? $should_schedule : null;
 	}
 
 	public function init() {
 		add_action( self::HOOK, $this->callback );
 		add_action( self::CONTINUATION_HOOK, $this->callback );
+		// Front-end requests only need the callbacks; schedule checks query Action Scheduler.
+		if ( ! self::is_maintenance_request() ) {
+			return;
+		}
 		add_action( 'action_scheduler_init', array( $this, 'ensure_scheduled' ) );
 		if ( did_action( 'action_scheduler_init' ) ) {
 			$this->ensure_scheduled();
 		}
+	}
+
+	public static function is_maintenance_request() {
+		$maintenance = ( is_admin() && ! wp_doing_ajax() ) || wp_doing_cron();
+		return (bool) apply_filters( 'balikovna_wc_tracking_schedule_check', $maintenance );
 	}
 
 	public function ensure_scheduled() {
@@ -38,6 +54,13 @@ class Tracking_Scheduler {
 		$scheduled = function_exists( 'as_has_scheduled_action' )
 			? as_has_scheduled_action( self::HOOK, array(), self::GROUP )
 			: ( function_exists( 'as_next_scheduled_action' ) && as_next_scheduled_action( self::HOOK, array(), self::GROUP ) );
+		if ( $this->should_schedule && ! call_user_func( $this->should_schedule ) ) {
+			if ( $scheduled ) {
+				as_unschedule_all_actions( self::HOOK, array(), self::GROUP );
+				as_unschedule_all_actions( self::CONTINUATION_HOOK, array(), self::GROUP );
+			}
+			return;
+		}
 		if ( $scheduled ) {
 			return;
 		}
@@ -71,6 +94,8 @@ class Tracking_Scheduler {
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			as_unschedule_all_actions( self::HOOK, array(), self::GROUP );
 			as_unschedule_all_actions( self::CONTINUATION_HOOK, array(), self::GROUP );
+			// Without args and group Action Scheduler cancels the hook for every pickup type.
+			as_unschedule_all_actions( self::POINTS_HOOK );
 		}
 	}
 

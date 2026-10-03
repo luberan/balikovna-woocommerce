@@ -81,8 +81,38 @@ class Blocks {
 			10,
 			2
 		);
-		// Frontend script registration for block integration.
-		add_action( 'enqueue_block_assets', array( $this, 'enqueue_block_script' ) );
+		// WooCommerce enqueues integration scripts whenever the block renders,
+		// including blocks placed in templates or synced patterns.
+		add_action( 'woocommerce_blocks_checkout_block_registration', array( $this, 'register_integration' ) );
+		add_action( 'woocommerce_blocks_cart_block_registration', array( $this, 'register_integration' ) );
+		add_filter( 'render_block_woocommerce/checkout', array( $this, 'enqueue_style' ) );
+		add_filter( 'render_block_woocommerce/cart', array( $this, 'enqueue_style' ) );
+	}
+
+	/**
+	 * @param \Automattic\WooCommerce\Blocks\Integrations\IntegrationRegistry $registry Block integration registry.
+	 */
+	public function register_integration( $registry ) {
+		if ( ! is_object( $registry ) || ! method_exists( $registry, 'register' )
+			|| ! interface_exists( '\Automattic\WooCommerce\Blocks\Integrations\IntegrationInterface' ) ) {
+			return;
+		}
+		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-blocks-integration.php';
+		if ( method_exists( $registry, 'is_registered' ) && $registry->is_registered( self::NS ) ) {
+			return;
+		}
+		$registry->register( new Blocks_Integration() );
+	}
+
+	/**
+	 * Load picker styles when a Cart or Checkout block is rendered.
+	 *
+	 * @param string $content Rendered block content.
+	 * @return string
+	 */
+	public function enqueue_style( $content ) {
+		Checkout::enqueue_style();
+		return $content;
 	}
 
 	public function data_callback() {
@@ -129,7 +159,7 @@ class Blocks {
 	public function update_cart_from_request( $data ) {
 		$payload     = is_array( $data ) ? $data : array();
 		$package_key = isset( $payload['packageKey'] ) ? Checkout::normalize_package_key( $payload['packageKey'] ) : null;
-		$rate_id     = isset( $payload['rateId'] ) ? sanitize_text_field( (string) $payload['rateId'] ) : '';
+		$rate_id     = isset( $payload['rateId'] ) && is_scalar( $payload['rateId'] ) ? sanitize_text_field( (string) $payload['rateId'] ) : '';
 		$chosen      = Checkout::chosen_pickup_services();
 		if ( null === $package_key || ! isset( $chosen[ $package_key ] ) || $rate_id !== $chosen[ $package_key ]['rateId'] ) {
 			throw new RouteException(
@@ -215,58 +245,5 @@ class Blocks {
 		}
 
 		return 1 === preg_match( '#/checkout/\d+/?$#', (string) $request->get_route() );
-	}
-
-	public function enqueue_block_script() {
-		if ( is_admin() ) {
-			return;
-		}
-		if ( ! function_exists( 'is_checkout' ) || ( ! is_checkout() && ! is_cart() ) ) {
-			return;
-		}
-		if ( function_exists( 'has_block' ) && ! has_block( 'woocommerce/checkout' ) && ! has_block( 'woocommerce/cart' ) ) {
-			return;
-		}
-		$handle = 'balikovna-wc-blocks';
-		wp_register_script(
-			$handle,
-			BALIKOVNA_WC_URL . 'assets/js/checkout-block.js',
-			array( 'wp-element', 'wp-i18n', 'wp-data', 'wp-plugins', 'wc-blocks-checkout' ),
-			BALIKOVNA_WC_VERSION,
-			true
-		);
-		wp_localize_script(
-			$handle,
-			'BalikovnaWCBlock',
-			array(
-				'services' => $this->services_js(),
-				'debug'    => Plugin::is_debug(),
-				'i18n'     => array(
-					'choose'    => __( 'Vybrat výdejní místo', 'balikovna-wc' ),
-					'change'    => __( 'Změnit výdejní místo', 'balikovna-wc' ),
-					'selected'  => __( 'Zvolené místo:', 'balikovna-wc' ),
-					'required'  => __( 'Prosím zvolte výdejní místo.', 'balikovna-wc' ),
-					'title'     => __( 'Výběr výdejního místa', 'balikovna-wc' ),
-					'close'     => __( 'Zavřít', 'balikovna-wc' ),
-					'saving'    => __( 'Ukládám výdejní místo…', 'balikovna-wc' ),
-					'saveError' => __( 'Výdejní místo se nepodařilo uložit. Zkuste to prosím znovu.', 'balikovna-wc' ),
-				),
-			)
-		);
-		wp_enqueue_script( $handle );
-	}
-
-	private function services_js() {
-		$out = array();
-		foreach ( Services::all() as $sid => $cfg ) {
-			if ( ! empty( $cfg['pickup'] ) ) {
-				$out[ $sid ] = array(
-					'pickup'    => $cfg['pickup'],
-					'widgetUrl' => Plugin::widget_url( $cfg['pickup'] ),
-					'label'     => $cfg['label'],
-				);
-			}
-		}
-		return $out;
 	}
 }

@@ -13,6 +13,7 @@
  * Domain Path: /languages
  * Requires PHP: 7.4
  * Requires at least: 6.9
+ * Requires Plugins: woocommerce
  * WC requires at least: 10.8
  * WC tested up to: 11.1
  *
@@ -29,17 +30,17 @@ define( 'BALIKOVNA_WC_URL', plugin_dir_url( __FILE__ ) );
 
 register_deactivation_hook(
 	__FILE__,
-	function () {
-		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-scheduler.php';
-		\Balikovna_WC\Tracking_Scheduler::unschedule();
+	function ( $network_wide = false ) {
+		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-cleanup.php';
+		\Balikovna_WC\Cleanup::deactivate( (bool) $network_wide );
 	}
 );
 
 add_action(
 	'deactivate_woocommerce/woocommerce.php',
-	function () {
-		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-scheduler.php';
-		\Balikovna_WC\Tracking_Scheduler::unschedule();
+	function ( $network_wide = false ) {
+		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-cleanup.php';
+		\Balikovna_WC\Cleanup::woocommerce_deactivated( (bool) $network_wide );
 	},
 	1
 );
@@ -59,81 +60,13 @@ add_action(
 // (YahnisElsts/plugin-update-checker, MIT). Stahuje vždy release asset
 // `balikovna-woocommerce.zip` (vyrobený workflowem release-please),
 // ne auto-generated "Source code (zip)".
+// Až na `init`: vytvoření checkeru může naplánovat cron a filtry
+// `cron_schedules` jiných pluginů (WooCommerce) přitom načítají překlady.
 add_action(
-	'plugins_loaded',
+	'init',
 	function () {
-		$puc = BALIKOVNA_WC_PATH . 'includes/lib/plugin-update-checker/plugin-update-checker.php';
-		if ( ! is_readable( $puc ) ) {
-			return;
-		}
-		require_once $puc;
-		if ( ! class_exists( '\YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
-			return;
-		}
-		try {
-			$checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
-				'https://github.com/luberan/balikovna-woocommerce/',
-				BALIKOVNA_WC_FILE,
-				'balikovna-woocommerce'
-			);
-			$checker->setBranch( 'main' );
-			add_filter(
-				$checker->getUniqueName( 'vcs_update_detection_strategies' ),
-				function ( $strategies ) {
-					return array_intersect_key( $strategies, array( 'latest_release' => true ) );
-				}
-			);
-			$api = $checker->getVcsApi();
-			if ( $api && method_exists( $api, 'enableReleaseAssets' ) ) {
-				$api->enableReleaseAssets(
-					'/^balikovna-woocommerce\.zip$/i',
-					\YahnisElsts\PluginUpdateChecker\v5p7\Vcs\Api::REQUIRE_RELEASE_ASSETS
-				);
-			}
-
-			// PUC by default uses the GitHub release body (just notes for the
-			// single released version) as the changelog shown in "View version
-			// details". Prefer the full == Changelog == section from the
-			// readme.txt that ships with the installed ZIP — it contains the
-			// complete history rendered by the release workflow.
-			add_filter(
-				'puc_request_info_result-balikovna-woocommerce',
-				function ( $plugin_info ) {
-					if ( ! is_object( $plugin_info ) ) {
-						return $plugin_info;
-					}
-					$readme_path = BALIKOVNA_WC_PATH . 'readme.txt';
-					if ( ! is_readable( $readme_path ) ) {
-						return $plugin_info;
-					}
-					$readme = file_get_contents( $readme_path );
-					if ( ! $readme || ! preg_match( '/^==\s*Changelog\s*==\s*$(.*?)(?=^==\s|\z)/sm', $readme, $m ) ) {
-						return $plugin_info;
-					}
-					$body = trim( $m[1] );
-					// Convert the WP readme syntax (`= 1.2.3 =` / `* item`) into
-					// simple HTML for the modal.
-					$body = preg_replace( '/^=\s*([^=]+?)\s*=\s*$/m', '<h4>$1</h4>', $body );
-					$body = preg_replace_callback(
-						'/(?:^\*\s+.+(?:\r?\n|$))+/m',
-						function ( $block ) {
-							$items = preg_replace( '/^\*\s+(.+)$/m', '<li>$1</li>', rtrim( $block[0] ) );
-							return "<ul>{$items}</ul>\n";
-						},
-						$body
-					);
-					if ( ! isset( $plugin_info->sections ) || ! is_array( $plugin_info->sections ) ) {
-						$plugin_info->sections = array();
-					}
-					$plugin_info->sections['changelog'] = $body;
-					return $plugin_info;
-				}
-			);
-		} catch ( \Throwable $e ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( '[Balíkovna] update checker init failed: ' . $e->getMessage() );
-			}
-		}
+		require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-update-checker.php';
+		\Balikovna_WC\Update_Checker::init();
 	},
 	5
 );

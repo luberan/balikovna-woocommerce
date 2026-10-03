@@ -50,12 +50,7 @@ class Order_Status_Mapper {
 			return '';
 		}
 
-		$updated = $this->guard->run(
-			$order,
-			function () use ( $order, $target ) {
-				return $order->update_status( substr( $target, 3 ) );
-			}
-		);
+		$updated = $this->guard->update_status( $order, substr( $target, 3 ) );
 		if ( false === $updated ) {
 			return false;
 		}

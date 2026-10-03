@@ -12,10 +12,11 @@ final class Balikovna_Test_Order_Database {
 	public $queries = array();
 	public $fail_query = '';
 	public $engine = 'InnoDB';
+	public $lock_timeout = 50;
 	public function prepare( $sql, ...$args ) { return array( $sql, $args ); }
 	public function suppress_errors( $suppress ) { return false; }
 	public function get_var( $query ) {
-		if ( is_string( $query ) ) { return 50; }
+		if ( is_string( $query ) ) { return $this->lock_timeout; }
 		if ( false !== strpos( $query[0], 'SELECT ENGINE' ) ) { return $this->engine; }
 		return $this->snapshot['status'];
 	}
@@ -89,5 +90,48 @@ final class OrderWriteGuardTest extends TestCase {
 			$this->assertSame( 'write failed', $error->getMessage() );
 		}
 		$this->assertSame( 2, count( array_filter( $database->queries, function ( $query ) { return 'ROLLBACK' === $query; } ) ) );
+	}
+
+	public function test_status_change_commits_before_transition_side_effects(): void {
+		list( $order, $database, $guard ) = $this->fixture();
+		$at_transition = array();
+		$write         = function () use ( $order, $database, &$at_transition ) {
+			do_action( 'woocommerce_after_order_object_save', new WC_Order( array(), array(), array(), array(), array( 'id' => 999 ) ) );
+			$this->assertNotContains( 'COMMIT', $database->queries, 'Saving another order must not commit this transaction.' );
+			do_action( 'woocommerce_after_order_object_save', $order );
+			$at_transition = $database->queries;
+			throw new TypeError( 'Third-party status hook failed' );
+		};
+
+		try {
+			$guard->run( $order, $write, null, 'woocommerce_after_order_object_save' );
+			$this->fail( 'Hook errors must propagate.' );
+		} catch ( TypeError $error ) {
+			$this->assertSame( 'Third-party status hook failed', $error->getMessage() );
+		}
+
+		$this->assertSame( 'COMMIT', end( $at_transition ), 'Status hooks and e-mails run after the commit.' );
+		$this->assertNotContains( 'ROLLBACK', $database->queries, 'A failing later hook cannot roll back the committed status.' );
+		$this->assertSame( array(), $GLOBALS['balikovna_test_actions']['woocommerce_after_order_object_save'] );
+	}
+
+	public function test_status_helper_falls_back_to_commit_after_the_writer(): void {
+		list( $order, $database, $guard ) = $this->fixture();
+
+		$this->assertTrue( $guard->update_status( $order, 'completed' ) );
+
+		$this->assertSame( 'completed', $order->get_status() );
+		$this->assertContains( 'COMMIT', $database->queries );
+		$this->assertNotContains( 'ROLLBACK', $database->queries );
+	}
+
+	public function test_emulated_innodb_without_lock_support_is_unsupported(): void {
+		list( $order, $database ) = $this->fixture();
+		$database->lock_timeout   = null;
+		$guard                    = new Order_Write_Guard( $database );
+
+		$this->assertFalse( $guard->is_supported() );
+		$this->assertFalse( $guard->run( $order, function () { $this->fail( 'Unsupported storage must not write.' ); } ) );
+		$this->assertNotContains( 'START TRANSACTION', $database->queries );
 	}
 }

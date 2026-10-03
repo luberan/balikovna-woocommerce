@@ -60,12 +60,13 @@ class Shipment_Status {
 			);
 		}
 
-		$event_at = self::clean_datetime( $raw['datetime'] ?? ( $raw['date'] ?? '' ) );
-		$status   = new self(
+		$event_at    = self::clean_datetime( $raw['datetime'] ?? ( $raw['date'] ?? '' ) );
+		$description = $raw['statusDescription'] ?? '';
+		$status      = new self(
 			self::clean_identifier( $data['idParcel'] ?? '', true ),
 			$status_id,
 			$reason_id,
-			self::limit( sanitize_text_field( (string) ( $raw['statusDescription'] ?? '' ) ), 240 ),
+			self::limit( is_scalar( $description ) ? sanitize_text_field( (string) $description ) : '', 240 ),
 			$event_at
 		);
 
@@ -98,7 +99,7 @@ class Shipment_Status {
 	 * Normalize an aggregate status label for exact semantic/group comparison.
 	 */
 	public static function normalize_label( $label ) {
-		$label = trim( sanitize_text_field( (string) $label ) );
+		$label = is_scalar( $label ) ? trim( sanitize_text_field( (string) $label ) ) : '';
 		if ( function_exists( 'remove_accents' ) ) {
 			$label = remove_accents( $label );
 		} else {
@@ -170,6 +171,9 @@ class Shipment_Status {
 	}
 
 	private static function clean_identifier( $value, $trim ) {
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
 		$value = preg_replace( '/[\x00-\x1F\x7F]/u', '', (string) $value );
 		if ( ! is_string( $value ) ) {
 			return '';
@@ -179,6 +183,9 @@ class Shipment_Status {
 	}
 
 	private static function clean_datetime( $value ) {
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
 		$value = self::limit( sanitize_text_field( (string) $value ), 64 );
 		return '' !== $value && false !== strtotime( $value ) ? $value : '';
 	}

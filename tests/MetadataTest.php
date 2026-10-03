@@ -19,6 +19,7 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( trim( $header[1] ), trim( $stable[1] ) );
 		$this->assertStringContainsString( 'Requires at least: 6.9', $plugin );
 		$this->assertStringContainsString( 'Requires at least: 6.9', $readme );
+		$this->assertMatchesRegularExpression( '/^ \* Requires Plugins: woocommerce\r?$/m', $plugin );
 		$this->assertMatchesRegularExpression( '/^Tested up to: 7\.1\r?$/m', $readme );
 		$this->assertStringContainsString( '| WordPress | 6.9 | 7.1 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $plugin );
@@ -34,20 +35,20 @@ final class MetadataTest extends TestCase {
 	}
 
 	public function test_updater_requires_the_release_asset(): void {
-		$plugin = file_get_contents( $this->rootPath( 'balikovna-woocommerce.php' ) );
-		$this->assertStringContainsString( 'Api::REQUIRE_RELEASE_ASSETS', $plugin );
-		$this->assertStringContainsString( "\$checker->getUniqueName( 'vcs_update_detection_strategies' )", $plugin );
-		$this->assertStringContainsString( "array_intersect_key( \$strategies, array( 'latest_release' => true ) )", $plugin );
+		$plugin  = file_get_contents( $this->rootPath( 'balikovna-woocommerce.php' ) );
+		$updater = file_get_contents( $this->rootPath( 'includes/class-balikovna-update-checker.php' ) );
+		$this->assertStringContainsString( 'Update_Checker::init()', $plugin );
+		$this->assertStringContainsString( 'Api::REQUIRE_RELEASE_ASSETS', $updater );
+		$this->assertStringContainsString( "\$checker->getUniqueName( 'vcs_update_detection_strategies' )", $updater );
+		$this->assertStringContainsString( "array_intersect_key( (array) \$strategies, array( 'latest_release' => true ) )", $updater );
 	}
 
 	public function test_updater_never_falls_back_to_source_archives(): void {
 		require_once $this->rootPath( 'includes/lib/plugin-update-checker/plugin-update-checker.php' );
-		$plugin = file_get_contents( $this->rootPath( 'balikovna-woocommerce.php' ) );
-		$this->assertSame( 1, preg_match( '/function \( \$strategies \) \{[^}]+\}/', $plugin, $matches ) );
-		$filter = eval( 'return ' . $matches[0] . ';' );
+		require_once $this->rootPath( 'includes/class-balikovna-update-checker.php' );
 		$filter_name = 'balikovna_test_release_strategies';
 		remove_all_filters( $filter_name );
-		add_filter( $filter_name, $filter );
+		add_filter( $filter_name, array( Balikovna_WC\Update_Checker::class, 'filter_strategies' ) );
 		$api = new class() extends \YahnisElsts\PluginUpdateChecker\v5p7\Vcs\GitHubApi {
 			public $release;
 			public $requests = array();
@@ -91,8 +92,14 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( 'setPageInert( wrap )', $js );
 		$this->assertStringContainsString( 'activeModal === modal', $js );
 		$this->assertStringContainsString( 'activeModal.saving && ! force', $js );
-		$this->assertStringContainsString( "! has_block( 'woocommerce/checkout' )", $php );
+		$this->assertStringContainsString( "woocommerce_blocks_checkout_block_registration', array( \$this, 'register_integration' )", $php );
+		$this->assertStringContainsString( "woocommerce_blocks_cart_block_registration', array( \$this, 'register_integration' )", $php );
+		$this->assertStringNotContainsString( 'has_block(', $php );
+		$this->assertStringContainsString( "wc.wcSettings.getSetting( NS + '_data', null )", $js );
+		$this->assertStringNotContainsString( 'BalikovnaWCBlock', $js );
 		$checkout = file_get_contents( $this->rootPath( 'includes/class-balikovna-checkout.php' ) );
+		$this->assertStringNotContainsString( 'has_block(', $checkout );
+		$this->assertStringContainsString( "'woocommerce_before_checkout_form', array( \$this, 'enqueue_classic_script' )", $checkout );
 		$this->assertStringContainsString( 'woocommerce_after_checkout_validation', $checkout );
 		$this->assertStringContainsString( 'woocommerce_cart_emptied', $checkout );
 		$this->assertStringNotContainsString( 'woocommerce_checkout_order_processed', $checkout );
@@ -138,11 +145,25 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( "'parcelNumbers'", $order );
 	}
 
-	public function test_tracking_scheduler_cleans_up_when_woocommerce_is_deactivated(): void {
+	public function test_deactivation_hooks_stop_scheduled_work_across_the_network(): void {
 		$plugin = file_get_contents( $this->rootPath( 'balikovna-woocommerce.php' ) );
 
 		$this->assertStringContainsString( "'deactivate_woocommerce/woocommerce.php'", $plugin );
-		$this->assertStringContainsString( 'Tracking_Scheduler::unschedule()', $plugin );
+		$this->assertStringContainsString( 'Cleanup::woocommerce_deactivated( (bool) $network_wide )', $plugin );
+		$this->assertStringContainsString( 'Cleanup::deactivate( (bool) $network_wide )', $plugin );
+	}
+
+	public function test_php_compatibility_check_targets_the_minimum_php_version(): void {
+		$ruleset = simplexml_load_file( $this->rootPath( 'phpcs.xml.dist' ) );
+		$configs = array();
+		foreach ( $ruleset->config as $config ) {
+			$configs[ (string) $config['name'] ] = (string) $config['value'];
+		}
+
+		// PHPCS ignores config elements nested inside a rule.
+		$this->assertSame( '7.4-', $configs['testVersion'] ?? null );
+		$this->assertCount( 0, $ruleset->xpath( '/ruleset/exclude-pattern' ), 'The bundled library stays in the PHP compatibility scan.' );
+		$this->assertCount( 0, $ruleset->xpath( '/ruleset/rule[@ref="PHPCompatibilityWP"]/exclude-pattern' ) );
 	}
 
 	public function test_workflows_are_valid_and_actions_are_immutable(): void {

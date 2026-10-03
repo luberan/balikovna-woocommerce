@@ -26,6 +26,9 @@ final class TrackingAdminLifecycleTest extends TestCase {
 		$GLOBALS['balikovna_test_scheduled_actions'] = array();
 		$GLOBALS['balikovna_test_enqueued_scripts']  = array();
 		$GLOBALS['balikovna_test_options']           = array();
+		$GLOBALS['balikovna_test_is_admin']          = false;
+		$GLOBALS['balikovna_test_doing_ajax']        = false;
+		$GLOBALS['balikovna_test_doing_cron']        = false;
 		\WC_Admin_Settings::$errors                  = array();
 		\WC_Admin_Settings::$messages                = array();
 		$_POST                                       = array();
@@ -38,7 +41,13 @@ final class TrackingAdminLifecycleTest extends TestCase {
 		);
 	}
 
-	public function test_tracking_reads_settings_only_after_init_and_initializes_once(): void {
+	protected function tearDown(): void {
+		$GLOBALS['balikovna_test_is_admin']   = false;
+		$GLOBALS['balikovna_test_doing_ajax'] = false;
+		$GLOBALS['balikovna_test_doing_cron'] = false;
+	}
+
+	public function test_front_end_requests_register_callbacks_without_reading_settings(): void {
 		$tracking = new class extends Tracking {
 			public $reads = 0;
 			public function dictionary( ?array $settings = null ) {
@@ -53,9 +62,47 @@ final class TrackingAdminLifecycleTest extends TestCase {
 		$GLOBALS['balikovna_test_did_actions']['action_scheduler_init'] = 1;
 		do_action( 'init' );
 		$tracking->init();
-		$this->assertSame( 1, $tracking->reads );
+		$this->assertSame( 0, $tracking->reads, 'A front-end request reads no tracking options.' );
 		$this->assertArrayHasKey( Tracking_Scheduler::HOOK, $GLOBALS['balikovna_test_actions'] );
+		$this->assertArrayHasKey( Tracking_Scheduler::CONTINUATION_HOOK, $GLOBALS['balikovna_test_actions'] );
+		$this->assertArrayNotHasKey( 'action_scheduler_init', $GLOBALS['balikovna_test_actions'], 'A front-end request does not query Action Scheduler.' );
+		$this->assertSame( array(), $GLOBALS['balikovna_test_scheduled_actions'] );
+
+		$GLOBALS['balikovna_test_doing_ajax'] = true;
+		do_action( 'admin_init' );
+		$this->assertSame( 0, $tracking->reads, 'Admin AJAX such as heartbeat skips maintenance.' );
+		$GLOBALS['balikovna_test_doing_ajax'] = false;
+		do_action( 'admin_init' );
+		do_action( 'admin_init' );
+		$this->assertSame( 1, $tracking->reads, 'Maintenance runs once per administration request.' );
+	}
+
+	public function test_schedule_follows_enabled_and_configured_settings_in_admin(): void {
+		$GLOBALS['balikovna_test_is_admin']                             = true;
+		$GLOBALS['balikovna_test_did_actions']['init']                  = 1;
+		$GLOBALS['balikovna_test_did_actions']['action_scheduler_init'] = 1;
+		( new Tracking() )->init();
+		$this->assertSame( array(), $GLOBALS['balikovna_test_scheduled_actions'], 'Disabled tracking is not scheduled.' );
+
+		Tracking_Settings::save(
+			array_merge(
+				Tracking_Settings::defaults(),
+				array(
+					'enabled'    => true,
+					'api_token'  => 'token',
+					'secret_key' => 'secret',
+				)
+			)
+		);
+		$tracking = new Tracking();
+		$tracking->init();
 		$this->assertCount( 1, $GLOBALS['balikovna_test_scheduled_actions'] );
+		Tracking_Scheduler::schedule_continuation();
+		$this->assertCount( 2, $GLOBALS['balikovna_test_scheduled_actions'] );
+
+		Tracking_Settings::save( array_merge( Tracking_Settings::get(), array( 'enabled' => false ) ) );
+		$tracking->refresh_schedule();
+		$this->assertSame( array(), $GLOBALS['balikovna_test_scheduled_actions'], 'Disabling tracking removes both recurring and continuation actions.' );
 	}
 
 	public function test_recurring_action_is_idempotent_and_deactivation_unschedules_it(): void {
@@ -95,6 +142,7 @@ final class TrackingAdminLifecycleTest extends TestCase {
 	}
 
 	public function test_scheduler_registers_after_action_scheduler_is_initialized(): void {
+		$GLOBALS['balikovna_test_is_admin']                             = true;
 		$GLOBALS['balikovna_test_did_actions']['action_scheduler_init'] = 1;
 		$scheduler = new Tracking_Scheduler(
 			function () {

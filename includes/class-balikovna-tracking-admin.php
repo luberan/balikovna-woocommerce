@@ -129,6 +129,7 @@ class Tracking_Admin {
 			return;
 		}
 		$settings = Tracking_Settings::get();
+		$this->tracking->refresh_schedule();
 
 		$action                = isset( $_POST['balikovna_tracking_action'] )
 			? sanitize_key( wp_unslash( $_POST['balikovna_tracking_action'] ) )
@@ -317,7 +318,7 @@ class Tracking_Admin {
 			} elseif ( in_array( $group_key, $selected, true ) ) {
 				$posted['poll_statuses'] = array_merge( $posted['poll_statuses'], $group['codes'] );
 			}
-			$target = isset( $mappings[ $group_key ] ) ? (string) $mappings[ $group_key ] : '';
+			$target = isset( $mappings[ $group_key ] ) && is_scalar( $mappings[ $group_key ] ) ? (string) $mappings[ $group_key ] : '';
 			if ( self::MIXED === $target ) {
 				foreach ( $group['codes'] as $code ) {
 					if ( isset( $existing['status_mappings'][ $code ] ) ) {

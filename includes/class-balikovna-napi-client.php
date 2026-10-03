@@ -147,9 +147,9 @@ class Napi_Client {
 			if ( ! is_array( $row ) ) {
 				continue;
 			}
-			$status = isset( $row['status'] ) ? (string) $row['status'] : '';
-			$reason = isset( $row['reason'] ) ? (string) $row['reason'] : '';
-			$name   = isset( $row['name'] ) ? sanitize_text_field( (string) $row['name'] ) : '';
+			$status = isset( $row['status'] ) && is_scalar( $row['status'] ) ? (string) $row['status'] : '';
+			$reason = isset( $row['reason'] ) && is_scalar( $row['reason'] ) ? (string) $row['reason'] : '';
+			$name   = isset( $row['name'] ) && is_scalar( $row['name'] ) ? sanitize_text_field( (string) $row['name'] ) : '';
 			$status = preg_replace( '/[\x00-\x1F\x7F]/u', '', $status );
 			$reason = preg_replace( '/[\x00-\x1F\x7F]/u', '', $reason );
 			if ( ! is_string( $status ) || '' === trim( $status ) || ! is_string( $reason ) || '' === $name ) {

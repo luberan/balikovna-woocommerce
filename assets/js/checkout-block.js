@@ -1,4 +1,4 @@
-/* global wp, wc, BalikovnaWCBlock */
+/* global wp, wc */
 ( function () {
 	'use strict';
 
@@ -14,6 +14,9 @@
 	) ) || null;
 	var extensionCartUpdate = ( wc && wc.blocksCheckout && wc.blocksCheckout.extensionCartUpdate ) || null;
 	var NS = 'balikovna-wc';
+	// Data registered by Blocks_Integration::get_script_data().
+	var config = ( wc && wc.wcSettings && typeof wc.wcSettings.getSetting === 'function' && wc.wcSettings.getSetting( NS + '_data', null ) ) || {};
+	var i18n = config.i18n || {};
 	var activeModal = null;
 
 	function indexSelections( items ) {
@@ -120,7 +123,7 @@
 		var wrap = createElement( 'div', 'balikovna-modal' );
 		var inner = createElement( 'div', 'balikovna-modal__inner' );
 		var head = createElement( 'div', 'balikovna-modal__head' );
-		var title = createElement( 'h3', '', BalikovnaWCBlock.i18n.title );
+		var title = createElement( 'h3', '', i18n.title );
 		var close = createElement( 'button', 'balikovna-modal__close', '×' );
 		var message = createElement( 'div', 'balikovna-modal__message' );
 		var body = createElement( 'div', 'balikovna-modal__body' );
@@ -129,11 +132,11 @@
 		var iframe = document.createElement( 'iframe' );
 		title.id = 'balikovna-block-dialog-title';
 		close.type = 'button';
-		close.setAttribute( 'aria-label', BalikovnaWCBlock.i18n.close );
+		close.setAttribute( 'aria-label', i18n.close );
 		message.setAttribute( 'role', 'alert' );
 		message.hidden = true;
 		iframe.src = context.service.widgetUrl;
-		iframe.title = BalikovnaWCBlock.i18n.title;
+		iframe.title = i18n.title;
 		iframe.setAttribute( 'allow', 'geolocation' );
 		startSentinel.tabIndex = 0;
 		endSentinel.tabIndex = 0;
@@ -178,7 +181,7 @@
 	function errorMessage( error ) {
 		if ( error && error.message ) return error.message;
 		if ( error && error.data && error.data.message ) return error.data.message;
-		return BalikovnaWCBlock.i18n.saveError;
+		return i18n.saveError;
 	}
 
 	window.addEventListener( 'message', function ( event ) {
@@ -186,14 +189,14 @@
 		if ( event.origin !== activeModal.expectedOrigin || event.source !== activeModal.iframe.contentWindow ) return;
 		var point = normalizePoint( event.data );
 		if ( ! point ) return;
-		if ( BalikovnaWCBlock.debug ) console.log( '[Balikovna] Valid pickup selection received.' );
+		if ( config.debug ) console.log( '[Balikovna] Valid pickup selection received.' );
 
 		var modal = activeModal;
 		modal.saving = true;
 		modal.close.disabled = true;
 		modal.message.hidden = false;
 		modal.message.classList.remove( 'balikovna-error' );
-		modal.message.textContent = BalikovnaWCBlock.i18n.saving;
+		modal.message.textContent = i18n.saving;
 		Promise.resolve().then( function () {
 			return modal.onPoint( point );
 		} ).then( function () {
@@ -214,7 +217,7 @@
 		var errorState = useState( {} );
 		var errors = errorState[ 0 ];
 		var setErrors = errorState[ 1 ];
-		var serviceIds = Object.keys( BalikovnaWCBlock.services || {} );
+		var serviceIds = Object.keys( config.services || {} );
 
 		var chosenServices = useSelect( function ( select ) {
 			try {
@@ -232,7 +235,7 @@
 								packageKey: packageKey,
 								rateId: rateId,
 								serviceId: serviceId,
-								service: BalikovnaWCBlock.services[ serviceId ]
+								service: config.services[ serviceId ]
 							} );
 						}
 					} );
@@ -260,7 +263,7 @@
 		}, [ persistedSignature ] );
 
 		function savePoint( context, point ) {
-			if ( ! extensionCartUpdate ) return Promise.reject( new Error( BalikovnaWCBlock.i18n.saveError ) );
+			if ( ! extensionCartUpdate ) return Promise.reject( new Error( i18n.saveError ) );
 			setErrors( function ( current ) {
 				var next = Object.assign( {}, current );
 				delete next[ context.packageKey ];
@@ -317,12 +320,12 @@
 								} );
 							}
 						},
-						point ? BalikovnaWCBlock.i18n.change : BalikovnaWCBlock.i18n.choose
+						point ? i18n.change : i18n.choose
 					),
 					point && el(
 						'div',
 						{ className: 'balikovna-selected', 'aria-live': 'polite' },
-						el( 'strong', null, BalikovnaWCBlock.i18n.selected + ' ' ),
+						el( 'strong', null, i18n.selected + ' ' ),
 						point.name,
 						point.street && el( Fragment, null, el( 'br' ), point.street ),
 						( point.zip || point.city ) && el( Fragment, null, el( 'br' ), ( point.zip || '' ) + ' ' + ( point.city || '' ) )

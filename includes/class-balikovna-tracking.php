@@ -16,6 +16,7 @@ class Tracking {
 	private $scheduler;
 	private $admin;
 	private $initialized = false;
+	private $maintained  = false;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -32,20 +33,52 @@ class Tracking {
 		add_action( 'init', array( $this, 'initialize' ), 20 );
 	}
 
+	/**
+	 * Register hooks only; settings are read in admin, cron and synchronization contexts.
+	 */
 	public function initialize() {
 		if ( $this->initialized ) {
 			return;
 		}
 		$this->initialized = true;
-		Tracking_Settings::migrate_credentials();
-		$cached_dictionary = $this->dictionary()->get();
-		Tracking_Settings::reconcile_status_dictionary( $cached_dictionary, $cached_dictionary );
 
-		$this->scheduler = new Tracking_Scheduler( array( $this, 'run_synchronization' ) );
+		$this->scheduler = new Tracking_Scheduler( array( $this, 'run_synchronization' ), array( $this, 'should_schedule' ) );
 		$this->scheduler->init();
 
 		$this->admin = new Tracking_Admin( $this );
 		$this->admin->init();
+
+		add_action( 'admin_init', array( $this, 'maintain_admin' ) );
+	}
+
+	public function maintain_admin() {
+		if ( ! wp_doing_ajax() ) {
+			$this->maintain();
+		}
+	}
+
+	/**
+	 * Migrate stored credentials and reconcile the cached carrier dictionary.
+	 */
+	public function maintain() {
+		if ( $this->maintained ) {
+			return;
+		}
+		$this->maintained = true;
+		Tracking_Settings::migrate_credentials();
+		$cached_dictionary = $this->dictionary()->get();
+		Tracking_Settings::reconcile_status_dictionary( $cached_dictionary, $cached_dictionary );
+	}
+
+	public function should_schedule() {
+		$settings = Tracking_Settings::get();
+		return ! empty( $settings['enabled'] ) && Tracking_Settings::is_configured( $settings );
+	}
+
+	public function refresh_schedule() {
+		if ( $this->scheduler ) {
+			$this->scheduler->ensure_scheduled();
+		}
 	}
 
 	public function client( ?array $settings = null ) {
@@ -76,6 +109,7 @@ class Tracking {
 	}
 
 	public function run_synchronization() {
+		$this->maintain();
 		return $this->synchronizer()->run_batch();
 	}
 }

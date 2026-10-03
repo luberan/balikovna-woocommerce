@@ -266,6 +266,65 @@ final class ExportTest extends TestCase {
 		$this->assertSame( 'P', $rows[0][13] );
 	}
 
+	private function cod_order( array $overrides, $id = 4711 ) {
+		$item = new WC_Order_Item_Shipping(
+			'balikovna_na_adresu',
+			'5',
+			array(
+				Balikovna_WC\Order::META_PACKAGE_WEIGHT => '1.5',
+				Balikovna_WC\Order::META_PACKAGE_VALUE  => '500',
+				Balikovna_WC\Order::META_DATA_VERSION   => Balikovna_WC\Order::DATA_VERSION,
+			)
+		);
+		return new WC_Order(
+			array( $item ),
+			array(),
+			array_merge(
+				array(
+					'shipping_first_name' => 'Jan',
+					'shipping_last_name'  => 'Novak',
+					'shipping_address_1'  => 'Customer street 1',
+					'shipping_postcode'   => '60200',
+					'shipping_city'       => 'Brno',
+					'shipping_country'    => 'CZ',
+					'billing_email'       => 'customer@example.test',
+					'billing_phone'       => '+420777123456',
+					'payment_method'      => 'cod',
+					'currency'            => 'CZK',
+					'total'               => 549.60,
+					'order_number'        => '125',
+				),
+				$overrides
+			),
+			array(),
+			array( 'id' => $id )
+		);
+	}
+
+	public function test_cod_amount_subtracts_refunds(): void {
+		$rows = ( new Balikovna_Test_Export() )->rows( $this->cod_order( array( 'total_refunded' => 99.60 ) ) );
+
+		$this->assertIsArray( $rows );
+		$this->assertSame( '450', $rows[0][7] );
+	}
+
+	public function test_fully_refunded_cod_order_is_not_exported_with_zero_cod(): void {
+		$result = ( new Balikovna_Test_Export() )->rows( $this->cod_order( array( 'total_refunded' => 549.60 ) ) );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertStringContainsString( 'dobírky', $result->get_error_message() );
+		$this->assertIsArray( ( new Balikovna_Test_Export() )->rows( $this->cod_order( array( 'payment_method' => 'bacs', 'total_refunded' => 549.60 ) ) ) );
+	}
+
+	public function test_variable_symbol_has_at_most_ten_digits(): void {
+		$export = new Balikovna_Test_Export();
+
+		$this->assertSame( '125', $export->rows( $this->cod_order( array() ) )[0][9] );
+		$this->assertSame( '4711', $export->rows( $this->cod_order( array( 'order_number' => 'WC-2026-0042' ) ) )[0][9] );
+		$this->assertSame( '4711', $export->rows( $this->cod_order( array( 'order_number' => '12345678901' ) ) )[0][9] );
+		$this->assertSame( '4711', $export->rows( $this->cod_order( array( 'order_number' => "125\n" ) ) )[0][9] );
+	}
+
 	public function test_missing_pickup_point_fails_instead_of_skipping_row(): void {
 		$item = new WC_Order_Item_Shipping(
 			'balikovna',

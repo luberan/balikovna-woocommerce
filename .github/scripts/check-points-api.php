@@ -29,9 +29,9 @@ foreach ( array( 'BALIKOVNY' => 'balikovna', 'POST_OFFICE' => 'cp_na_postu' ) as
 	}
 	$GLOBALS['balikovna_test_points_http'] = function () use ( $body ) { return array( 'response' => array( 'code' => 200 ), 'body' => $body ); };
 	$point = Balikovna_WC\Points::validate( array( 'id' => $rows[0]['id'] ), $service );
-	$directory = get_transient( 'balikovna_wc_points_' . strtolower( $type ) . '_v1' );
-	if ( is_wp_error( $point ) || empty( $point['name'] ) || ! is_array( $directory ) || count( $directory ) < count( $rows ) * 0.99 ) {
+	$stored = Balikovna_WC\Points::directory_status( $type );
+	if ( is_wp_error( $point ) || empty( $point['name'] ) || 'fresh' !== $stored['state'] || $stored['count'] < count( $rows ) * 0.99 ) {
 		throw new RuntimeException( 'Production pickup parser rejected the current directory: ' . $type );
 	}
-	echo $type . ': ' . count( $directory ) . ' canonical points, ' . strlen( $body ) . " bytes.\n";
+	echo $type . ': ' . $stored['count'] . ' canonical points, ' . strlen( $body ) . " bytes.\n";
 }

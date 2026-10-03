@@ -10,13 +10,20 @@ use Balikovna_WC\Order_Status_Mapper;
 use Balikovna_WC\Shipment_Synchronizer;
 use Balikovna_WC\Status_Dictionary;
 use Balikovna_WC\Tracking_Logger;
+use Balikovna_WC\Tracking_Scheduler;
 use Balikovna_WC\Tracking_Settings;
 use PHPUnit\Framework\TestCase;
 
 final class Balikovna_Test_Write_Guard extends \Balikovna_WC\Order_Write_Guard {
 	public $allowed = true;
-	public function run( WC_Order $order, callable $write, ?array $expected = null ) {
+	public $supported = true;
+	public $commit_actions = array();
+	public function run( WC_Order $order, callable $write, ?array $expected = null, $commit_action = '' ) {
+		$this->commit_actions[] = $commit_action;
 		return $this->allowed ? $write() : false;
+	}
+	public function is_supported() {
+		return $this->supported;
 	}
 }
 
@@ -528,6 +535,54 @@ final class TrackingSynchronizationTest extends TestCase {
 		$this->assertSame( array( 101 ), array_map( function ( $order ) { return $order->get_id(); }, $third ) );
 	}
 
+	public function test_unreadable_queued_order_is_reported_instead_of_aborting_selection(): void {
+		$GLOBALS['balikovna_test_orders'][100] = new TypeError( 'Corrupted order data' );
+		$GLOBALS['balikovna_test_orders'][101] = $this->order( array( $this->item( 'BA1234567890A', array(), 101 ) ), 'processing', null, 101 );
+		update_option( Eligible_Orders::CURSOR_OPTION, array( 'page' => 1, 'remaining' => array( 100, 101 ) ) );
+		$repository = new Eligible_Orders( function () { return 1786521600; } );
+
+		$found = $repository->find( $this->settings( array( 'batch_size' => 2 ) ) );
+
+		$this->assertSame( array( 101 ), array_map( function ( $order ) { return $order->get_id(); }, $found ) );
+		$errors = $repository->take_errors();
+		$this->assertSame( array( 100 ), array_keys( $errors ) );
+		$this->assertInstanceOf( TypeError::class, $errors[100] );
+		$this->assertSame( array(), $repository->take_errors() );
+	}
+
+	public function test_page_of_deferred_unreadable_orders_does_not_restart_the_scan(): void {
+		$pages = array(
+			1 => array( 100 ),
+			2 => array( 101 ),
+			3 => array( 102 ),
+		);
+		$GLOBALS['balikovna_test_orders'][100] = $this->order( array( $this->item( 'BA1234567890A', array(), 100 ) ), 'completed', null, 100 );
+		$GLOBALS['balikovna_test_orders'][101] = new TypeError( 'Corrupted order data' );
+		$GLOBALS['balikovna_test_orders'][102] = $this->order( array( $this->item( 'BA1234567891A', array(), 102 ) ), 'processing', null, 102 );
+		$GLOBALS['balikovna_test_order_query'] = function ( $args ) use ( $pages ) {
+			$ids = $pages[ $args['page'] ] ?? array();
+			return (object) array(
+				'orders'        => 'ids' === $args['return'] ? $ids : array_map( 'wc_get_order', $ids ),
+				'max_num_pages' => count( $pages ),
+			);
+		};
+		update_option( Eligible_Orders::CURSOR_OPTION, array( 'page' => 2, 'remaining' => array() ) );
+		$repository = new Eligible_Orders( function () { return 1786521600; } );
+		$skipped    = array();
+
+		$found = $repository->find(
+			$this->settings( array( 'batch_size' => 1 ) ),
+			function ( $order_id ) use ( &$skipped ) {
+				$skipped[] = $order_id;
+				return 101 === $order_id;
+			}
+		);
+
+		$this->assertSame( array( 102 ), array_map( function ( $order ) { return $order->get_id(); }, $found ) );
+		$this->assertContains( 101, $skipped );
+		$this->assertSame( array(), $repository->take_errors(), 'A deferred order is skipped before it is loaded.' );
+	}
+
 	public function test_order_age_filter_and_query_share_the_injected_clock(): void {
 		$settings = $this->settings( array( 'tracking_days' => 14 ) );
 		foreach ( array( 1577836800, 1786521600, 2208988800 ) as $now ) {
@@ -778,5 +833,185 @@ final class TrackingSynchronizationTest extends TestCase {
 		$this->assertSame( 1, $result['shipments'] );
 		$this->assertCount( 2, $transport->requests );
 		$this->assertSame( '44/01', $item->get_meta( Order::META_STATUS_CODE ) );
+	}
+
+	public function test_status_mapping_commits_before_woocommerce_transition_hooks(): void {
+		$item  = $this->item( 'BA1234567890A' );
+		$order = $this->order( array( $item ) );
+		$guard = new Balikovna_Test_Write_Guard();
+		$sync  = $this->synchronizer( array( $this->response( '91', '00', 'DORUČENO' ) ), $transport, $logger, null, $guard );
+
+		$sync->sync_order( $order, $this->settings() );
+
+		$this->assertSame( array( 'completed' ), $order->status_updates );
+		$this->assertContains( 'woocommerce_after_order_object_save', $guard->commit_actions );
+	}
+
+	public function test_order_failing_during_processing_is_deferred_without_blocking_the_queue(): void {
+		$now    = time();
+		$broken = $this->order( array( $this->item( 'BA1234567890A' ) ), 'processing', $now, 100 );
+		$good   = $this->order( array( $this->item( 'BA1234567891A', array(), 12 ) ), 'processing', $now, 101 );
+		$this->prepare_batch( array( $broken, $good ) );
+		add_filter(
+			'balikovna_wc_carrier_status_mapping',
+			function ( $target, $code, $order ) {
+				if ( 100 === $order->get_id() ) {
+					throw new TypeError( 'Broken third-party status hook' );
+				}
+				return $target;
+			},
+			10,
+			3
+		);
+		$sync = $this->synchronizer(
+			array( $this->response( '91', '00', 'DORUČENO' ), $this->response( '91', '00', 'DORUČENO', 'BA1234567891A' ) ),
+			$transport,
+			$logger,
+			function () use ( &$now ) {
+				return $now;
+			}
+		);
+
+		$result = $sync->run_batch();
+
+		$this->assertSame( 1, $result['orders'] );
+		$this->assertFalse( $result['pending'] );
+		$this->assertSame( array(), $broken->status_updates );
+		$this->assertSame( array( 'completed' ), $good->status_updates );
+		$this->assertSame( array( 'order_sync_failed', 100, 0 ), $logger->errors[0] );
+		$failed = get_option( Shipment_Synchronizer::FAILURES_OPTION );
+		$this->assertSame( 1, $failed[100]['count'] );
+		$this->assertSame( $now + Tracking_Scheduler::INTERVAL, $failed[100]['retry_at'] );
+		$this->assertSame( array(), get_option( Shipment_Synchronizer::PENDING_OPTION )['orders'] );
+		$this->assertFalse( get_option( Shipment_Synchronizer::LOCK_OPTION, false ) );
+	}
+
+	public function test_order_failing_during_selection_is_deferred_and_not_reevaluated(): void {
+		$now    = time();
+		$broken = $this->order( array( $this->item( 'BA1234567890A' ) ), 'processing', $now, 100 );
+		$good   = $this->order( array( $this->item( 'BA1234567891A', array(), 12 ) ), 'processing', $now, 101 );
+		$this->prepare_batch( array( $broken, $good ) );
+		$evaluated = array();
+		add_filter(
+			'balikovna_wc_tracking_shipment_eligible',
+			function ( $eligible, $shipment, $order ) use ( &$evaluated ) {
+				$evaluated[] = $order->get_id();
+				if ( 100 === $order->get_id() ) {
+					throw new TypeError( 'Broken third-party eligibility filter' );
+				}
+				return $eligible;
+			},
+			10,
+			3
+		);
+		$sync = $this->synchronizer(
+			array( $this->response( '91', '00', 'DORUČENO', 'BA1234567891A' ) ),
+			$transport,
+			$logger,
+			function () use ( &$now ) {
+				return $now;
+			}
+		);
+
+		$result = $sync->run_batch();
+
+		$this->assertSame( 1, $result['orders'] );
+		$this->assertSame( array( 'completed' ), $good->status_updates );
+		$this->assertSame( array( array( 'order_sync_failed', 100, 0 ) ), $logger->errors );
+		$evaluated = array();
+		$sync->run_batch();
+		$this->assertNotContains( 100, $evaluated, 'A deferred order is not evaluated before its retry time.' );
+		$this->assertCount( 1, $logger->errors );
+	}
+
+	public function test_unreadable_order_is_deferred_without_hiding_the_rest_of_its_page(): void {
+		$now  = time();
+		$good = $this->order( array( $this->item( 'BA1234567891A', array(), 12 ) ), 'processing', $now, 101 );
+		$this->prepare_batch( array( $good ) );
+		$GLOBALS['balikovna_test_orders'][100] = new TypeError( 'Corrupted order data' );
+		$queries                               = array();
+		$GLOBALS['balikovna_test_order_query'] = function ( $args ) use ( &$queries ) {
+			$queries[] = $args['return'];
+			if ( 'objects' === $args['return'] ) {
+				return array_map( 'wc_get_order', array( 100, 101 ) );
+			}
+			return (object) array(
+				'orders'        => array( 100, 101 ),
+				'max_num_pages' => 1,
+			);
+		};
+		$sync = $this->synchronizer(
+			array( $this->response( '91', '00', 'DORUČENO', 'BA1234567891A' ) ),
+			$transport,
+			$logger,
+			function () use ( &$now ) {
+				return $now;
+			}
+		);
+
+		$result = $sync->run_batch();
+
+		$this->assertSame( array( 'objects', 'ids' ), $queries );
+		$this->assertSame( 1, $result['orders'] );
+		$this->assertSame( array( 'completed' ), $good->status_updates );
+		$this->assertSame( array( array( 'order_sync_failed', 100, 0 ) ), $logger->errors );
+		$this->assertSame( 1, get_option( Shipment_Synchronizer::FAILURES_OPTION )[100]['count'] );
+		$sync->run_batch();
+		$this->assertCount( 1, $logger->errors, 'A deferred unreadable order is not loaded again before its retry time.' );
+	}
+
+	public function test_failed_parcel_lookup_backs_off_until_a_success(): void {
+		$now       = 1786521600;
+		$item      = $this->item( 'BA1234567890A' );
+		$order     = $this->order( array( $item ) );
+		$not_found = array(
+			'response' => array( 'code' => 404 ),
+			'body'     => '{"message":"Parcel not found"}',
+		);
+		$clock     = function () use ( &$now ) {
+			return $now;
+		};
+		$sync      = $this->synchronizer( array( $not_found, $not_found, $this->response( '44', '01', 'V PŘEPRAVĚ' ) ), $transport, $logger, $clock );
+		$settings  = $this->settings();
+		$selector  = new Eligible_Orders( $clock );
+
+		$sync->sync_order( $order, $settings );
+		$this->assertSame( 1, $item->get_meta( Order::META_STATUS_FAILURES ) );
+		$this->assertSame( $now + Tracking_Scheduler::INTERVAL, Shipment_Synchronizer::next_attempt_at( $item ) );
+		$sync->sync_order( $order, $settings );
+		$this->assertCount( 1, $transport->requests, 'The parcel is not queried again during its backoff.' );
+		$this->assertFalse( $selector->has_work( $order, $settings ) );
+
+		$now += Tracking_Scheduler::INTERVAL;
+		$this->assertTrue( $selector->has_work( $order, $settings ) );
+		$sync->sync_order( $order, $settings );
+		$this->assertCount( 2, $transport->requests );
+		$this->assertSame( 2, $item->get_meta( Order::META_STATUS_FAILURES ) );
+		$this->assertSame( $now + 2 * Tracking_Scheduler::INTERVAL, Shipment_Synchronizer::next_attempt_at( $item ) );
+
+		$now += 2 * Tracking_Scheduler::INTERVAL;
+		$sync->sync_order( $order, $settings );
+		$this->assertSame( '44/01', $item->get_meta( Order::META_STATUS_CODE ) );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_FAILURES ) );
+
+		$item->update_meta_data( Order::META_STATUS_FAILURES, 5 );
+		$item->update_meta_data( Order::META_TRACKING_NUMBER, 'BA1234567899A' );
+		$this->assertSame( 0, Shipment_Synchronizer::next_attempt_at( $item ), 'A new tracking number resets the backoff.' );
+	}
+
+	public function test_unsupported_database_stops_before_any_api_call(): void {
+		$order = $this->order( array( $this->item( 'BA1234567890A' ) ), 'processing', time() );
+		$this->prepare_batch( array( $order ) );
+		$guard            = new Balikovna_Test_Write_Guard();
+		$guard->supported = false;
+		$sync             = $this->synchronizer( array( $this->response( '91', '00', 'DORUČENO' ) ), $transport, $logger, null, $guard );
+
+		$result = $sync->run_batch();
+
+		$this->assertInstanceOf( Napi_Error::class, $result );
+		$this->assertSame( 'unsupported_database', $result->get_code() );
+		$this->assertCount( 0, $transport->requests );
+		$this->assertSame( 'unsupported_database', $sync->diagnostics()['last_error']['code'] );
+		$this->assertFalse( get_option( Shipment_Synchronizer::LOCK_OPTION, false ) );
 	}
 }

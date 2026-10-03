@@ -54,12 +54,13 @@ if ( !class_exists(UpdateChecker::class, false) ):
 			//Plugin slugs must be unique.
 			$slugCheckFilter = 'puc_is_slug_in_use-' . $slug;
 			$slugUsedBy = apply_filters($slugCheckFilter, false);
-			if ( $slugUsedBy ) {
-				$this->triggerError(sprintf(
+			if ( $slugUsedBy && $this->isDebugModeEnabled() ) {
+				//Local patch: PHP 8.4+ deprecates trigger_error() with a fatal user error level.
+				throw new \LogicException(esc_html(sprintf(
 					'Plugin slug "%s" is already in use by %s. Slugs must be unique.',
 					$slug,
 					$slugUsedBy
-				), E_USER_ERROR);
+				)));
 			}
 			add_filter($slugCheckFilter, array($this, 'getAbsolutePath'));
 

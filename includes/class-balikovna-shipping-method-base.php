@@ -348,6 +348,8 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 
 	/**
 	 * Validate and normalize the weight table when instance settings are saved.
+	 *
+	 * @throws \Exception When the table is invalid; WooCommerce keeps the previous value and shows the message.
 	 */
 	public function validate_textarea_field( $key, $value ) {
 		if ( 'weight_table' !== $key ) {
@@ -356,10 +358,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 
 		$rows = $this->parse_weight_table( $value );
 		if ( is_wp_error( $rows ) ) {
-			if ( class_exists( '\WC_Admin_Settings' ) ) {
-				\WC_Admin_Settings::add_error( $rows->get_error_message() );
-			}
-			return (string) $this->get_option( 'weight_table', $this->weight_table );
+			throw new \Exception( esc_html( $rows->get_error_message() ) );
 		}
 
 		$normalized = array();

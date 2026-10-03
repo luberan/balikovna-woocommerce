@@ -34,6 +34,82 @@ final class OrderWritesTest extends TestCase {
 		return array_merge( Tracking_Settings::defaults(), array( 'auto_order_status' => true, 'status_mappings' => array( '91/00' => 'wc-completed' ) ) );
 	}
 
+	private function database_status( $order_id ) {
+		global $wpdb;
+		$hpos = Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+		return (string) $wpdb->get_var( $wpdb->prepare( 'SELECT %i FROM %i WHERE %i = %d', $hpos ? 'status' : 'post_status', $hpos ? $wpdb->prefix . 'wc_orders' : $wpdb->posts, $hpos ? 'id' : 'ID', $order_id ) );
+	}
+
+	private function customer_order() {
+		$order = $this->order();
+		$order->set_billing_email( 'integration-customer@example.test' );
+		$order->save();
+		return new WC_Order( $order->get_id() );
+	}
+
+	public function test_status_hooks_and_emails_run_after_the_guarded_commit(): void {
+		global $wpdb;
+		$order      = $this->customer_order();
+		$observed   = array();
+		$connection = new PDO( 'mysql:host=' . ( getenv( 'BALIKOVNA_TEST_DB_HOST' ) ?: '127.0.0.1' ) . ';port=' . ( getenv( 'BALIKOVNA_TEST_DB_PORT' ) ?: '3306' ) . ';dbname=' . DB_NAME, DB_USER, DB_PASSWORD, array( PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION ) );
+		$connection->exec( 'SET SESSION innodb_lock_wait_timeout = 1' );
+		$hpos  = Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+		$table = $hpos ? $wpdb->prefix . 'wc_orders' : $wpdb->posts;
+		$id    = $hpos ? 'id' : 'ID';
+		$sql   = $wpdb->prepare( 'UPDATE %i SET %i = %i WHERE %i = %d', $table, $id, $id, $id, $order->get_id() );
+		$probe = function () use ( $wpdb, $connection, $sql, &$observed ) {
+			$observed['hook']      = (string) $wpdb->get_var( 'SELECT @@SESSION.in_transaction' );
+			$observed['competing'] = $connection->exec( $sql );
+		};
+		$mail  = function ( $result ) use ( $wpdb, &$observed ) {
+			$observed['mail'][] = (string) $wpdb->get_var( 'SELECT @@SESSION.in_transaction' );
+			return $result;
+		};
+		add_action( 'woocommerce_order_status_completed', $probe, 1 );
+		add_filter( 'pre_wp_mail', $mail, 5 );
+		try {
+			$this->assertSame( 'wc-completed', ( new Order_Status_Mapper() )->apply( $order, Order::get_shipments( $order ), $this->settings() ) );
+		} finally {
+			remove_action( 'woocommerce_order_status_completed', $probe, 1 );
+			remove_filter( 'pre_wp_mail', $mail, 5 );
+		}
+		$this->assertSame( '0', $observed['hook'], 'Status hooks must not run inside the guard transaction.' );
+		$this->assertSame( 0, $observed['competing'], 'A concurrent writer is not blocked by status hooks.' );
+		$this->assertNotEmpty( $observed['mail'] );
+		$this->assertSame( array( '0' ), array_unique( $observed['mail'] ) );
+		$this->assertSame( 'wc-completed', $this->database_status( $order->get_id() ) );
+	}
+
+	public function test_failing_status_hook_cannot_roll_back_or_repeat_the_completion(): void {
+		$order = $this->customer_order();
+		$mails = 0;
+		$count = function ( $result ) use ( &$mails ) {
+			++$mails;
+			return $result;
+		};
+		$throw = function () {
+			throw new TypeError( 'Simulated third-party hook failure' );
+		};
+		add_filter( 'pre_wp_mail', $count, 5 );
+		add_action( 'woocommerce_order_status_completed', $throw, 100 );
+		try {
+			for ( $attempt = 0; $attempt < 2; ++$attempt ) {
+				$fresh = new WC_Order( $order->get_id() );
+				try {
+					( new Order_Status_Mapper() )->apply( $fresh, Order::get_shipments( $fresh ), $this->settings() );
+				} catch ( TypeError $error ) {
+					$this->assertSame( 'Simulated third-party hook failure', $error->getMessage() );
+				}
+			}
+		} finally {
+			remove_filter( 'pre_wp_mail', $count, 5 );
+			remove_action( 'woocommerce_order_status_completed', $throw, 100 );
+		}
+		$this->assertSame( 'wc-completed', $this->database_status( $order->get_id() ) );
+		$this->assertSame( 'completed', wc_get_order( $order->get_id() )->get_status() );
+		$this->assertSame( 1, $mails, 'The customer receives the completion e-mail once.' );
+	}
+
 	public function test_runtime_versions_and_bootstrap_have_no_plugin_diagnostics(): void {
 		$versions = json_decode( file_get_contents( dirname( __DIR__ ) . '/versions.json' ), true );
 		$this->assertSame( $versions['wordpress'], get_bloginfo( 'version' ) );

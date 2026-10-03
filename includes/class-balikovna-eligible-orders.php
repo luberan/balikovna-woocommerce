@@ -14,6 +14,7 @@ class Eligible_Orders {
 	const CURSOR_OPTION = 'balikovna_wc_tracking_order_page';
 
 	private $clock;
+	private $errors = array();
 
 	public function __construct( $clock = null ) {
 		$this->clock = is_callable( $clock ) ? $clock : 'time';
@@ -25,9 +26,11 @@ class Eligible_Orders {
 	 * A persistent page cursor rotates through the broad WooCommerce result set,
 	 * so a permanently active oldest parcel cannot starve newer orders.
 	 *
+	 * @param array         $settings Tracking settings.
+	 * @param callable|null $skip     Receives an order ID; true skips it without evaluating the order.
 	 * @return array<int,\WC_Order>
 	 */
-	public function find( array $settings ) {
+	public function find( array $settings, ?callable $skip = null ) {
 		$statuses = isset( $settings['order_statuses'] ) ? (array) $settings['order_statuses'] : array();
 		if ( ! $statuses || ! function_exists( 'wc_get_orders' ) ) {
 			return array();
@@ -48,14 +51,17 @@ class Eligible_Orders {
 				continue;
 			}
 			$seen_order_ids[ $order_id ] = true;
-			$order                       = wc_get_order( $order_id );
-			if ( $order instanceof \WC_Order && $this->is_order_eligible( $order, $settings ) && $this->has_work( $order, $settings ) ) {
+			if ( $skip && call_user_func( $skip, $order_id ) ) {
+				continue;
+			}
+			$order = $this->load( $order_id );
+			if ( $order instanceof \WC_Order && $this->qualifies( $order, $settings ) ) {
 				$orders[] = $order;
 			}
 		}
 
 		while ( count( $orders ) < $limit && $scanned < $max_scan_pages ) {
-			$result = wc_get_orders(
+			$result = $this->query(
 				array(
 					'status'       => array_values( $statuses ),
 					'date_created' => '>' . $this->cutoff_timestamp( $settings ),
@@ -65,7 +71,8 @@ class Eligible_Orders {
 					'orderby'      => 'date',
 					'order'        => 'ASC',
 					'return'       => 'objects',
-				)
+				),
+				$skip
 			);
 
 			$page_orders = is_object( $result ) && isset( $result->orders ) && is_array( $result->orders )
@@ -89,7 +96,10 @@ class Eligible_Orders {
 				if ( $order_id ) {
 					$seen_order_ids[ $order_id ] = true;
 				}
-				if ( $order instanceof \WC_Order && $this->is_order_eligible( $order, $settings ) && $this->has_work( $order, $settings ) ) {
+				if ( $order_id && $skip && call_user_func( $skip, $order_id ) ) {
+					continue;
+				}
+				if ( $order instanceof \WC_Order && $this->qualifies( $order, $settings ) ) {
 					$orders[] = $order;
 				}
 			}
@@ -123,6 +133,64 @@ class Eligible_Orders {
 		return array_slice( $orders, 0, $limit );
 	}
 
+	/**
+	 * Return and clear errors raised while loading or evaluating candidates in find().
+	 *
+	 * @return array<int,\Throwable>
+	 */
+	public function take_errors() {
+		$errors       = $this->errors;
+		$this->errors = array();
+		return $errors;
+	}
+
+	private function qualifies( \WC_Order $order, array $settings ) {
+		try {
+			return $this->is_order_eligible( $order, $settings ) && $this->has_work( $order, $settings );
+		} catch ( \Throwable $error ) {
+			$this->errors[ (int) $order->get_id() ] = $error;
+			return false;
+		}
+	}
+
+	/**
+	 * Query one page of orders without letting a single unreadable order break it.
+	 *
+	 * When loading the page as objects fails, the page is re-read as IDs and
+	 * every order is loaded separately, so only the broken one is reported.
+	 * Unreadable and skipped orders stay as false placeholders, so the page is
+	 * not mistaken for the end of the result set.
+	 */
+	private function query( array $args, ?callable $skip ) {
+		try {
+			return wc_get_orders( $args );
+		} catch ( \Throwable $error ) {
+			unset( $error );
+		}
+		$result = wc_get_orders( array( 'return' => 'ids' ) + $args );
+		$paged  = is_object( $result ) && isset( $result->orders ) && is_array( $result->orders );
+		$orders = array();
+		foreach ( $paged ? $result->orders : ( is_array( $result ) ? $result : array() ) as $order_id ) {
+			$order_id = absint( $order_id );
+			$skipped  = ! $order_id || ( $skip && call_user_func( $skip, $order_id ) );
+			$orders[] = $skipped ? false : $this->load( $order_id );
+		}
+		if ( $paged ) {
+			$result->orders = $orders;
+			return $result;
+		}
+		return $orders;
+	}
+
+	private function load( $order_id ) {
+		try {
+			return wc_get_order( $order_id );
+		} catch ( \Throwable $error ) {
+			$this->errors[ (int) $order_id ] = $error;
+			return false;
+		}
+	}
+
 	public function is_order_eligible( \WC_Order $order, array $settings ) {
 		$status = Tracking_Settings::normalize_order_status( $order->get_status() );
 		if ( ! in_array( $status, (array) ( $settings['order_statuses'] ?? array() ), true ) ) {
@@ -145,10 +213,10 @@ class Eligible_Orders {
 			$code            = (string) $item->get_meta( Order::META_STATUS_CODE, true );
 			$status_tracking = (string) $item->get_meta( Order::META_STATUS_TRACKING_NUMBER, true );
 			$eligible        = (bool) apply_filters( 'balikovna_wc_tracking_shipment_eligible', true, $shipment, $order, $settings );
-			if ( $eligible && '' !== $code && $status_tracking !== $shipment['trackingNumber'] ) {
+			if ( $eligible && ( '' !== $code || '' !== $status_tracking ) && $status_tracking !== $shipment['trackingNumber'] ) {
 				return true;
 			}
-			if ( $eligible && Tracking_Settings::should_poll( $code, $settings ) ) {
+			if ( $eligible && Tracking_Settings::should_poll( $code, $settings ) && Shipment_Synchronizer::next_attempt_at( $item ) <= $this->now() ) {
 				return true;
 			}
 			if ( $eligible && ! empty( $settings['auto_order_status'] ) && '' !== $code && $this->needs_mapping_evaluation( $item, $code, $settings ) ) {
@@ -165,6 +233,10 @@ class Eligible_Orders {
 
 	private function cutoff_timestamp( array $settings ) {
 		$days = max( 1, min( Tracking_Settings::MAX_TRACKING_DAYS, (int) ( $settings['tracking_days'] ?? Tracking_Settings::DEFAULT_TRACKING_DAYS ) ) );
-		return (int) call_user_func( $this->clock ) - ( $days * DAY_IN_SECONDS );
+		return $this->now() - ( $days * DAY_IN_SECONDS );
+	}
+
+	private function now() {
+		return (int) call_user_func( $this->clock );
 	}
 }

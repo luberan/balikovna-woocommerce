@@ -24,6 +24,8 @@ class Checkout {
 
 	public function init() {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
+		// The classic form fires this hook even when shipping rows appear only after address entry.
+		add_action( 'woocommerce_before_checkout_form', array( $this, 'enqueue_classic_script' ) );
 		add_action( 'woocommerce_review_order_after_shipping', array( $this, 'render_picker' ) );
 
 		// Prepend service logo to shipping method label in cart/checkout.
@@ -51,20 +53,26 @@ class Checkout {
 		if ( ! is_checkout() && ! is_cart() ) {
 			return;
 		}
+		self::enqueue_style();
+	}
 
+	public static function enqueue_style() {
 		wp_enqueue_style(
 			'balikovna-wc',
 			BALIKOVNA_WC_URL . 'assets/css/checkout.css',
 			array(),
 			BALIKOVNA_WC_VERSION
 		);
+	}
 
-		$is_block_page = function_exists( 'has_block' )
-			&& ( has_block( 'woocommerce/cart' ) || has_block( 'woocommerce/checkout' ) );
-		if ( $is_block_page ) {
+	/**
+	 * Load the classic picker only for the classic checkout form.
+	 */
+	public function enqueue_classic_script() {
+		if ( wp_script_is( 'balikovna-wc', 'enqueued' ) ) {
 			return;
 		}
-
+		self::enqueue_style();
 		wp_enqueue_script(
 			'balikovna-wc',
 			BALIKOVNA_WC_URL . 'assets/js/checkout.js',
@@ -73,37 +81,54 @@ class Checkout {
 			true
 		);
 
-		$services_js = array();
-		foreach ( Services::all() as $sid => $cfg ) {
-			if ( ! empty( $cfg['pickup'] ) ) {
-				$services_js[ $sid ] = array(
-					'pickup'    => $cfg['pickup'],
-					'widgetUrl' => Plugin::widget_url( $cfg['pickup'] ),
-					'label'     => $cfg['label'],
-				);
-			}
-		}
-
 		wp_localize_script(
 			'balikovna-wc',
 			'BalikovnaWC',
 			array(
 				'ajaxUrl'  => \WC_AJAX::get_endpoint( 'balikovna_set_point' ),
 				'nonce'    => wp_create_nonce( self::NONCE_ACTION ),
-				'services' => $services_js,
+				'services' => self::picker_services(),
 				'selected' => array_values( self::get_session_selections() ),
 				'debug'    => Plugin::is_debug(),
-				'i18n'     => array(
-					'choose'    => __( 'Vybrat výdejní místo', 'balikovna-wc' ),
-					'change'    => __( 'Změnit výdejní místo', 'balikovna-wc' ),
-					'selected'  => __( 'Zvolené místo:', 'balikovna-wc' ),
-					'required'  => __( 'Prosím zvolte výdejní místo.', 'balikovna-wc' ),
-					'title'     => __( 'Výběr výdejního místa', 'balikovna-wc' ),
-					'close'     => __( 'Zavřít', 'balikovna-wc' ),
-					'saving'    => __( 'Ukládám výdejní místo…', 'balikovna-wc' ),
-					'saveError' => __( 'Výdejní místo se nepodařilo uložit. Zkuste to prosím znovu.', 'balikovna-wc' ),
-				),
+				'i18n'     => self::picker_i18n(),
 			)
+		);
+	}
+
+	/**
+	 * Pickup services exposed to the picker scripts.
+	 *
+	 * @return array<string,array>
+	 */
+	public static function picker_services() {
+		$services = array();
+		foreach ( Services::all() as $sid => $cfg ) {
+			if ( ! empty( $cfg['pickup'] ) ) {
+				$services[ $sid ] = array(
+					'pickup'    => $cfg['pickup'],
+					'widgetUrl' => Plugin::widget_url( $cfg['pickup'] ),
+					'label'     => $cfg['label'],
+				);
+			}
+		}
+		return $services;
+	}
+
+	/**
+	 * Picker strings shared by the classic and block checkout.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function picker_i18n() {
+		return array(
+			'choose'    => __( 'Vybrat výdejní místo', 'balikovna-wc' ),
+			'change'    => __( 'Změnit výdejní místo', 'balikovna-wc' ),
+			'selected'  => __( 'Zvolené místo:', 'balikovna-wc' ),
+			'required'  => __( 'Prosím zvolte výdejní místo.', 'balikovna-wc' ),
+			'title'     => __( 'Výběr výdejního místa', 'balikovna-wc' ),
+			'close'     => __( 'Zavřít', 'balikovna-wc' ),
+			'saving'    => __( 'Ukládám výdejní místo…', 'balikovna-wc' ),
+			'saveError' => __( 'Výdejní místo se nepodařilo uložit. Zkuste to prosím znovu.', 'balikovna-wc' ),
 		);
 	}
 
@@ -251,8 +276,8 @@ class Checkout {
 		}
 
 		$service_ids = self::service_ids_from_rates( $rates );
-		$email       = isset( $data['billing_email'] ) ? (string) $data['billing_email'] : '';
-		$phone       = isset( $data['billing_phone'] ) ? (string) $data['billing_phone'] : '';
+		$email       = isset( $data['billing_email'] ) && is_scalar( $data['billing_email'] ) ? (string) $data['billing_email'] : '';
+		$phone       = isset( $data['billing_phone'] ) && is_scalar( $data['billing_phone'] ) ? (string) $data['billing_phone'] : '';
 		$phone       = self::recipient_phone_with_session_fallback( $phone, $service_ids );
 		foreach ( Services::recipient_contact_errors( $service_ids, $email, $phone ) as $code => $message ) {
 			$errors->add( $code, $message );
@@ -405,12 +430,15 @@ class Checkout {
 	}
 
 	public static function normalize_package_key( $package_key ) {
+		if ( ! is_scalar( $package_key ) ) {
+			return null;
+		}
 		$package_key = (string) $package_key;
 		return preg_match( '/^[A-Za-z0-9_-]{1,64}$/', $package_key ) ? $package_key : null;
 	}
 
 	public static function service_id_from_rate( $rate_id ) {
-		$parts = explode( ':', (string) $rate_id, 2 );
+		$parts = explode( ':', is_scalar( $rate_id ) ? (string) $rate_id : '', 2 );
 		return sanitize_key( $parts[0] );
 	}
 }

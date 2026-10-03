@@ -22,10 +22,12 @@ Integrace České pošty do WooCommerce: shipping metody, výdejní místa, CSV,
 * Checkout pro Balíkovnu vyžaduje platný e-mail a české mobilní číslo s předvolbou země.
 * Výběr výdejního místa přes oficiální widget České pošty v modálním okně (`b2c.cpost.cz/locations/`); volitelný telefon z widgetu doplní chybějící WooCommerce billing telefon.
 * Serverové ověření ID a typu pobočky proti kanonickému seznamu ČP; samostatný výběr pro každý shipping package.
-* Podpora **klasického shortcode checkoutu** i **Block Checkoutu** (Store API rozšíření).
+* Podpora **klasického shortcode checkoutu** i **Block Checkoutu** (Store API rozšíření); picker blokové pokladny se registruje přes `IntegrationInterface`, takže funguje i v upravených šablonách a vzorech.
 * Uložení zvoleného místa k objednávce, zobrazení v adminu, v e-mailech (zákazník i admin) a na stránce Děkujeme / Můj účet.
 * Ruční podací číslo per shipping item a oficiální Track & Trace odkaz v administraci, e-mailu a detailu objednávky.
-* Automatická synchronizace agregovaných stavů přes oficiální B2B-ZSK/CIS nAPI přibližně každých 30 minut.
+* Automatická synchronizace agregovaných stavů přes oficiální B2B-ZSK/CIS nAPI přibližně každých 30 minut; plánuje se jen při zapnutém a nakonfigurovaném sledování.
+* Chyba jedné objednávky nebo opakovaně neúspěšný dotaz na zásilku se odkládá s rostoucím odstupem 30 minut až 24 hodin a neblokuje ostatní objednávky.
+* Změna stavu objednávky se potvrdí v databázi dřív, než WooCommerce spustí hooky změny stavu a e-maily.
 * Stav, čas události a čas poslední kontroly samostatně u každého shipping itemu; všech pět metod ČP je podporováno.
 * Packeta-like nastavení limitu objednávek, stáří, sledovaných WooCommerce/carrier stavů a volitelného mapování na stav objednávky.
 * Dynamická podpora vlastních stavů z `wc_get_order_statuses()`; plugin sám `wc-shipped` ani `wc-ready-pickup` neregistruje.
@@ -33,9 +35,9 @@ Integrace České pošty do WooCommerce: shipping metody, výdejní místa, CSV,
 * Sloupec **Balíkovna** v přehledu objednávek (HPOS i klasické).
 * Hromadná akce **Export Balíkovna (CSV Podání Online)** v přehledu objednávek - CSV ve Windows-1250, středník jako oddělovač, per-package hmotnost a hodnota obsahu, atomická validace všech řádků.
 * HPOS ready, kompatibilní s `cart_checkout_blocks`.
-* **Automatické aktualizace** z GitHub Releases (Plugin Update Checker, MIT) - po první instalaci se další verze zobrazují v WP admin → Aktualizace stejně jako u pluginů z wordpress.org.
+* **Automatické aktualizace** z GitHub Releases (Plugin Update Checker, MIT) - po první instalaci se další verze zobrazují v WP admin → Aktualizace stejně jako u pluginů z wordpress.org; detail verze ukazuje poznámky nabízeného releasu nad úplnou historií.
 * **Diagnostický mód**: vypisuje pouze pevné stavové zprávy; telefon, payload widgetu ani údaje výdejního místa se do konzole nezapisují.
-* Přihlašovací údaje jsou uložené pomocí AES-256-GCM nebo načítané z konfigurace serveru; odinstalace odstraní nastavení, údaje a cache, ale zachová objednávky.
+* Přihlašovací údaje jsou uložené pomocí AES-256-GCM nebo načítané z konfigurace serveru; odinstalace odstraní nastavení, údaje a cache, ale zachová objednávky. Deaktivace (i v celé síti multisite) zruší naplánované úlohy na všech dotčených webech.
 * Připraveno pro **i18n** (`languages/balikovna-wc.pot`).
 
 == Konfigurace ==
@@ -67,6 +69,8 @@ Nový reason kód v již známém agregovaném stavu převezme mapování nebo p
 * `balikovna_wc_recipient_contact_errors` - úprava výsledných chyb kontaktu pro zvolené služby.
 * `balikovna_wc_tracking_url` - úprava Track & Trace URL (`$url`, `$tracking_number`).
 * `balikovna_wc_tracking_interval` - interval Action Scheduleru (výchozí 30 minut, minimum 15 minut).
+* `balikovna_wc_tracking_schedule_check` - zda aktuální požadavek kontroluje naplánování synchronizace (výchozí administrace mimo AJAX a WP-Cron).
+* `balikovna_wc_tracking_retry_delay` - odstup dalšího dotazu na zásilku po neúspěšném pokusu (výchozí 30 minut × 2^(n−1), nejvýše 24 hodin).
 * `balikovna_wc_tracking_batch_size` - maximální počet objednávek pro aktuální běh.
 * `balikovna_wc_tracking_shipment_eligible` - povolení synchronizace konkrétního shipping itemu.
 * `balikovna_wc_parsed_carrier_status` - úprava parsovaného objektu stavu před uložením.
@@ -76,12 +80,13 @@ Nový reason kód v již známém agregovaném stavu převezme mapování nebo p
 * `balikovna_wc_point_validation_result` - vlastní validační výsledek pobočky.
 * `balikovna_wc_points_directory` - vlastní kanonický seznam poboček pro daný typ.
 * `balikovna_wc_points_api_url` - URL API seznamu poboček.
-* `balikovna_wc_points_cache_ttl` - doba cache seznamu poboček.
-* `balikovna_wc_points_max_stale_age` - maximální stáří nouzového seznamu při výpadku API (výchozí 30 dní).
+* `balikovna_wc_points_cache_ttl` - stáří seznamu poboček, po kterém se obnoví na pozadí (výchozí 7 dní).
+* `balikovna_wc_points_max_stale_age` - maximální stáří seznamu použitého během obnovy nebo výpadku API (výchozí 30 dní).
+* `balikovna_wc_points_memory_limit` - limit paměti pro obnovu seznamu poboček (výchozí `WP_MAX_MEMORY_LIMIT`).
 
 == CSV pro Podání Online ==
 
-Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce A-O) potvrzené podporou ČP. Každý shipping item tvoří samostatný řádek s vlastní hmotností a hodnotou obsahu. Pro **NB** se použije `Balíkova` a ID balíkovny, pro **NP** adresa, PSČ a město vybrané pošty. Sloupec **Služby** se naplní z nastavení konkrétní shipping metody. Export přijímá jen CZK, dobírku zaokrouhlí na celé koruny a při neúplné zásilce nevytvoří částečný soubor. Import v Podání Online musí mít odpovídající mapování A-O a smluvní kódy. Lze jej upravit filtrem `balikovna_wc_export_row`.
+Hlavičky a struktura odpovídají importní šabloně Podání Online (sloupce A-O) potvrzené podporou ČP. Každý shipping item tvoří samostatný řádek s vlastní hmotností a hodnotou obsahu. Pro **NB** se použije `Balíkova` a ID balíkovny, pro **NP** adresa, PSČ a město vybrané pošty. Sloupec **Služby** se naplní z nastavení konkrétní shipping metody. Export přijímá jen CZK, dobírku po odečtení refundací zaokrouhlí na celé koruny a dobírkovou objednávku bez kladné částky odmítne. Variabilní symbol je číslo objednávky, pokud má nejvýše 10 číslic, jinak číselné ID objednávky. Při neúplné zásilce export nevytvoří částečný soubor. Import v Podání Online musí mít odpovídající mapování A-O a smluvní kódy. Lze jej upravit filtrem `balikovna_wc_export_row`.
 
 == Externí služby a soukromí ==
 
@@ -95,16 +100,17 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 * nAPI integrace je pouze pro čtení stavů. Nevytváří zásilky, štítky, storna, vratky, svozy, manifesty ani jiné write operace.
 * Automatické sledování vyžaduje smluvní B2B nAPI údaje a existující podací číslo na shipping itemu.
 * Neznámé carrier stavy se dál kontrolují, ale bez výchozí automatické změny objednávky.
-* Action Scheduler vyžaduje funkční WP-Cron nebo externí pravidelné volání `wp-cron.php`. Hook je `balikovna_wc_sync_shipment_statuses`, log source `balikovna-woocommerce-tracking`.
+* Action Scheduler vyžaduje funkční WP-Cron nebo externí pravidelné volání `wp-cron.php`. Hooky jsou `balikovna_wc_sync_shipment_statuses` a `balikovna_wc_refresh_points`, log source `balikovna-woocommerce-tracking`.
+* Synchronizace stavů vyžaduje transakční InnoDB tabulky objednávek; bez nich se API nevolá a nastavení ukáže chybu `unsupported_database`.
 * Kódy produktů a doplňkových služeb musí odpovídat smlouvě a konfiguraci Podání Online.
-* Automatické testy používají runtime stuby. API bylo staticky prověřeno proti WooCommerce 11.0.1, ale skutečný WooCommerce/HPOS ani browserový end-to-end test CI nespouští.
+* CI kromě unit testů spouští integrační testy na skutečném WordPressu 7.1 a WooCommerce 11.1 (CPT i HPOS, MariaDB, PHP 7.4 a 8.5) a browserové end-to-end testy klasické i blokové pokladny. Skutečné přihlášení do nAPI, platební brány a import CSV do Podání Online tyto testy nepokrývají; ověřte je se smluvním účtem.
 
 == Roadmap ==
 
 * B2B-ZSK nAPI write operace - vytvoření zásilek, tisk štítků, storna, svozy a reporty.
 * Vratky a související B2B workflow.
 * Alternativní picker až nad stabilním a dokumentovaným číselníkem výdejních míst.
-* Reálné end-to-end testy Classic/Block Checkoutu, pay-for-order a HPOS.
+* Akceptační testy skutečných platebních bran, nAPI a importu Podání Online.
 
 == Changelog ==
 

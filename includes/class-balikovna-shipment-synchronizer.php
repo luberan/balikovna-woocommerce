@@ -17,9 +17,12 @@ class Shipment_Synchronizer {
 	const DIAGNOSTICS_OPTION = 'balikovna_wc_tracking_diagnostics';
 	const LOCK_TTL           = 5 * MINUTE_IN_SECONDS;
 	const PENDING_OPTION     = 'balikovna_wc_tracking_pending_batch';
+	const FAILURES_OPTION    = 'balikovna_wc_tracking_failed_orders';
 	const BATCH_SECONDS      = 25;
 	const REQUEST_RESERVE    = 17;
 	const MAX_REQUESTS       = 10;
+	const MAX_RETRY_DELAY    = DAY_IN_SECONDS;
+	const MAX_FAILED_ORDERS  = 200;
 
 	private $client;
 	private $dictionary;
@@ -67,6 +70,17 @@ class Shipment_Synchronizer {
 				'skipped'   => true,
 			);
 		}
+		if ( ! $this->guard->is_supported() ) {
+			$error = new Napi_Error(
+				'unsupported_database',
+				__( 'Synchronizace stavů vyžaduje pro objednávky a jejich položky databázové tabulky InnoDB. Na tomto webu je nelze ověřit, proto se rozhraní České pošty nevolá.', 'balikovna-wc' ),
+				0,
+				true,
+				false
+			);
+			$this->record_global_error( $error );
+			return $error;
+		}
 
 		$lock_token = $this->acquire_lock();
 		if ( false === $lock_token ) {
@@ -110,7 +124,17 @@ class Shipment_Synchronizer {
 
 			$orders = array();
 			if ( empty( $this->pending['orders'] ) ) {
-				$orders        = $this->orders->find( $settings );
+				$failed = $this->failed_orders();
+				$now    = $this->now();
+				$orders = $this->orders->find(
+					$settings,
+					function ( $order_id ) use ( $failed, $now ) {
+						return (int) ( $failed[ (int) $order_id ]['retry_at'] ?? 0 ) > $now;
+					}
+				);
+				foreach ( $this->orders->take_errors() as $failed_order_id => $error ) {
+					$this->defer_failed_order( $failed_order_id, $error );
+				}
 				$this->pending = array(
 					'orders'    => array_map(
 						function ( $order ) {
@@ -133,13 +157,20 @@ class Shipment_Synchronizer {
 				if ( ! $this->can_continue() ) {
 					break;
 				}
-				$order_id = reset( $this->pending['orders'] );
-				$order    = $loaded[ $order_id ] ?? wc_get_order( $order_id );
-				if ( ! $order instanceof \WC_Order ) {
+				$order_id = (int) reset( $this->pending['orders'] );
+				try {
+					$order = $loaded[ $order_id ] ?? wc_get_order( $order_id );
+					if ( ! $order instanceof \WC_Order ) {
+						$this->finish_pending_order();
+						continue;
+					}
+					$result = $this->sync_order( $order, $settings );
+				} catch ( \Throwable $error ) {
+					// One broken order or third-party hook must not block the whole queue.
+					$this->defer_failed_order( $order_id, $error );
 					$this->finish_pending_order();
 					continue;
 				}
-				$result   = $this->sync_order( $order, $settings );
 				$checked += (int) $result['checked'];
 				if ( $this->paused ) {
 					break;
@@ -150,6 +181,7 @@ class Shipment_Synchronizer {
 					$this->record_global_error( $result['global_error'] );
 					return $result['global_error'];
 				}
+				$this->forget_failed_order( $order_id );
 				$this->finish_pending_order();
 				++$processed;
 			}
@@ -203,14 +235,15 @@ class Shipment_Synchronizer {
 
 			$stored_tracking = (string) $item->get_meta( Order::META_STATUS_TRACKING_NUMBER, true );
 			$stored_code     = (string) $item->get_meta( Order::META_STATUS_CODE, true );
-			if ( '' !== $stored_code && $stored_tracking !== $tracking_number ) {
+			if ( ( '' !== $stored_code || '' !== $stored_tracking ) && $stored_tracking !== $tracking_number ) {
 				Order::clear_tracking_status( $item );
 				$stored_code = '';
 			}
 
 			$eligible     = (bool) apply_filters( 'balikovna_wc_tracking_shipment_eligible', true, $shipment, $order, $settings );
 			$progress_key = $item->get_id() . ':' . $tracking_number;
-			if ( $eligible && empty( $this->pending['done'][ $progress_key ] ) && Tracking_Settings::should_poll( $stored_code, $settings ) ) {
+			if ( $eligible && empty( $this->pending['done'][ $progress_key ] ) && Tracking_Settings::should_poll( $stored_code, $settings )
+				&& self::next_attempt_at( $item ) <= $this->now() ) {
 				if ( ! $this->can_continue( true ) ) {
 					return array(
 						'checked'      => $checked,
@@ -242,6 +275,9 @@ class Shipment_Synchronizer {
 							$item->update_meta_data( Order::META_STATUS_LABEL, $label );
 							$item->update_meta_data( Order::META_STATUS_EVENT_AT, $result->get_event_at() );
 							$item->update_meta_data( Order::META_STATUS_CHECKED_AT, $this->now() );
+							$item->delete_meta_data( Order::META_STATUS_FAILURES );
+						} elseif ( ! $result->is_global() ) {
+							$item->update_meta_data( Order::META_STATUS_FAILURES, (int) $item->get_meta( Order::META_STATUS_FAILURES, true ) + 1 );
 						}
 						return (bool) $item->save();
 					},
@@ -416,6 +452,73 @@ class Shipment_Synchronizer {
 	public function diagnostics() {
 		$diagnostics = get_option( self::DIAGNOSTICS_OPTION, array() );
 		return is_array( $diagnostics ) ? $diagnostics : array();
+	}
+
+	/**
+	 * Earliest time a parcel whose previous lookups failed may be queried again.
+	 *
+	 * @param \WC_Order_Item_Shipping $item Shipping item.
+	 * @return int Unix timestamp, 0 when no backoff applies.
+	 */
+	public static function next_attempt_at( $item ) {
+		$failures = (int) $item->get_meta( Order::META_STATUS_FAILURES, true );
+		$attempt  = (int) $item->get_meta( Order::META_STATUS_ATTEMPTED_AT, true );
+		$tracking = Order::sanitize_tracking_number( $item->get_meta( Order::META_TRACKING_NUMBER, true ) );
+		if ( $failures < 1 || $attempt < 1 || (string) $item->get_meta( Order::META_STATUS_TRACKING_NUMBER, true ) !== $tracking ) {
+			return 0;
+		}
+		return $attempt + max( 0, (int) apply_filters( 'balikovna_wc_tracking_retry_delay', self::retry_delay( $failures ), $failures, $item ) );
+	}
+
+	private static function retry_delay( $failures ) {
+		return (int) min( self::MAX_RETRY_DELAY, Tracking_Scheduler::INTERVAL * ( 2 ** min( 10, max( 0, (int) $failures - 1 ) ) ) );
+	}
+
+	private function failed_orders() {
+		$failed = get_option( self::FAILURES_OPTION, array() );
+		return is_array( $failed ) ? $failed : array();
+	}
+
+	private function defer_failed_order( $order_id, \Throwable $error ) {
+		$failed              = $this->failed_orders();
+		$count               = (int) ( $failed[ $order_id ]['count'] ?? 0 ) + 1;
+		$failed[ $order_id ] = array(
+			'count'    => $count,
+			'retry_at' => $this->now() + self::retry_delay( $count ),
+		);
+		if ( count( $failed ) > self::MAX_FAILED_ORDERS ) {
+			uasort(
+				$failed,
+				function ( $left, $right ) {
+					return (int) $left['retry_at'] <=> (int) $right['retry_at'];
+				}
+			);
+			$failed = array_slice( $failed, -self::MAX_FAILED_ORDERS, null, true );
+		}
+		update_option( self::FAILURES_OPTION, $failed, false );
+		$this->logger->api_error(
+			new Napi_Error(
+				'order_sync_failed',
+				sprintf(
+					/* translators: 1: PHP error class, 2: error message. */
+					__( 'Zpracování objednávky bylo přerušeno chybou %1$s: %2$s', 'balikovna-wc' ),
+					get_class( $error ),
+					$error->getMessage()
+				),
+				0,
+				false,
+				true
+			),
+			$order_id
+		);
+	}
+
+	private function forget_failed_order( $order_id ) {
+		$failed = $this->failed_orders();
+		if ( isset( $failed[ $order_id ] ) ) {
+			unset( $failed[ $order_id ] );
+			update_option( self::FAILURES_OPTION, $failed, false );
+		}
 	}
 
 	private function now() {

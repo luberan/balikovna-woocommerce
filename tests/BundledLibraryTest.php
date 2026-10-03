@@ -30,6 +30,27 @@ final class BundledLibraryTest extends TestCase {
 		$this->assertSame( file_get_contents( $root . '/vendor/erusev/parsedown/LICENSE.txt' ), file_get_contents( $path . 'parsedown-license.txt' ) );
 	}
 
+	public function test_bundled_code_has_no_deprecated_fatal_user_errors(): void {
+		$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__ ) . '/includes', FilesystemIterator::SKIP_DOTS ) );
+		$count = 0;
+		foreach ( $files as $file ) {
+			if ( 'php' === $file->getExtension() ) {
+				++$count;
+				// PHP 8.4 deprecates this level in trigger_error(); the bundled Plugin Update Checker is patched locally.
+				$this->assertStringNotContainsString( 'E_USER_ERROR', file_get_contents( $file->getPathname() ), $file->getPathname() );
+			}
+		}
+		$this->assertGreaterThan( 50, $count );
+	}
+
+	public function test_readme_parser_decodes_code_entities_identically_on_every_php_version(): void {
+		require_once dirname( __DIR__ ) . '/includes/lib/plugin-update-checker/vendor/PucReadmeParser.php';
+
+		$decoded = ( new PucReadmeParser() )->decodeit( array( '', '<code>', 'it&#039;s &amp; &lt;b&gt;', '</code>' ) );
+
+		$this->assertSame( "`it's & <b>`", $decoded );
+	}
+
 	/**
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled

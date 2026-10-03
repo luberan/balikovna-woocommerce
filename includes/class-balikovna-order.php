@@ -28,6 +28,7 @@ class Order {
 	const META_STATUS_EVENT_AT         = '_balikovna_status_event_at';
 	const META_STATUS_CHECKED_AT       = '_balikovna_status_checked_at';
 	const META_STATUS_ATTEMPTED_AT     = '_balikovna_status_attempted_at';
+	const META_STATUS_FAILURES         = '_balikovna_status_failures';
 	const META_STATUS_TRACKING_NUMBER  = '_balikovna_status_tracking_number';
 	const META_STATUS_EVALUATED_CODE   = '_balikovna_status_evaluated_code';
 	const META_STATUS_MAPPING_REVISION = '_balikovna_status_mapping_revision';
@@ -466,6 +467,9 @@ class Order {
 	}
 
 	public static function sanitize_tracking_number( $tracking_number ) {
+		if ( ! is_scalar( $tracking_number ) ) {
+			return '';
+		}
 		$tracking_number = strtoupper( sanitize_text_field( (string) $tracking_number ) );
 		$tracking_number = preg_replace( '/[\s-]+/', '', $tracking_number );
 		return is_string( $tracking_number ) && preg_match( '/^[A-Z0-9]{6,35}$/', $tracking_number )
@@ -494,6 +498,7 @@ class Order {
 				self::META_STATUS_EVENT_AT,
 				self::META_STATUS_CHECKED_AT,
 				self::META_STATUS_ATTEMPTED_AT,
+				self::META_STATUS_FAILURES,
 				self::META_STATUS_TRACKING_NUMBER,
 				self::META_STATUS_EVALUATED_CODE,
 				self::META_STATUS_MAPPING_REVISION,
@@ -583,14 +588,14 @@ class Order {
 			if ( '0' === $item_id || ! array_key_exists( $item_id, $posted ) ) {
 				continue;
 			}
-			$raw = sanitize_text_field( (string) $posted[ $item_id ] );
-			if ( '' === trim( $raw ) ) {
+			$raw = is_scalar( $posted[ $item_id ] ) ? sanitize_text_field( (string) $posted[ $item_id ] ) : null;
+			if ( null !== $raw && '' === trim( $raw ) ) {
 				$item->delete_meta_data( self::META_TRACKING_NUMBER );
 				self::clear_tracking_status( $item );
 				$item->save();
 				continue;
 			}
-			$tracking_number = self::sanitize_tracking_number( $raw );
+			$tracking_number = null === $raw ? '' : self::sanitize_tracking_number( $raw );
 			if ( '' === $tracking_number ) {
 				if ( class_exists( '\\WC_Admin_Meta_Boxes' ) ) {
 					\WC_Admin_Meta_Boxes::add_error( __( 'Podací číslo smí obsahovat pouze písmena a číslice.', 'balikovna-wc' ) );
@@ -673,17 +678,6 @@ class Order {
 			return;
 		}
 		$this->render_points_html( $shipments );
-	}
-
-	private static function point_shipments( \WC_Order $order ) {
-		return array_values(
-			array_filter(
-				self::get_shipments( $order ),
-				function ( $shipment ) {
-					return ! empty( $shipment['point']['id'] );
-				}
-			)
-		);
 	}
 
 	private static function visible_shipments( \WC_Order $order ) {

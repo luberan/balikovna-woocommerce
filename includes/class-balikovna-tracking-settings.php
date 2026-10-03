@@ -258,13 +258,13 @@ class Tracking_Settings {
 		$api_token     = isset( $existing['api_token'] ) ? (string) $existing['api_token'] : '';
 		if ( ! empty( $input['clear_api_token'] ) ) {
 			$api_token = '';
-		} elseif ( isset( $input['api_token'] ) && '' !== trim( (string) $input['api_token'] ) ) {
+		} elseif ( isset( $input['api_token'] ) && is_scalar( $input['api_token'] ) && '' !== trim( (string) $input['api_token'] ) ) {
 			$api_token = self::limit( sanitize_text_field( (string) $input['api_token'] ), 160 );
 		}
 		$secret_key = isset( $existing['secret_key'] ) ? (string) $existing['secret_key'] : '';
 		if ( ! empty( $input['clear_secret'] ) ) {
 			$secret_key = '';
-		} elseif ( isset( $input['secret_key'] ) && '' !== trim( (string) $input['secret_key'] ) ) {
+		} elseif ( isset( $input['secret_key'] ) && is_scalar( $input['secret_key'] ) && '' !== trim( (string) $input['secret_key'] ) ) {
 			$secret_key = self::limit( sanitize_text_field( (string) $input['secret_key'] ), 512 );
 		}
 
@@ -279,7 +279,7 @@ class Tracking_Settings {
 		if ( $dictionary ) {
 			$poll_statuses = array();
 			foreach ( isset( $input['poll_statuses'] ) ? (array) $input['poll_statuses'] : array() as $code ) {
-				$code = (string) $code;
+				$code = is_scalar( $code ) ? (string) $code : '';
 				if ( isset( $allowed_codes[ $code ] ) ) {
 					$poll_statuses[] = $code;
 				}
@@ -405,7 +405,7 @@ class Tracking_Settings {
 	}
 
 	public static function normalize_order_status( $status ) {
-		$status = sanitize_key( (string) $status );
+		$status = is_scalar( $status ) ? sanitize_key( (string) $status ) : '';
 		if ( '' === $status ) {
 			return '';
 		}

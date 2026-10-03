@@ -45,6 +45,7 @@ class Plugin {
 		add_action( 'woocommerce_shipping_init', array( $this, 'load_shipping_methods' ) );
 		add_filter( 'woocommerce_shipping_methods', array( $this, 'register_shipping_methods' ) );
 
+		Points::init();
 		Checkout::instance()->init();
 		Order::instance()->init();
 		Export::instance()->init();

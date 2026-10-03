@@ -78,6 +78,21 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertNull( $method->resolve( '5|-10', 1 ) );
 	}
 
+	public function test_invalid_weight_table_is_reported_to_the_zone_modal(): void {
+		$method = new Balikovna_Test_Shipping_Method();
+		$this->assertSame( "5.000|79.00\n10.000|119.00", $method->validate_textarea_field( 'weight_table', "10|119\n5,0|79" ) );
+		\WC_Admin_Settings::$errors = array();
+		try {
+			$method->validate_textarea_field( 'weight_table', "2|59\n5,5|kč 89" );
+			$this->fail( 'An invalid weight table must be rejected with an exception.' );
+		} catch ( Exception $error ) {
+			// WooCommerce turns validation exceptions into errors returned to the zone modal.
+			$this->assertStringContainsString( 'kladná hmotnost|nezáporná cena', $error->getMessage() );
+		}
+		$this->assertSame( array(), \WC_Admin_Settings::$errors );
+		$this->assertSame( 'kept', $method->validate_textarea_field( 'title', 'kept' ) );
+	}
+
 	public function test_free_shipping_cannot_bypass_weight_table_availability(): void {
 		$method = new Balikovna_Test_Shipping_Method();
 		$package = function ( $weight ) {

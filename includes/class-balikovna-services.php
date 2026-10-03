@@ -131,6 +131,9 @@ class Services {
 	}
 
 	public static function normalize_recipient_phone( $phone ) {
+		if ( ! is_scalar( $phone ) ) {
+			return '';
+		}
 		return preg_replace( '/[\s().-]+/', '', trim( (string) $phone ) );
 	}
 

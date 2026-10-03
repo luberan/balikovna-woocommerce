@@ -339,7 +339,8 @@ class PucReadmeParser {
 			return decodeit( $matches );
 
 		$text = $matches[2];
-		$trans_table = array_flip(get_html_translation_table(HTML_ENTITIES));
+		//Local patch: explicit flags keep the PHP 8.1+ default on every supported PHP version.
+		$trans_table = array_flip(get_html_translation_table(HTML_ENTITIES, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401));
 		$text = strtr($text, $trans_table);
 		$text = str_replace('<br />', '', $text);
 		$text = str_replace('&#38;', '&', $text);

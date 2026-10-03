@@ -4,26 +4,34 @@
   <arg name="basepath" value="."/>
   <arg name="colors"/>
   <arg name="extensions" value="php"/>
+  <!-- PHPCS reads config only from the top level of a ruleset. -->
+  <config name="testVersion" value="7.4-"/>
   <file>balikovna-woocommerce.php</file>
   <file>uninstall.php</file>
   <file>includes</file>
-  <exclude-pattern>includes/lib/*</exclude-pattern>
+  <!-- The bundled third-party library is checked for PHP compatibility only. -->
   <rule ref="WordPress-Core">
     <exclude name="Generic.Files.LineEndings.InvalidEOLChar"/>
     <exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
     <exclude name="Generic.Files.OneObjectStructurePerFile.MultipleFound"/>
+    <exclude-pattern>includes/lib/*</exclude-pattern>
   </rule>
-  <rule ref="PHPCompatibilityWP">
-    <config name="testVersion" value="7.4-"/>
+  <rule ref="PHPCompatibilityWP"/>
+  <rule ref="WordPress.Security.ValidatedSanitizedInput">
+    <exclude-pattern>includes/lib/*</exclude-pattern>
   </rule>
-  <rule ref="WordPress.Security.ValidatedSanitizedInput"/>
-  <rule ref="WordPress.Security.NonceVerification"/>
-  <rule ref="WordPress.Security.EscapeOutput"/>
+  <rule ref="WordPress.Security.NonceVerification">
+    <exclude-pattern>includes/lib/*</exclude-pattern>
+  </rule>
+  <rule ref="WordPress.Security.EscapeOutput">
+    <exclude-pattern>includes/lib/*</exclude-pattern>
+  </rule>
   <rule ref="WordPress.WP.Capabilities">
     <properties>
       <property name="custom_capabilities" type="array">
         <element value="manage_woocommerce"/>
       </property>
     </properties>
+    <exclude-pattern>includes/lib/*</exclude-pattern>
   </rule>
 </ruleset>

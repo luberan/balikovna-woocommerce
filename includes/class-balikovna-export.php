@@ -164,6 +164,8 @@ class Export {
 
 		$cod_methods    = (array) apply_filters( 'balikovna_wc_cod_methods', array( 'cod' ) );
 		$is_cod         = in_array( $order->get_payment_method(), $cod_methods, true );
+		$cod_total      = $is_cod ? round( (float) $order->get_total() - (float) $order->get_total_refunded() ) : 0.0;
+		$variable       = $this->variable_symbol( $order );
 		$default_subj   = (string) apply_filters( 'balikovna_wc_default_subject', 'F' );
 		$address_type   = $this->recipient_address_type( $order );
 		$company        = $order->{ 'get_' . $address_type . '_company' }();
@@ -178,6 +180,9 @@ class Export {
 		$rows           = array();
 		if ( '' === trim( $recipient_a ) ) {
 			return $this->order_error( $order, __( 'nemá vyplněného příjemce nebo firmu.', 'balikovna-wc' ) );
+		}
+		if ( $is_cod && $cod_total <= 0 ) {
+			return $this->order_error( $order, __( 'nemá po odečtení refundací kladnou částku dobírky.', 'balikovna-wc' ) );
 		}
 
 		foreach ( $shipments as $shipment_index => $shipment ) {
@@ -228,7 +233,7 @@ class Export {
 			}
 
 			$cod_amount = $is_cod && 0 === $shipment_index
-				? wc_format_decimal( round( (float) $order->get_total() ), 0 )
+				? wc_format_decimal( $cod_total, 0 )
 				: '';
 			$row        = array(
 				$recipient_a,                   // A
@@ -240,7 +245,7 @@ class Export {
 				$contents_value,                // G
 				$cod_amount,                    // H
 				$shipment['serviceCodes'],      // I
-				$order->get_order_number(),     // J
+				$variable,                      // J
 				$phone,                         // K
 				$order->get_billing_email(),    // L
 				$service_code,                  // M
@@ -263,6 +268,19 @@ class Export {
 				$message
 			)
 		);
+	}
+
+	/**
+	 * Variable symbol for column J: at most 10 digits.
+	 *
+	 * Order numbers changed by other plugins may contain letters or be longer,
+	 * so the numeric order ID is used instead.
+	 *
+	 * @return string
+	 */
+	protected function variable_symbol( \WC_Order $order ) {
+		$number = (string) $order->get_order_number();
+		return preg_match( '/^\d{1,10}$/D', $number ) ? $number : (string) absint( $order->get_id() );
 	}
 
 	/**

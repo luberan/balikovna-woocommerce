@@ -19,7 +19,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 - **Výběr výdejního místa** přes oficiální widget v přístupném modálním okně (parametry `type=BALIKOVNY|POST_OFFICE`, `skipLocation=false`, volitelně `phone=true`); vrácený telefon doplní chybějící `billing_phone`
 - Serverové ověření ID, typu a kanonických údajů pobočky proti veřejně dostupnému JSON seznamu používanému widgetem ČP
 - Samostatný výběr pro každý WooCommerce shipping package a přesnou instanci shipping metody
-- Podpora **klasického checkoutu** (`wp-admin → WooCommerce → checkout shortcode`) i **Block Checkoutu** (Store API extension)
+- Podpora **klasického checkoutu** (`wp-admin → WooCommerce → checkout shortcode`) i **Block Checkoutu** (Store API extension). Picker blokové pokladny se registruje přes oficiální `IntegrationInterface` WooCommerce Blocks, takže se načte všude, kde se blok Pokladna nebo Košík vykreslí – i v upravené šabloně nebo synchronizovaném vzoru. Skript klasické pokladny se načítá jen s jejím formulářem.
 - **Cenotvorba** per metoda: fixní cena / podle hmotnosti (tabulka `max_kg|cena`) / volitelný práh „zdarma od“ z mezisoučtu celého košíku napříč shipping packages
 - Produkty Balíkovna se nabízejí jen pro CZ zásilky do 15 kg a 50 × 50 × 50 cm. Známé parametry se vždy kontrolují; u fixní ceny chybějící katalogový údaj sazbu neskryje, váhová cenotvorba však vyžaduje vyplněnou hmotnost.
 - Doprava zdarma nemění dostupnost metody: ve váhovém režimu musí být hmotnost známá a pokrytá platnou váhovou tabulkou i po dosažení finančního prahu.
@@ -33,10 +33,13 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
   - odmítá odpovědi s jiným nebo chybějícím podacím číslem; při této chybě zachová poslední známý stav a pokus zopakuje při další synchronizaci,
   - jednotlivý běh má rozpočet 25 sekund a nejvýše 10 dotazů na zásilky; před dalším dotazem ponechává 17 sekund na HTTP timeout a uložení výsledku. Rozpočet zahrnuje i obnovu číselníku. Nejde o násilné přerušení běžícího PHP nebo databázového dotazu,
   - zbývající objednávky i dokončené zásilky aktuální objednávky ukládá průběžně. Po vyčerpání rozpočtu plánuje pokračování přes Action Scheduler nejdříve za minutu; při přerušení procesu nebo nedostupném plánovači uloženou práci převezme další pravidelný či ruční běh,
-  - souběžné běhy chrání zámkem s atomickou kontrolou původní hodnoty při převzetí, prodloužení i uvolnění. Proces, který ztratí zámek během API volání, odpověď neuloží a skončí,
+  - chyba jedné objednávky (například výjimka v hooku jiného pluginu) se zapíše do logu jako `order_sync_failed`, objednávka se odloží s rostoucím odstupem 30 minut až 24 hodin a ostatní objednávky se zpracují dál,
+  - zásilku, jejíž dotaz opakovaně selhává (například neexistující podací číslo), dotazuje s rostoucím odstupem 30 minut až 24 hodin; úspěšný dotaz nebo nové podací číslo odstup ruší,
+  - opakovanou akci plánuje jen při zapnutém sledování s vyplněnými přihlašovacími údaji; plán kontroluje v administraci a ve WP-Cronu, běžné požadavky návštěvníků nastavení sledování ani Action Scheduler nečtou,
+  - souběžné běhy chrání zámkem s atomickým převzetím (`INSERT IGNORE`) a atomickou kontrolou původní hodnoty při prodloužení i uvolnění. Proces, který ztratí zámek během API volání, odpověď neuloží a skončí,
   - dynamicky načítá číselník agregovaných stavů přes `statusesOverview` a bezpečně zachovává poslední funkční cache,
   - umí volitelně mapovat stabilní kódy ČP na libovolné stavy z `wc_get_order_statuses()`, včetně stavů registrovaných jiným pluginem,
-  - mění stav přes standardní `WC_Order::update_status()`, takže existující WooCommerce e-maily reagují přirozeně a plugin je neduplikuje,
+  - mění stav přes standardní `WC_Order::update_status()`, takže existující WooCommerce e-maily reagují přirozeně a plugin je neduplikuje. Ochranná transakce se potvrdí hned po uložení objednávky, ještě před hooky změny stavu, poznámkami a e-maily,
   - u více zásilek postupuje konzervativně; chybějící sledovací číslo u kterékoli zásilky České pošty blokuje automatickou změnu stavu. Smíšené objednávky s jinými dopravci se automaticky nemění bez explicitního souhlasu koordinující integrace.
 - Hromadný **CSV export pro Podání Online** – jeden řádek pro každou zásilku, formát sloupců A–O, Windows-1250, středník
   - Pro typ NB (Balíkovna): adresa `Balíkova` + ID balíkovny v PSČ dle pokynů ČP
@@ -44,7 +47,8 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
   - Hodnota obsahu a hmotnost se ukládají samostatně pro každý shipping package; neúplná objednávka zastaví celý export
   - Bloková pokladna obnovuje hmotnost i hodnotu obsahu také při zachování stejné sazby dopravy. Snapshoty jsou vázané na obsah objednávky; po jeho změně se jediná zásilka přepočítá z položek, ale u více balíků se export zastaví, protože nové rozdělení obsahu nelze spolehlivě určit. Prosté uložení položek v administraci snapshoty nemění.
   - Příjemce a adresa se přebírají jako celek z dodacích údajů; fakturační údaje se použijí jen při chybějících dodacích údajích. Prázdná dodací firma nebo druhý řádek adresy se nedoplňuje z fakturace.
-  - Finanční částky se exportují pouze v CZK, dobírka v celých korunách a jen na první zásilce objednávky
+  - Finanční částky se exportují pouze v CZK, dobírka v celých korunách po odečtení refundací a jen na první zásilce objednávky. Dobírkovou objednávku bez kladné částky k vybrání export odmítne.
+  - Variabilní symbol ve sloupci J je číslo objednávky, pokud má nejvýše 10 číslic; číslo s písmeny nebo delší (např. z pluginu pro vlastní číslování) se nahradí číselným ID objednávky
   - Telefon ve sloupci K používá mezinárodní zápis `00420…` namísto `+420…`, bez vloženého apostrofu. Ochrana ostatních hodnot CSV proti vzorcům zůstává aktivní.
   - Import v Podání Online musí být nakonfigurovaný pro uvedené sloupce A–O a kódy odpovídající smlouvě odesílatele
 - **HPOS** ready (High-Performance Order Storage), kompatibilní s Cart/Checkout blocks
@@ -52,6 +56,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 - Logo služby ČP v shipping metodě (klasický checkout)
 - **Automatické aktualizace** z GitHub Releases (knihovna [Plugin Update Checker](https://github.com/YahnisElsts/plugin-update-checker), MIT) – v admin Pluginy se nové verze zobrazují jako u pluginů z wordpress.org
 - Aktualizace se nabízí pouze s přiloženým instalačním souborem `balikovna-woocommerce.zip`; chybějící release asset se nenahrazuje zdrojovým archivem tagu ani větve.
+- Okno „Zobrazit podrobnosti verze“ ukazuje poznámky nabízené verze z GitHub release nad úplnou historií změn.
 - Připraveno pro **i18n** (`languages/balikovna-wc.pot`)
 
 ## Kompatibilita
@@ -63,6 +68,8 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 | PHP | 7.4 | 8.5 |
 
 ## Instalace
+
+WooCommerce musí být nainstalovaný a aktivní dřív; WordPress plugin bez něj neaktivuje (hlavička `Requires Plugins: woocommerce`).
 
 ### Z GitHub releasu (doporučeno)
 
@@ -83,7 +90,7 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
 2. Editujte metodu a nastavte:
    - **Název** zobrazený zákazníkovi
    - **Typ ceny** (fixní / podle hmotnosti)
-   - **Cena** nebo **váhová tabulka** (řádky `max_kg|cena`, např. `5|79`)
+   - **Cena** nebo **váhová tabulka** (řádky `max_kg|cena`, např. `5|79`; neplatnou tabulku okno metody odmítne s chybou a ponechá předchozí hodnotu)
    - **Zdarma od částky** (volitelně, vyhodnocuje se z celého košíku)
    - **Kódy služeb ČP** (např. `7+45+S+41` – dle označení ve vaší smlouvě s ČP; použije se ve sloupci I exportu)
     - U produktů používaných s Balíkovnou vyplňte hmotnost, délku, šířku a výšku pro úplnou automatickou kontrolu. Známý nadlimitní parametr dopravu vždy skryje; neznámý údaj ji u fixní ceny sám o sobě neskryje.
@@ -119,6 +126,8 @@ Výchozí automatické mapování používá pouze jednoznačné agregované vý
 | `balikovna_wc_recipient_contact_errors` | Úprava výsledných chyb kontaktu pro zvolené služby |
 | `balikovna_wc_tracking_url` | Úprava Track & Trace URL (`$url, $tracking_number`) |
 | `balikovna_wc_tracking_interval` | Interval opakované Action Scheduler akce v sekundách (výchozí 30 minut, bezpečnostní minimum 15 minut) |
+| `balikovna_wc_tracking_schedule_check` | Zda aktuální požadavek kontroluje naplánování synchronizace (výchozí jen administrace mimo AJAX a WP-Cron) |
+| `balikovna_wc_tracking_retry_delay` | Odstup dalšího dotazu na zásilku po neúspěšném pokusu (`$delay, $failures, $shipping_item`; výchozí 30 minut × 2^(n−1), nejvýše 24 hodin) |
 | `balikovna_wc_tracking_batch_size` | Úprava maximálního počtu objednávek pro aktuální běh synchronizace |
 | `balikovna_wc_tracking_scan_pages` | Maximální počet stránek kandidátů prohledaných v jednom běhu (výchozí 10, maximum 100) |
 | `balikovna_wc_tracking_shipment_eligible` | Poslední rozhodnutí, zda se konkrétní shipping item smí synchronizovat (`$eligible, $shipment, $order, $settings`) |
@@ -129,8 +138,9 @@ Výchozí automatické mapování používá pouze jednoznačné agregované vý
 | `balikovna_wc_point_validation_result` | Vlastní validační výsledek pobočky; `null` ponechá výchozí ověření |
 | `balikovna_wc_points_directory` | Vlastní kanonický seznam poboček pro daný typ |
 | `balikovna_wc_points_api_url` | URL API seznamu poboček |
-| `balikovna_wc_points_cache_ttl` | Doba cache seznamu poboček v sekundách |
-| `balikovna_wc_points_max_stale_age` | Maximální stáří nouzového seznamu při výpadku API (výchozí 30 dní) |
+| `balikovna_wc_points_cache_ttl` | Stáří seznamu poboček v sekundách, po kterém se obnoví na pozadí (výchozí 7 dní) |
+| `balikovna_wc_points_max_stale_age` | Maximální stáří seznamu, který se ještě použije během obnovy nebo výpadku API (výchozí 30 dní) |
+| `balikovna_wc_points_memory_limit` | Limit paměti pro obnovu seznamu poboček přes `wp_raise_memory_limit()` (výchozí `WP_MAX_MEMORY_LIMIT`) |
 
 Akce `balikovna_wc_shipment_status_changed` se spustí po skutečné změně kódu zásilky. Akce `balikovna_wc_order_status_mapped` se spustí po provedené standardní změně stavu objednávky.
 
@@ -155,8 +165,9 @@ Oficiální FAQ doporučuje aktuální stav kontrolovat přibližně každých 3
 ## Diagnostika synchronizace
 
 - Na stránce nastavení je čas poslední úspěšné synchronizace, poslední globální chyba a příští naplánovaný běh.
+- Pokud objednávkové tabulky nejsou transakční InnoDB (například MyISAM nebo emulace MySQL nad SQLite), synchronizace skončí ještě před voláním API a důvod se zobrazí jako poslední globální chyba `unsupported_database`.
 - Ruční tlačítko **Synchronizovat nyní** spouští stejný omezený batch jako plánovaná akce a používá stejný zámek.
-- Ve **WooCommerce → Stav → Naplánované akce** hledejte hook `balikovna_wc_sync_shipment_statuses` ve skupině `balikovna-woocommerce`.
+- Ve **WooCommerce → Stav → Naplánované akce** hledejte hook `balikovna_wc_sync_shipment_statuses` ve skupině `balikovna-woocommerce`. Obnova seznamu poboček používá hook `balikovna_wc_refresh_points`.
 - Do WooCommerce logu se zapisují sanitizované dočasné chyby pod zdrojem `balikovna-woocommerce-tracking`; podací čísla, autentizační hlavičky ani tajný klíč se nelogují.
 - Při `DISABLE_WP_CRON=true` musí provozovatel pravidelně volat standardní `wp-cron.php`; plugin nepřidává vlastní veřejný cron endpoint.
 
@@ -168,7 +179,7 @@ Po `composer install` jsou dostupné příkazy:
 
 ```bash
 composer test   # regresní a metadata testy
-composer lint   # WordPress Core, security sniffs a PHP 7.4+ kompatibilita
+composer lint   # WordPress Core, security sniffs a PHP 7.4+ kompatibilita včetně přibalených knihoven
 composer pot    # regenerace languages/balikovna-wc.pot
 composer build  # čistý staging do build/balikovna-woocommerce
 ```
@@ -178,6 +189,8 @@ CI běží PHP lint matrix 7.4–8.5 a blokující QA na PHP 7.4 i 8.5. Release 
 Jednotkové testy používají izolované runtime stuby. Samostatná integrační CI matice spouští skutečný WordPress 7.1 a WooCommerce 11.1.0 na PHP 7.4/8.5, nad MariaDB 11.4.9 s CPT i HPOS. Playwright dokončuje Classic/Block Checkout s jedním i dvěma balíky a ověřuje trvalá metadata i CSV. Náhrada widgetu v těchto testech nepředstavuje autentizovaný import do Podání Online. Postup lokálního spuštění a přesný rozsah je v [tests/README.md](tests/README.md).
 
 PHPCompatibility je připnuté na 10.0.0-alpha2 a PHPCompatibilityWP na 3.0.0-alpha2, protože stabilní řada 9 nezná moderní PHP. Jde pouze o vývojové nástroje; nedistribuují se s pluginem. Rozšíření kontroly PHP nenahrazuje integrační a browserové testy. Přibalený Parsedown 1.8.0 je namespacovaný, běží v safe mode a jeho zdroj i licence se kontrolují proti Composer locku příkazem `composer vendor:check`.
+
+Přibalený Plugin Update Checker 5.7 obsahuje lokální úpravu pro PHP 8.4+, kterou upstream zatím nemá: místo `trigger_error()` s úrovní fatální chyby vyhazuje výjimky a `get_html_translation_table()` volá s explicitními příznaky, takže se chová stejně na PHP 7.4 i 8.x. Upravená místa jsou označená komentářem `Local patch`. Při aktualizaci knihovny je zachovejte; jejich ztrátu odhalí `composer lint` a `composer test`.
 
 ## Externí služby a soukromí
 
@@ -191,17 +204,17 @@ Při zapnutém nAPI sledování server e-shopu posílá na výše uvedený pevn�
 - Volitelný `BALIKOVNA_WC_ENCRYPTION_KEY` obsahuje Base64 zápis 32 náhodných bajtů. Bez něj se šifrovací klíč odvozuje z platných `AUTH_KEY` a `AUTH_SALT` WordPressu pomocí HKDF. Klíč uchovávejte odděleně od databázových záloh a nikdy jej necommitujte.
 - Změna šifrovacího klíče nebo použitých WordPress salts zneplatní dříve uložené šifrované hodnoty. Obnovte původní klíč nebo zadejte nAPI údaje znovu. Plugin nečitelné hodnoty sám nepřepíše prázdným řetězcem a zobrazí chybu v nastavení.
 - Bez použitelného šifrovacího klíče a OpenSSL se nové databázové údaje neuloží v plaintextu. Existující nechráněné údaje zůstanou zachované pro řízenou migraci, ale nAPI z nich neběží, dokud není ochrana dostupná. Externě definované údaje šifrování databáze nepotřebují.
-- Odinstalace přes WordPress smaže API nastavení, pracovní dávky, zámky a cache na všech webech multisite. Objednávky, jejich výdejní místa, tracking a nastavení dopravních zón zůstávají zachované. Samotná deaktivace údaje nemaže. Smazání adresáře mimo WordPress odinstalační postup nespustí.
+- Odinstalace přes WordPress smaže API nastavení, pracovní dávky, zámky a cache na všech webech multisite. Objednávky, jejich výdejní místa, tracking a nastavení dopravních zón zůstávají zachované. Samotná deaktivace údaje nemaže, jen zruší naplánované úlohy a kontrolu aktualizací; deaktivace v celé síti to provede na všech webech. Smazání adresáře mimo WordPress odinstalační postup nespustí.
 
 ### Pravidla synchronizace a exportu
 
-- Zápis výsledku API a automatického stavu používá krátkou transakci s řádkovými zámky InnoDB. Pod zámkem porovnává aktuální stav objednávky, úplný seznam shipping itemů a jejich podací čísla i stavová metadata. Síťové požadavky probíhají mimo transakci.
-- Při souběžném stornu, změně zásilky, nedostupném zámku, netransakční tabulce nebo již otevřené cizí transakci se zápis odloží; nevytváří se nechráněný fallback. Pro nAPI zápisy jsou potřebné InnoDB objednávkové a shipping-item tabulky. Chyba `order_write_deferred` se objeví ve WooCommerce logu.
+- Zápis výsledku API a automatického stavu používá krátkou transakci s řádkovými zámky InnoDB. Pod zámkem porovnává aktuální stav objednávky, úplný seznam shipping itemů a jejich podací čísla i stavová metadata. Síťové požadavky probíhají mimo transakci. Při změně stavu objednávky se transakce potvrdí hned po jejím uložení, takže hooky `woocommerce_order_status_*`, poznámky a e-maily už neběží pod zámkem a jejich chyba změnu stavu nevrací.
+- Při souběžném stornu, změně zásilky, nedostupném zámku nebo již otevřené cizí transakci se zápis odloží; nevytváří se nechráněný fallback. Pro nAPI zápisy jsou potřebné InnoDB objednávkové a shipping-item tabulky; bez nich se API vůbec nevolá. Chyba `order_write_deferred` se objeví ve WooCommerce logu.
 - Smíšené objednávky s dalšími dopravci standardně nemění celkový stav. Vlastní koordinátor může udělit souhlas filtrem `balikovna_wc_allow_mixed_carrier_mapping` až po ověření ostatních zásilek.
 - Kurzor synchronizace uchovává zbytek nedokončené stránky a znovu ověřuje jeho způsobilost, takže oříznutí dávky nezahazuje objednávky.
 - Export odmítne neúplnou, neplatnou nebo nadlimitní hmotnost. Nové sazby ukládají efektivní smluvní limit `balikovna_max_weight_kg`; starší Balíkovna plus bez snapshotu používá konzervativně 31,5 kg. Historický vyšší smluvní limit lze potvrdit uložením metadat příslušného shipping itemu přes WooCommerce CRUD.
 - Pro více kusů se kontroluje konzervativní stohovaný obal: maxima dvou delších stran a součet nejkratších stran všech kusů. Nehledá se optimální balení. Obchod s vlastní balicí logikou může dodat skutečné rozměry filtrem `balikovna_wc_package_metrics`; katalogové údaje nezahrnují automaticky tloušťku obalu.
-- Obnova seznamu poboček je chráněná sdíleným zámkem. Po selhání následuje pětiminutový odstup; během něj se použije pouze ještě povolená nouzová cache. Denní workflow `Pickup Directory Contract` sleduje velikost a parsovatelnost obou veřejných seznamů.
+- Seznam poboček se ukládá jednou, rozdělený podle prvních dvou číslic ID do malých neautoloadovaných položek; ověření výběru načte jen jednu z nich. Zastaralý seznam se obnovuje na pozadí přes Action Scheduler a zákazník na stažení nečeká; synchronně se stahuje jen tehdy, když použitelný seznam úplně chybí. Administrace naplánuje obnovu seznamu, který chybí pro povolenou metodu nebo je zastaralý. Obnova je chráněná atomickým zámkem, ještě před stažením nastaví pětiminutový odstup pro případ selhání a zvýší limit paměti kontextem `balikovna_wc_points`. Denní workflow `Pickup Directory Contract` sleduje velikost a parsovatelnost obou veřejných seznamů.
 
 ## Rozsah a známá omezení
 
