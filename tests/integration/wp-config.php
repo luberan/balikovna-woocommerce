@@ -18,6 +18,7 @@ define( 'WP_SITEURL', WP_HOME );
 define( 'WP_DEBUG', true );
 define( 'WP_DEBUG_DISPLAY', false );
 define( 'WP_DEBUG_LOG', true );
+define( 'WP_DISABLE_FATAL_ERROR_HANDLER', true );
 define( 'DISABLE_WP_CRON', true );
 define( 'AUTOMATIC_UPDATER_DISABLED', true );
 define( 'FS_METHOD', 'direct' );

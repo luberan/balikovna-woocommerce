@@ -56,6 +56,8 @@ $plugin = 'balikovna-woocommerce/balikovna-woocommerce.php';
 $plugin_directory = WP_PLUGIN_DIR . '/balikovna-woocommerce';
 $state_path = $site . '/upgrade-state.json';
 wp_set_current_user( 1 );
+balikovna_upgrade_check( is_plugin_active( $plugin ), 'The baseline or upgraded plugin is not active.' );
+balikovna_upgrade_check( class_exists( Balikovna_WC\Credentials::class ), 'The plugin did not initialize against the selected WooCommerce runtime.' );
 foreach ( Balikovna_WC\Credentials::FIELDS as $field => $name ) {
 	balikovna_upgrade_check( null === Balikovna_WC\Credentials::external( $field ), 'Upgrade fixtures must not use external carrier credentials.' );
 }
@@ -156,11 +158,11 @@ $updates = (object) array(
 $update_fixture = static function () use ( $updates ) { return $updates; };
 add_filter( 'pre_site_transient_update_plugins', $update_fixture );
 try {
-	$result = $upgrader->upgrade( $plugin, array( 'clear_update_cache' => false ) );
+	$result = $upgrader->bulk_upgrade( array( $plugin ), array( 'clear_update_cache' => false ) );
 } finally {
 	remove_filter( 'pre_site_transient_update_plugins', $update_fixture );
 }
-balikovna_upgrade_check( true === $result, 'Native WordPress upgrade failed: ' . ( is_wp_error( $result ) ? $result->get_error_message() : implode( '; ', $skin->get_upgrade_messages() ) ) );
+balikovna_upgrade_check( is_array( $result ) && isset( $result[ $plugin ] ) && is_array( $result[ $plugin ] ), 'Native WordPress upgrade failed: ' . implode( '; ', $skin->get_upgrade_messages() ) );
 
 $php_args = json_decode( getenv( 'BALIKOVNA_PHP_ARGS' ) ?: '[]', true, 512, JSON_THROW_ON_ERROR );
 $process = proc_open(

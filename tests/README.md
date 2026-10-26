@@ -76,7 +76,7 @@ php tests/integration/upgrade.php
 
 Použijte stejné lokální databázové připojení jako u běžné integrace. Baseline je vydaný instalační ZIP připnutý verzí a SHA-256 v sekci `upgrade` souboru [versions.json](versions.json), aktuálně 1.29.2. Při změně baseline ověřte digest oficiálního release assetu; zdrojový archiv GitHub tagu není instalační balíček.
 
-Test nejprve ověří přesný obsah původního vydání, připraví syntetické nastavení a objednávku a použije skutečný `Plugin_Upgrader` s lokální aktualizační odpovědí. Nový PHP proces následně porovná všechny instalované soubory s cílovým ZIPem, aktivaci, CPT/HPOS, nastavení včetně dešifrovaných testovacích přihlašovacích údajů, objednávku i metadata výdejního místa. Kontroluje se také odstranění zastaralého souboru.
+Test nejprve ověří přesný obsah původního vydání, připraví syntetické nastavení a objednávku a použije skutečný `Plugin_Upgrader::bulk_upgrade` s lokální aktualizační odpovědí, stejně jako AJAX aktualizace v administraci WordPressu. Nový PHP proces následně porovná všechny instalované soubory s cílovým ZIPem, aktivaci, CPT/HPOS, nastavení včetně dešifrovaných testovacích přihlašovacích údajů, objednávku i metadata výdejního místa. Kontroluje se také odstranění zastaralého souboru; test plugin ručně znovu neaktivuje.
 
 PR build může mít před release bumpem stejné číslo jako vydání; verze se kvůli testu nevymýšlí ani nemění, rozhodující je přesná kontrola obsahu. Downgrade je odmítnut. Test odmítá externí přihlašovací údaje dopravce, neposílá zásilky ani e-maily a nemá povolené externí WordPress HTTP požadavky.
 
