@@ -18,7 +18,7 @@ test('Only allowlisted minor/patch GitHub Actions and development Playwright upd
   for (const updateType of ['version-update:semver-minor', 'version-update:semver-patch']) {
     assert.equal(autoMergeDecision({
       ...metadata, updateType,
-      dependencyNames: 'actions/checkout, dependabot/fetch-metadata,googleapis/release-please-action,shivammathur/setup-php',
+      dependencyNames: 'actions/cache,actions/checkout,actions/setup-node,actions/upload-artifact,dependabot/fetch-metadata,googleapis/release-please-action,shivammathur/setup-php',
     }).allowed, true);
     assert.equal(autoMergeDecision({
       ...metadata, updateType, ecosystem: 'npm_and_yarn', dependencyType: 'direct:development',

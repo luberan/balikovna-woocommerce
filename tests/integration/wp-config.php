@@ -20,6 +20,7 @@ define( 'WP_DEBUG_DISPLAY', false );
 define( 'WP_DEBUG_LOG', true );
 define( 'DISABLE_WP_CRON', true );
 define( 'AUTOMATIC_UPDATER_DISABLED', true );
+define( 'FS_METHOD', 'direct' );
 define( 'WP_HTTP_BLOCK_EXTERNAL', true );
 define( 'WP_MEMORY_LIMIT', '512M' );
 $table_prefix = 'bwc_';

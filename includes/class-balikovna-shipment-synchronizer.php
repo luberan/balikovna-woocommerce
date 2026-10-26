@@ -31,12 +31,12 @@ class Shipment_Synchronizer {
 	private $logger;
 	private $clock;
 	private $guard;
-	private $lock_token = '';
-	private $deadline   = 0;
-	private $requests   = 0;
-	private $pending    = array();
-	private $paused     = false;
-	private $lock_lost  = false;
+	private $lock_token     = '';
+	private $deadline       = 0;
+	private $requests       = 0;
+	private $pending        = array();
+	private bool $paused    = false;
+	private bool $lock_lost = false;
 
 	public function __construct(
 		Napi_Client $client,
@@ -213,6 +213,7 @@ class Shipment_Synchronizer {
 	 * Synchronize every eligible Czech Post parcel in one order.
 	 *
 	 * @return array{checked:int,global_error:Napi_Error|null}
+	 * @phpstan-impure
 	 */
 	public function sync_order( \WC_Order $order, array $settings ) {
 		if ( ! $this->orders->is_order_eligible( $order, $settings ) ) {
@@ -356,6 +357,7 @@ class Shipment_Synchronizer {
 		);
 	}
 
+	/** @phpstan-impure */
 	private function can_continue( $request = false ) {
 		if ( ! $this->deadline ) {
 			return true;

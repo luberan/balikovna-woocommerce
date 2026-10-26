@@ -115,13 +115,13 @@ class Order_Write_Guard {
 			$status  = $database->get_var(
 				$database->prepare( 'SELECT %i FROM %i WHERE %i = %d FOR UPDATE', $hpos ? 'status' : 'post_status', $tables['order'], $hpos ? 'id' : 'ID', $order->get_id() )
 			);
-			if ( $database->last_error || null === $status || (string) $status !== $expected['status'] ) {
+			if ( $this->has_query_error( $database ) || null === $status || (string) $status !== $expected['status'] ) {
 				return false;
 			}
 			$item_ids = $database->get_col(
 				$database->prepare( 'SELECT order_item_id FROM %i WHERE order_id = %d AND order_item_type = %s ORDER BY order_item_id FOR UPDATE', $tables['items'], $order->get_id(), 'shipping' )
 			);
-			if ( $database->last_error || array_map( 'intval', $item_ids ) !== array_keys( $expected['items'] ) ) {
+			if ( $this->has_query_error( $database ) || array_map( 'intval', $item_ids ) !== array_keys( $expected['items'] ) ) {
 				return false;
 			}
 			foreach ( $item_ids as $item_id ) {
@@ -129,7 +129,7 @@ class Order_Write_Guard {
 					$database->prepare( 'SELECT meta_key, meta_value FROM %i WHERE order_item_id = %d ORDER BY meta_id FOR UPDATE', $tables['meta'], $item_id ),
 					ARRAY_A
 				);
-				if ( $database->last_error || ! is_array( $rows ) ) {
+				if ( $this->has_query_error( $database ) || ! is_array( $rows ) ) {
 					return false;
 				}
 				$actual = $this->empty_item();
@@ -177,6 +177,10 @@ class Order_Write_Guard {
 			}
 			$database->suppress_errors( $previous_errors );
 		}
+	}
+
+	private function has_query_error( $database ): bool {
+		return '' !== $database->last_error;
 	}
 
 	private function database() {

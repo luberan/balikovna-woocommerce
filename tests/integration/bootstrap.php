@@ -1,5 +1,7 @@
 <?php
 
+require_once dirname( __DIR__ ) . '/version-profiles.php';
+
 $site = getenv( 'BALIKOVNA_TEST_SITE' );
 if ( ! $site || ! is_file( $site . '/.balikovna-integration-site' ) ) {
 	throw new RuntimeException( 'Set BALIKOVNA_TEST_SITE to an isolated site prepared by setup-integration.php.' );

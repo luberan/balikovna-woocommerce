@@ -5,14 +5,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
 # Least-privilege default for all jobs.
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   php-lint:
     name: PHP ${{ matrix.php }} syntax lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +41,7 @@ jobs:
   quality:
     name: Quality checks (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -45,8 +52,17 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: ${{ matrix.php }}
+          extensions: zip
           tools: composer
           coverage: none
+      - name: Locate Composer download cache
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Validate dependencies
@@ -58,6 +74,14 @@ jobs:
         run: composer test
       - name: Run WordPress and PHP compatibility checks
         run: composer lint
+      - name: Analyse production PHP types
+        if: matrix.php == '8.5'
+        run: composer analyse
+      - name: Setup Node.js for JavaScript checks
+        if: matrix.php == '8.5'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24"
       - name: Check JavaScript syntax
         if: matrix.php == '8.5'
         run: >-
@@ -82,13 +106,19 @@ jobs:
           php .github/scripts/build-plugin.php
 
   integration:
-    name: WordPress 7.1 / WooCommerce 11.1 / PHP ${{ matrix.php }} / ${{ matrix.storage }}
+    name: WordPress/WooCommerce ${{ matrix.profile }} / PHP ${{ matrix.php }} / ${{ matrix.storage }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        php: ["7.4", "8.5"]
-        storage: ["cpt", "hpos"]
+        include:
+          - {profile: current, php: "7.4", storage: cpt}
+          - {profile: current, php: "7.4", storage: hpos}
+          - {profile: current, php: "8.5", storage: cpt}
+          - {profile: current, php: "8.5", storage: hpos}
+          - {profile: minimum, php: "7.4", storage: cpt}
+          - {profile: minimum, php: "7.4", storage: hpos}
     services:
       database:
         image: mariadb:11.4.9
@@ -107,6 +137,7 @@ jobs:
       BALIKOVNA_TEST_DB_HOST: 127.0.0.1
       BALIKOVNA_TEST_DB_PORT: "3306"
       BALIKOVNA_TEST_STORAGE: ${{ matrix.storage }}
+      BALIKOVNA_TEST_VERSION_PROFILE: ${{ matrix.profile }}
       BALIKOVNA_TEST_BASE_URL: http://127.0.0.1:8873
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -117,6 +148,19 @@ jobs:
           extensions: mysqli, pdo_mysql, curl, zip, mbstring, openssl
           tools: composer
           coverage: none
+      - name: Locate Composer download cache
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+      - name: Setup Node.js and cache npm downloads
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24"
+          cache: npm
       - name: Install dependencies and build plugin
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -127,24 +171,55 @@ jobs:
       - name: Prepare isolated WordPress and WooCommerce
         run: php .github/scripts/setup-integration.php
       - name: Test real WordPress and InnoDB behavior
-        run: php vendor/phpunit/phpunit/phpunit --configuration phpunit.integration.xml.dist
+        run: |
+          set -e -o pipefail
+          php vendor/phpunit/phpunit/phpunit --configuration phpunit.integration.xml.dist 2>&1 | tee build/integration.log
+      - name: Verify upgrade from the published ZIP
+        if: matrix.profile == 'current' && matrix.php == '8.5'
+        env:
+          BALIKOVNA_TEST_SITE: /tmp/balikovna-integration-upgrade
+          BALIKOVNA_TEST_DB_NAME: balikovna_test_ci_upgrade
+          BALIKOVNA_TEST_BASE_URL: http://127.0.0.1:8874
+          BALIKOVNA_TEST_WP_ARCHIVE: /tmp/balikovna-integration/.wordpress.zip
+          BALIKOVNA_TEST_WC_ARCHIVE: /tmp/balikovna-integration/.woocommerce.zip
+        run: |
+          set -e -o pipefail
+          php .github/scripts/setup-integration.php --baseline 2>&1 | tee build/upgrade-setup.log
+          php tests/integration/upgrade.php 2>&1 | tee build/upgrade.log
       - name: Test Classic and Block checkout in Chromium
+        timeout-minutes: 15
         run: npm run test:e2e
       - name: Show integration failure logs
         if: failure()
         run: |
-          for log in "$BALIKOVNA_TEST_SITE/php-server.log" "$BALIKOVNA_TEST_SITE/wp-content/debug.log"; do
+          for log in "$BALIKOVNA_TEST_SITE/php-server.log" "$BALIKOVNA_TEST_SITE/wp-content/debug.log" /tmp/balikovna-integration-upgrade/wp-content/debug.log; do
             if [ -f "$log" ]; then
               printf '\n--- %s ---\n' "$log"
               tail -n 150 "$log"
             fi
           done
+      - name: Retain failure screenshots, traces and PHP logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: integration-${{ matrix.profile }}-php-${{ matrix.php }}-${{ matrix.storage }}-attempt-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            test-results/
+            build/integration.log
+            build/upgrade-setup.log
+            build/upgrade.log
+            /tmp/balikovna-integration/php-server.log
+            /tmp/balikovna-integration/wp-content/debug.log
+            /tmp/balikovna-integration-upgrade/wp-content/debug.log
 
   ci-result:
     name: CI result
     if: always()
     needs: [php-lint, quality, integration]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Require every CI job to pass
         env:

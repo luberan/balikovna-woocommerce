@@ -27,11 +27,14 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $readme );
 		$this->assertStringContainsString( 'WC tested up to: 11.1', $readme );
 		$this->assertStringContainsString( '| WooCommerce | 10.8 | 11.1.0 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
-		$versions = json_decode( file_get_contents( $this->rootPath( 'tests/versions.json' ) ), true );
+		$profiles = json_decode( file_get_contents( $this->rootPath( 'tests/versions.json' ) ), true );
+		$versions = $profiles['current'];
 		$composer = json_decode( file_get_contents( $this->rootPath( 'composer.json' ) ), true );
 		$this->assertSame( '7.1', $versions['wordpress'] );
 		$this->assertSame( $versions['woocommerce'], $composer['require-dev']['php-stubs/woocommerce-stubs'] );
 		$this->assertSame( $versions['wordpress'] . '.0', $composer['require-dev']['php-stubs/wordpress-stubs'] );
+		$this->assertSame( '6.9', $profiles['minimum']['wordpress'] );
+		$this->assertSame( '10.8.0', $profiles['minimum']['woocommerce'] );
 	}
 
 	public function test_updater_requires_the_release_asset(): void {
@@ -202,13 +205,19 @@ final class MetadataTest extends TestCase {
 	public function test_ci_runs_real_target_versions_and_bundled_dependency_checks(): void {
 		$ci = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/ci.yml' ) ) );
 		$integration = $ci['jobs']['integration'];
-		$this->assertSame( array( '7.4', '8.5' ), $integration['strategy']['matrix']['php'] );
-		$this->assertSame( array( 'cpt', 'hpos' ), $integration['strategy']['matrix']['storage'] );
+		$matrix = $integration['strategy']['matrix']['include'];
+		$this->assertSame(
+			array( 'current/7.4/cpt', 'current/7.4/hpos', 'current/8.5/cpt', 'current/8.5/hpos', 'minimum/7.4/cpt', 'minimum/7.4/hpos' ),
+			array_map( function ( $case ) { return $case['profile'] . '/' . $case['php'] . '/' . $case['storage']; }, $matrix )
+		);
+		$this->assertSame( '${{ matrix.profile }}', $integration['env']['BALIKOVNA_TEST_VERSION_PROFILE'] );
 		$this->assertSame( 'mariadb:11.4.9', $integration['services']['database']['image'] );
 		$commands = implode( "\n", array_column( $integration['steps'], 'run' ) );
 		$this->assertStringContainsString( 'setup-integration.php', $commands );
 		$this->assertStringContainsString( 'phpunit.integration.xml.dist', $commands );
 		$this->assertStringContainsString( 'npm run test:e2e', $commands );
+		$this->assertStringContainsString( 'setup-integration.php --baseline', $commands );
+		$this->assertStringContainsString( 'tests/integration/upgrade.php', $commands );
 		$this->assertStringContainsString( 'vendor-parsedown.php --check', implode( "\n", array_column( $ci['jobs']['quality']['steps'], 'run' ) ) );
 	}
 
@@ -288,5 +297,65 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( "needs.directory.result == 'failure'", $report['if'] );
 		$this->assertSame( 'write', $report['permissions']['issues'] );
 		$this->assertArrayNotHasKey( 'issues', $workflow['permissions'] );
+	}
+
+	public function test_ci_cancels_only_stale_ci_runs_and_retains_failure_diagnostics(): void {
+		$ci = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/ci.yml' ) ) );
+		$this->assertTrue( $ci['concurrency']['cancel-in-progress'] );
+		$this->assertSame( '${{ github.event.pull_request.number || github.ref }}', substr( $ci['concurrency']['group'], 3 ) );
+		foreach ( array( 'php-lint' => 10, 'quality' => 15, 'integration' => 30, 'ci-result' => 5 ) as $job => $timeout ) {
+			$this->assertSame( $timeout, $ci['jobs'][ $job ]['timeout-minutes'] );
+		}
+		$uploads = array_values( array_filter( $ci['jobs']['integration']['steps'], function ( $step ) {
+			return isset( $step['uses'] ) && 0 === strpos( $step['uses'], 'actions/upload-artifact@' );
+		} ) );
+		$this->assertCount( 1, $uploads );
+		$this->assertSame( 'failure()', $uploads[0]['if'] );
+		$this->assertSame( 7, $uploads[0]['with']['retention-days'] );
+		$this->assertStringContainsString( 'test-results/', $uploads[0]['with']['path'] );
+		$this->assertStringContainsString( 'build/integration.log', $uploads[0]['with']['path'] );
+		$this->assertStringContainsString( 'build/upgrade.log', $uploads[0]['with']['path'] );
+		$this->assertStringContainsString( 'debug.log', $uploads[0]['with']['path'] );
+		$this->assertStringContainsString( 'matrix.profile', $uploads[0]['with']['name'] );
+		$this->assertStringContainsString( 'github.run_attempt', $uploads[0]['with']['name'] );
+		foreach ( $ci['jobs']['integration']['steps'] as $step ) {
+			if ( isset( $step['run'] ) && false !== strpos( $step['run'], 'tee build/' ) ) {
+				$this->assertStringContainsString( 'set -e -o pipefail', $step['run'], 'Diagnostic logging must not mask a failed PHP command.' );
+			}
+		}
+	}
+
+	public function test_dependency_caches_store_downloads_and_remain_keyed_to_lock_files(): void {
+		$ci = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/ci.yml' ) ) );
+		foreach ( array( 'quality', 'integration' ) as $job ) {
+			$steps = $ci['jobs'][ $job ]['steps'];
+			$commands = implode( "\n", array_column( $steps, 'run' ) );
+			$this->assertStringContainsString( 'composer config cache-files-dir', $commands );
+			$caches = array_values( array_filter( $steps, function ( $step ) {
+				return isset( $step['uses'] ) && 0 === strpos( $step['uses'], 'actions/cache@' );
+			} ) );
+			$this->assertCount( 1, $caches );
+			$this->assertStringContainsString( "hashFiles('composer.lock')", $caches[0]['with']['key'] );
+			$this->assertSame( '${{ steps.composer-cache.outputs.dir }}', $caches[0]['with']['path'] );
+		}
+		$node = array_values( array_filter( $ci['jobs']['integration']['steps'], function ( $step ) {
+			return isset( $step['uses'] ) && 0 === strpos( $step['uses'], 'actions/setup-node@' );
+		} ) );
+		$this->assertSame( 'npm', $node[0]['with']['cache'] );
+	}
+
+	public function test_phpstan_is_blocking_and_targets_the_supported_php_floor_without_a_baseline(): void {
+		$config = Yaml::parse( file_get_contents( $this->rootPath( 'phpstan.neon.dist' ) ) );
+		$this->assertSame( 5, $config['parameters']['level'] );
+		$this->assertSame( 70433, $config['parameters']['phpVersion'] );
+		$this->assertArrayNotHasKey( 'ignoreErrors', $config['parameters'] );
+		$this->assertCount( 1, $config['includes'] );
+		$this->assertStringContainsString( 'phpstan-wordpress', $config['includes'][0] );
+		$ci = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/ci.yml' ) ) );
+		$this->assertStringContainsString( 'composer analyse', implode( "\n", array_column( $ci['jobs']['quality']['steps'], 'run' ) ) );
+		$release = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/release-please.yml' ) ) );
+		$commands = implode( "\n", array_column( $release['jobs']['build-zip']['steps'], 'run' ) );
+		$this->assertStringContainsString( 'php tooling/.github/scripts/build-plugin.php source', $commands );
+		$this->assertStringNotContainsString( 'zip -r', $commands );
 	}
 }

@@ -11,6 +11,8 @@ final class Balikovna_Test_Order_Database {
 	public $snapshot;
 	public $queries = array();
 	public $fail_query = '';
+	public $fail_read = '';
+	public $read_error = 'query failed';
 	public $engine = 'InnoDB';
 	public $lock_timeout = 50;
 	public function prepare( $sql, ...$args ) { return array( $sql, $args ); }
@@ -18,10 +20,15 @@ final class Balikovna_Test_Order_Database {
 	public function get_var( $query ) {
 		if ( is_string( $query ) ) { return $this->lock_timeout; }
 		if ( false !== strpos( $query[0], 'SELECT ENGINE' ) ) { return $this->engine; }
+		$this->last_error = 'status' === $this->fail_read ? $this->read_error : '';
 		return $this->snapshot['status'];
 	}
-	public function get_col( $query ) { return array_keys( $this->snapshot['items'] ); }
+	public function get_col( $query ) {
+		$this->last_error = 'items' === $this->fail_read ? $this->read_error : '';
+		return array_keys( $this->snapshot['items'] );
+	}
 	public function get_results( $query, $output ) {
+		$this->last_error = 'meta' === $this->fail_read ? $this->read_error : '';
 		$rows = array();
 		foreach ( $this->snapshot['items'][ $query[1][1] ] as $key => $value ) {
 			$rows[] = array( 'meta_key' => $key, 'meta_value' => $value );
@@ -66,6 +73,17 @@ final class OrderWriteGuardTest extends TestCase {
 		$this->assertFalse( $guard->run( $order, $write ) );
 		$database->snapshot['items'] = array();
 		$this->assertFalse( $guard->run( $order, $write ) );
+	}
+
+	public function test_every_locked_read_checks_the_current_nonempty_database_error(): void {
+		foreach ( array( 'status', 'items', 'meta' ) as $read ) {
+			list( $order, $database, $guard ) = $this->fixture();
+			$database->fail_read = $read;
+			$database->read_error = '0';
+			$this->assertFalse( $guard->run( $order, function () { $this->fail( 'A database read error must prevent the write.' ); } ), $read );
+			$this->assertContains( 'ROLLBACK', $database->queries );
+			$this->assertNotContains( 'COMMIT', $database->queries );
+		}
 	}
 
 	public function test_active_transaction_and_nontransactional_tables_fail_closed(): void {

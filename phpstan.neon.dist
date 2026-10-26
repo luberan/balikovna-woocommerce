@@ -1,0 +1,28 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 5
+    phpVersion: 70433
+    # Hooks and database calls can change values between calls and receive invalid input.
+    treatPhpDocTypesAsCertain: false
+    rememberPossiblyImpureFunctionValues: false
+    tmpDir: build/phpstan
+    bootstrapFiles:
+        - tests/phpstan/bootstrap.php
+    dynamicConstantNames:
+        - WC_VERSION
+    stubFiles:
+        - tests/phpstan/woocommerce.stub
+    paths:
+        - balikovna-woocommerce.php
+        - uninstall.php
+        - includes
+    excludePaths:
+        analyse:
+            - includes/lib/*
+    scanDirectories:
+        - includes/lib
+    scanFiles:
+        - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+        - vendor/php-stubs/woocommerce-stubs/woocommerce-packages-stubs.php
