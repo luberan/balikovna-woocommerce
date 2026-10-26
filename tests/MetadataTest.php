@@ -267,6 +267,11 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( 'changelog-to-readme.php CHANGELOG.md readme.txt', $commands );
 		$this->assertStringContainsString( 'git push origin "HEAD:$RELEASE_BRANCH"', $commands );
 		$this->assertStringContainsString( 'gh workflow run ci.yml', $commands );
+		$this->assertStringContainsString( 'gh api --method GET', $commands );
+		$this->assertStringContainsString( 'head=$GITHUB_REPOSITORY_OWNER:$RELEASE_BRANCH', $commands );
+		$this->assertStringNotContainsString( 'steps.release.outputs.pr', json_encode( $release ) );
+		$this->assertSame( 'release-pr', $release['jobs']['release-please']['steps'][1]['id'] );
+		$this->assertArrayNotHasKey( 'if', $release['jobs']['release-please']['steps'][1] );
 		$this->assertStringNotContainsString( '[skip ci]', $commands );
 		$this->assertStringNotContainsString( 'gh pr merge', $commands );
 		$this->assertStringNotContainsString( 'git push', implode( "\n", array_column( $release['jobs']['build-zip']['steps'], 'run' ) ) );

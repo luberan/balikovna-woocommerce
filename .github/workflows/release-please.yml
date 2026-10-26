@@ -43,8 +43,24 @@ jobs:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
+      - name: Find the open release pull request, including unchanged retries
+        id: release-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BRANCH: release-please--branches--main--components--balikovna-woocommerce
+        run: |
+          set -e
+          pr=$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+            -f state=open -f base=main -f "head=$GITHUB_REPOSITORY_OWNER:$RELEASE_BRANCH" \
+            --jq 'if length > 1 then error("Multiple release PRs found") else .[] | "number=\(.number)\nbranch=\(.head.ref)" end')
+          if [ -z "$pr" ]; then
+            echo "No open release PR needs preparation"
+          else
+            printf '%s\n' "$pr" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check out trusted release tooling
-        if: steps.release.outputs.pr != ''
+        if: steps.release-pr.outputs.number != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: main
@@ -52,24 +68,24 @@ jobs:
           persist-credentials: false
 
       - name: Check out release pull request
-        if: steps.release.outputs.pr != ''
+        if: steps.release-pr.outputs.number != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          ref: ${{ steps.release-pr.outputs.branch }}
           path: release
 
       - name: Setup PHP for release preparation
-        if: steps.release.outputs.pr != ''
+        if: steps.release-pr.outputs.number != ''
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: "8.5"
           coverage: none
 
       - name: Prepare changelog inside the release pull request
-        if: steps.release.outputs.pr != ''
+        if: steps.release-pr.outputs.number != ''
         working-directory: release
         env:
-          RELEASE_BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          RELEASE_BRANCH: ${{ steps.release-pr.outputs.branch }}
         run: |
           set -e
           php ../tooling/.github/scripts/normalize-changelog.php CHANGELOG.md
@@ -85,11 +101,11 @@ jobs:
           fi
 
       - name: Ensure CI runs on the final release pull request commit
-        if: steps.release.outputs.pr != ''
+        if: steps.release-pr.outputs.number != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
-          RELEASE_BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          PR_NUMBER: ${{ steps.release-pr.outputs.number }}
+          RELEASE_BRANCH: ${{ steps.release-pr.outputs.branch }}
         run: |
           set -e
           head=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
