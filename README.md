@@ -63,8 +63,8 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 
 | | Minimum | Testováno |
 |---|---|---|
-| WordPress | 6.9 | 7.1 |
-| WooCommerce | 10.8 | 11.1.0 |
+| WordPress | 6.9 | 7.1.2 |
+| WooCommerce | 10.8 | 11.2.0 |
 | PHP | 7.4 | 8.5 |
 
 CI ověřuje minimální i aktuální kombinaci WordPressu/WooCommerce pro CPT i HPOS. Instalace používá skutečný distribuční ZIP; na PHP 8.5 se ověřuje také upgrade z připnutého vydání se zachováním nastavení a dat objednávek. Podrobnosti a lokální příkazy jsou v [testovací dokumentaci](tests/README.md).
@@ -188,7 +188,7 @@ composer build  # čistý staging do build/balikovna-woocommerce
 
 CI běží PHP lint matrix 7.4–8.5 a blokující QA na PHP 7.4 i 8.5. Release ZIP se skládá stejným reprodukovatelným build skriptem.
 
-Jednotkové testy používají izolované runtime stuby. Samostatná integrační CI matice spouští skutečný WordPress 7.1 a WooCommerce 11.1.0 na PHP 7.4/8.5, nad MariaDB 11.4.9 s CPT i HPOS. Playwright dokončuje Classic/Block Checkout s jedním i dvěma balíky a ověřuje trvalá metadata i CSV. Náhrada widgetu v těchto testech nepředstavuje autentizovaný import do Podání Online. Postup lokálního spuštění a přesný rozsah je v [tests/README.md](tests/README.md).
+Jednotkové testy používají izolované runtime stuby. Samostatná integrační CI matice ověřuje profily `minimum` a `current` nad MariaDB 11.4.9 s CPT i HPOS. Playwright dokončuje Classic/Block Checkout s jedním i dvěma balíky a ověřuje trvalá metadata i CSV. Náhrada widgetu v těchto testech nepředstavuje autentizovaný import do Podání Online. Postup lokálního spuštění, přesné verze a rozsah jsou v [tests/README.md](tests/README.md).
 
 PHPCompatibility je připnuté na 10.0.0-alpha2 a PHPCompatibilityWP na 3.0.0-alpha2, protože stabilní řada 9 nezná moderní PHP. Jde pouze o vývojové nástroje; nedistribuují se s pluginem. Rozšíření kontroly PHP nenahrazuje integrační a browserové testy. Přibalený Parsedown 1.8.0 je namespacovaný, běží v safe mode a jeho zdroj i licence se kontrolují proti Composer locku příkazem `composer vendor:check`.
 

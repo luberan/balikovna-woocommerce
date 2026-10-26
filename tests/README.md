@@ -31,7 +31,7 @@ Potřebujete PHP s `mysqli`, `pdo_mysql`, `curl`, `zip`, `mbstring`, `openssl` a
 
 | Profil | WordPress | WooCommerce | PHP v CI | Úložiště |
 |---|---|---|---|---|
-| `current` (výchozí) | 7.1 | 11.1.0 | 7.4, 8.5 | CPT, HPOS |
+| `current` (výchozí) | 7.1.2 | 11.2.0 | 7.4, 8.5 | CPT, HPOS |
 | `minimum` | 6.9 | 10.8.0 | 7.4 | CPT, HPOS |
 
 Profil se vybírá přes `BALIKOVNA_TEST_VERSION_PROFILE`. Integrační test porovnává skutečně načtené verze a režim úložiště s vybraným profilem, nestačí tedy pouze označení jobu. Pro jiný profil nebo režim úložiště použijte nový testovací adresář a databázi.
