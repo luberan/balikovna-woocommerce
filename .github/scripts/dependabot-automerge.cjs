@@ -29,21 +29,28 @@ function autoMergeDecision({ ecosystem, updateType, dependencyNames, dependencyT
 }
 
 if (require.main === module) {
-  const decision = autoMergeDecision({
-    ecosystem: process.env.ECOSYSTEM,
-    updateType: process.env.UPDATE_TYPE,
-    dependencyNames: process.env.DEPENDENCY_NAMES || '',
-    dependencyType: process.env.DEPENDENCY_TYPE,
-    maintainerChanges: process.env.MAINTAINER_CHANGES,
-  });
-  console.log(decision.reason);
-  if (decision.allowed) {
-    execFileSync('gh', [
-      'pr', 'merge', process.env.PR_NUMBER,
-      '--repo', process.env.GITHUB_REPOSITORY,
-      '--auto', '--squash',
-      '--match-head-commit', process.env.PR_HEAD_SHA,
-    ], { stdio: 'inherit' });
+  const pr = [process.env.PR_NUMBER, '--repo', process.env.GITHUB_REPOSITORY];
+  if (process.argv.includes('--disable')) {
+    const state = JSON.parse(execFileSync('gh', ['pr', 'view', ...pr, '--json', 'autoMergeRequest'], { encoding: 'utf8' }));
+    if (state.autoMergeRequest) {
+      execFileSync('gh', ['pr', 'merge', ...pr, '--disable-auto'], { stdio: 'inherit' });
+    }
+    console.log('Previous auto-merge is disabled; the current changes must be verified again.');
+  } else {
+    const decision = autoMergeDecision({
+      ecosystem: process.env.ECOSYSTEM,
+      updateType: process.env.UPDATE_TYPE,
+      dependencyNames: process.env.DEPENDENCY_NAMES || '',
+      dependencyType: process.env.DEPENDENCY_TYPE,
+      maintainerChanges: process.env.MAINTAINER_CHANGES,
+    });
+    console.log(decision.reason);
+    if (decision.allowed) {
+      execFileSync('gh', [
+        'pr', 'merge', ...pr, '--auto', '--squash',
+        '--match-head-commit', process.env.PR_HEAD_SHA,
+      ], { stdio: 'inherit' });
+    }
   }
 }
 

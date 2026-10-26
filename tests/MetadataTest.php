@@ -248,11 +248,14 @@ final class MetadataTest extends TestCase {
 		$workflow = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/dependabot-automerge.yml' ) ) );
 		$this->assertArrayHasKey( 'pull_request_target', $workflow['on'] );
 		$job = $workflow['jobs']['auto-merge'];
-		$this->assertStringContainsString( "github.actor == 'dependabot[bot]'", $job['if'] );
 		$this->assertStringContainsString( "github.event.pull_request.user.login == 'dependabot[bot]'", $job['if'] );
 		$this->assertStringContainsString( 'github.event.pull_request.head.repo.full_name == github.repository', $job['if'] );
-		$this->assertSame( '${{ github.event.pull_request.base.sha }}', $job['steps'][1]['with']['ref'] );
-		$this->assertFalse( $job['steps'][1]['with']['persist-credentials'] );
+		$this->assertSame( '${{ github.event.pull_request.base.sha }}', $job['steps'][0]['with']['ref'] );
+		$this->assertFalse( $job['steps'][0]['with']['persist-credentials'] );
+		$this->assertStringContainsString( '--disable', $job['steps'][1]['run'] );
+		$this->assertArrayNotHasKey( 'if', $job['steps'][1] );
+		$this->assertSame( "github.actor == 'dependabot[bot]'", $job['steps'][2]['if'] );
+		$this->assertTrue( $workflow['concurrency']['cancel-in-progress'] );
 	}
 
 	public function test_release_changelog_and_ci_are_prepared_before_manual_merge(): void {

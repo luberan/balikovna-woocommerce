@@ -50,7 +50,7 @@ test('Major, Composer, unknown, mixed, production and maintainer-modified update
   }
 });
 
-function runPolicy(overrides = {}, execute = () => {}) {
+function runPolicy(overrides = {}, execute = () => {}, args = []) {
   const calls = [];
   const main = { exports: {} };
   const env = {
@@ -65,7 +65,7 @@ function runPolicy(overrides = {}, execute = () => {}) {
   };
   requireMock.main = main;
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../.github/scripts/dependabot-automerge.cjs'), 'utf8'), {
-    require: requireMock, module: main, process: { env }, console: { log: () => {} },
+    require: requireMock, module: main, process: { env, argv: ['node', 'dependabot-automerge.cjs', ...args] }, console: { log: () => {} },
   });
   return calls;
 }
@@ -78,6 +78,15 @@ test('Auto-merge uses native CI-gated squash merging and pins the verified PR he
   assert.equal(options.stdio, 'inherit');
   assert.equal(runPolicy({ UPDATE_TYPE: 'version-update:semver-major' }).length, 0);
   assert.throws(() => runPolicy({}, () => { throw new Error('merge rejected'); }), /merge rejected/);
+});
+
+test('Existing auto-merge is revoked before revalidation, including human pushes and verification failures', () => {
+  const calls = runPolicy({}, () => JSON.stringify({ autoMergeRequest: {} }), ['--disable']);
+  assert.equal(calls.length, 2);
+  assert.equal(Array.from(calls[0][1]).join(' '), 'pr view 123 --repo owner/repo --json autoMergeRequest');
+  assert.equal(Array.from(calls[1][1]).join(' '), 'pr merge 123 --repo owner/repo --disable-auto');
+  assert.equal(runPolicy({}, () => JSON.stringify({ autoMergeRequest: null }), ['--disable']).length, 1);
+  assert.throws(() => runPolicy({}, () => { throw new Error('reset rejected'); }, ['--disable']), /reset rejected/);
 });
 
 function incident(state = 'open', overrides = {}) {
