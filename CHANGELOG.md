@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.29.3](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.2...v1.29.3) (2026-10-26)
+
+
+### 🔧 Kompatibilita
+
+* test WordPress 7.1.2 and WooCommerce 11.2 ([2c008eb](https://github.com/luberan/balikovna-woocommerce/commit/2c008eb4ec4268604d9ee5bb6a67b692be433090))
+
+
+### 🛠 CI
+
+* automate dependency maintenance and protected releases ([7cb0f8d](https://github.com/luberan/balikovna-woocommerce/commit/7cb0f8d6778c02dd48b9c27ec4289df33e9ff49f))
+* bump shivammathur/setup-php from 2.37.2 to 2.40.0 in the actions-minor-and-patch group ([#59](https://github.com/luberan/balikovna-woocommerce/issues/59)) ([8b08f3c](https://github.com/luberan/balikovna-woocommerce/commit/8b08f3c13112e501d938cce6342eb5add8a1d493))
+* require native approval for release pull request workflows ([42d1a05](https://github.com/luberan/balikovna-woocommerce/commit/42d1a051a9a7056c15c3ed60f462e50a02992f26))
+* test minimum runtimes, ZIP upgrades and PHP types ([29d38e2](https://github.com/luberan/balikovna-woocommerce/commit/29d38e29c3b4c4d27feef2d3e971b5409117b462))
+
 ## [1.29.2](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.1...v1.29.2) (2026-10-03)
 
 
