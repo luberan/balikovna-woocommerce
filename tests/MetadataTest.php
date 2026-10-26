@@ -167,7 +167,7 @@ final class MetadataTest extends TestCase {
 	}
 
 	public function test_workflows_are_valid_and_actions_are_immutable(): void {
-		foreach ( array( '.github/workflows/ci.yml', '.github/workflows/release-please.yml', '.github/workflows/points-contract.yml' ) as $path ) {
+		foreach ( array( '.github/workflows/ci.yml', '.github/workflows/release-please.yml', '.github/workflows/points-contract.yml', '.github/workflows/dependabot-automerge.yml' ) as $path ) {
 			$contents = file_get_contents( $this->rootPath( $path ) );
 			$this->assertIsArray( Yaml::parse( $contents ) );
 			preg_match_all( '/uses:\s*[^@\s]+@([^\s#]+)/', $contents, $matches );
@@ -210,5 +210,81 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( 'phpunit.integration.xml.dist', $commands );
 		$this->assertStringContainsString( 'npm run test:e2e', $commands );
 		$this->assertStringContainsString( 'vendor-parsedown.php --check', implode( "\n", array_column( $ci['jobs']['quality']['steps'], 'run' ) ) );
+	}
+
+	public function test_dependabot_updates_all_ecosystems_daily_without_grouping_major_updates(): void {
+		$config = Yaml::parse( file_get_contents( $this->rootPath( '.github/dependabot.yml' ) ) );
+		$this->assertSame( 2, $config['version'] );
+		$this->assertSame( array( 'github-actions', 'composer', 'npm' ), array_column( $config['updates'], 'package-ecosystem' ) );
+		foreach ( $config['updates'] as $update ) {
+			$this->assertSame( '/', $update['directory'] );
+			$this->assertSame( 'daily', $update['schedule']['interval'] );
+			$this->assertSame( 'Europe/Prague', $update['schedule']['timezone'] );
+			foreach ( $update['groups'] as $group ) {
+				$this->assertSame( array( 'minor', 'patch' ), $group['update-types'] );
+			}
+		}
+	}
+
+	public function test_required_ci_gate_checks_all_jobs_even_after_failure(): void {
+		$ci = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/ci.yml' ) ) );
+		$gate = $ci['jobs']['ci-result'];
+		$this->assertArrayHasKey( 'workflow_dispatch', $ci['on'] );
+		$this->assertSame( 'CI result', $gate['name'] );
+		$this->assertSame( 'always()', $gate['if'] );
+		$this->assertSame( array( 'php-lint', 'quality', 'integration' ), $gate['needs'] );
+		$this->assertSame(
+			array(
+				'PHP_LINT' => '${{ needs.php-lint.result }}',
+				'QUALITY' => '${{ needs.quality.result }}',
+				'INTEGRATION' => '${{ needs.integration.result }}',
+			),
+			$gate['steps'][0]['env']
+		);
+		$this->assertStringContainsString( 'exit 1', $gate['steps'][0]['run'] );
+	}
+
+	public function test_privileged_dependabot_workflow_only_runs_trusted_base_code(): void {
+		$workflow = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/dependabot-automerge.yml' ) ) );
+		$this->assertArrayHasKey( 'pull_request_target', $workflow['on'] );
+		$job = $workflow['jobs']['auto-merge'];
+		$this->assertStringContainsString( "github.event.pull_request.user.login == 'dependabot[bot]'", $job['if'] );
+		$this->assertStringContainsString( 'github.event.pull_request.head.repo.full_name == github.repository', $job['if'] );
+		$this->assertSame( '${{ github.event.pull_request.base.sha }}', $job['steps'][0]['with']['ref'] );
+		$this->assertFalse( $job['steps'][0]['with']['persist-credentials'] );
+		$this->assertStringContainsString( '--disable', $job['steps'][1]['run'] );
+		$this->assertArrayNotHasKey( 'if', $job['steps'][1] );
+		$this->assertSame( "github.actor == 'dependabot[bot]'", $job['steps'][2]['if'] );
+		$this->assertTrue( $workflow['concurrency']['cancel-in-progress'] );
+	}
+
+	public function test_release_changelog_and_ci_are_prepared_before_manual_merge(): void {
+		$release = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/release-please.yml' ) ) );
+		$this->assertNotEmpty( $release['on']['schedule'] );
+		$this->assertFalse( $release['concurrency']['cancel-in-progress'] );
+		$this->assertSame( 'write', $release['jobs']['release-please']['permissions']['actions'] );
+		$commands = implode( "\n", array_column( $release['jobs']['release-please']['steps'], 'run' ) );
+		$this->assertStringContainsString( 'changelog-to-readme.php CHANGELOG.md readme.txt', $commands );
+		$this->assertStringContainsString( 'git push origin "HEAD:$RELEASE_BRANCH"', $commands );
+		$this->assertStringContainsString( 'gh workflow run ci.yml', $commands );
+		$this->assertStringContainsString( 'gh api --method GET', $commands );
+		$this->assertStringContainsString( 'head=$GITHUB_REPOSITORY_OWNER:$RELEASE_BRANCH', $commands );
+		$this->assertStringNotContainsString( 'steps.release.outputs.pr', json_encode( $release ) );
+		$this->assertSame( 'release-pr', $release['jobs']['release-please']['steps'][1]['id'] );
+		$this->assertArrayNotHasKey( 'if', $release['jobs']['release-please']['steps'][1] );
+		$this->assertStringNotContainsString( '[skip ci]', $commands );
+		$this->assertStringNotContainsString( 'gh pr merge', $commands );
+		$this->assertStringNotContainsString( 'git push', implode( "\n", array_column( $release['jobs']['build-zip']['steps'], 'run' ) ) );
+	}
+
+	public function test_directory_incidents_are_serialized_and_report_both_failure_and_recovery(): void {
+		$workflow = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/points-contract.yml' ) ) );
+		$this->assertFalse( $workflow['concurrency']['cancel-in-progress'] );
+		$report = $workflow['jobs']['report'];
+		$this->assertSame( 'directory', $report['needs'] );
+		$this->assertStringContainsString( "needs.directory.result == 'success'", $report['if'] );
+		$this->assertStringContainsString( "needs.directory.result == 'failure'", $report['if'] );
+		$this->assertSame( 'write', $report['permissions']['issues'] );
+		$this->assertArrayNotHasKey( 'issues', $workflow['permissions'] );
 	}
 }

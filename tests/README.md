@@ -61,3 +61,5 @@ Playwright spouští dočasný PHP server pouze na localhost a nepřebírá již
 Testovací widget a referenční seznam jsou řízené fixtures; testy nevolají nAPI, neposílají e-maily ani nevytvářejí skutečné zásilky. Reálné CIS/ZSK přihlášení a import CSV do Podání Online vyžadují zvláštní akceptační ověření se smluvním testovacím účtem dopravce. Interpretace HMAC klíče se bez oficiálního referenčního vektoru nemění.
 
 Veřejný seznam poboček lze zkontrolovat bez přihlašovacích údajů příkazem `php .github/scripts/check-points-api.php`. Denní CI workflow sleduje oba typy míst, limit 8 MiB a parsovatelnost aktuálním produkčním parserem.
+
+`npm run test:js` ověřuje také pravidla Dependabot auto-merge a životní cyklus incident issue (první i opakované selhání, stránkování, opětovné otevření, zotavení a chyby GitHub API). Tyto testy používají mock API a nevytvářejí skutečná issues. `composer test` kontroluje konfiguraci denních aktualizací, úplnost povinného CI checku, důvěryhodný checkout v privilegovaném workflow a přípravu release PR bez přímého zápisu do hlavní větve.

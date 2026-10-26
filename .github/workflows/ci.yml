@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # Least-privilege default for all jobs.
 permissions:
@@ -140,3 +141,20 @@ jobs:
               tail -n 150 "$log"
             fi
           done
+
+  ci-result:
+    name: CI result
+    if: always()
+    needs: [php-lint, quality, integration]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every CI job to pass
+        env:
+          PHP_LINT: ${{ needs.php-lint.result }}
+          QUALITY: ${{ needs.quality.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+        run: |
+          if [ "$PHP_LINT" != success ] || [ "$QUALITY" != success ] || [ "$INTEGRATION" != success ]; then
+            echo "::error::CI failed: lint=$PHP_LINT, quality=$QUALITY, integration=$INTEGRATION"
+            exit 1
+          fi
