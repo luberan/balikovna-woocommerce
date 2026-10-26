@@ -20,19 +20,20 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( 'Requires at least: 6.9', $plugin );
 		$this->assertStringContainsString( 'Requires at least: 6.9', $readme );
 		$this->assertMatchesRegularExpression( '/^ \* Requires Plugins: woocommerce\r?$/m', $plugin );
-		$this->assertMatchesRegularExpression( '/^Tested up to: 7\.1\r?$/m', $readme );
-		$this->assertStringContainsString( '| WordPress | 6.9 | 7.1 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
+		$this->assertMatchesRegularExpression( '/^Tested up to: 7\.1\.2\r?$/m', $readme );
+		$this->assertStringContainsString( '| WordPress | 6.9 | 7.1.2 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $plugin );
-		$this->assertStringContainsString( 'WC tested up to: 11.1', $plugin );
+		$this->assertStringContainsString( 'WC tested up to: 11.2', $plugin );
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $readme );
-		$this->assertStringContainsString( 'WC tested up to: 11.1', $readme );
-		$this->assertStringContainsString( '| WooCommerce | 10.8 | 11.1.0 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
+		$this->assertStringContainsString( 'WC tested up to: 11.2', $readme );
+		$this->assertStringContainsString( '| WooCommerce | 10.8 | 11.2.0 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
 		$profiles = json_decode( file_get_contents( $this->rootPath( 'tests/versions.json' ) ), true );
 		$versions = $profiles['current'];
 		$composer = json_decode( file_get_contents( $this->rootPath( 'composer.json' ) ), true );
-		$this->assertSame( '7.1', $versions['wordpress'] );
+		$this->assertSame( '7.1.2', $versions['wordpress'] );
 		$this->assertSame( $versions['woocommerce'], $composer['require-dev']['php-stubs/woocommerce-stubs'] );
-		$this->assertSame( $versions['wordpress'] . '.0', $composer['require-dev']['php-stubs/wordpress-stubs'] );
+		$wordpress_version = implode( '.', array_pad( explode( '.', $versions['wordpress'] ), 3, '0' ) );
+		$this->assertSame( $wordpress_version, $composer['require-dev']['php-stubs/wordpress-stubs'] );
 		$this->assertSame( '6.9', $profiles['minimum']['wordpress'] );
 		$this->assertSame( '10.8.0', $profiles['minimum']['woocommerce'] );
 	}

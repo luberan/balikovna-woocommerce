@@ -10,8 +10,8 @@ final class VersionProfilesTest extends TestCase {
 		$current = balikovna_test_versions( 'current' );
 		$this->assertSame( '6.9', $minimum['wordpress'] );
 		$this->assertSame( '10.8.0', $minimum['woocommerce'] );
-		$this->assertSame( '7.1', $current['wordpress'] );
-		$this->assertSame( '11.1.0', $current['woocommerce'] );
+		$this->assertSame( '7.1.2', $current['wordpress'] );
+		$this->assertSame( '11.2.0', $current['woocommerce'] );
 		foreach ( array( $minimum, $current ) as $profile ) {
 			$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/', $profile['woocommerce_sha256'] );
 		}

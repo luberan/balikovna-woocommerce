@@ -2,10 +2,10 @@
 Contributors: lukasberan
 Tags: woocommerce, shipping, balikovna, ceska-posta, pickup
 Requires at least: 6.9
-Tested up to: 7.1
+Tested up to: 7.1.2
 Requires PHP: 7.4
 WC requires at least: 10.8
-WC tested up to: 11.1
+WC tested up to: 11.2
 <!-- x-release-please-start-version -->
 Stable tag: 1.29.2
 <!-- x-release-please-end -->
@@ -103,7 +103,7 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 * Action Scheduler vyžaduje funkční WP-Cron nebo externí pravidelné volání `wp-cron.php`. Hooky jsou `balikovna_wc_sync_shipment_statuses` a `balikovna_wc_refresh_points`, log source `balikovna-woocommerce-tracking`.
 * Synchronizace stavů vyžaduje transakční InnoDB tabulky objednávek; bez nich se API nevolá a nastavení ukáže chybu `unsupported_database`.
 * Kódy produktů a doplňkových služeb musí odpovídat smlouvě a konfiguraci Podání Online.
-* CI kromě unit testů spouští integrační testy na skutečném WordPressu 7.1 a WooCommerce 11.1 (CPT i HPOS, MariaDB, PHP 7.4 a 8.5) a browserové end-to-end testy klasické i blokové pokladny. Skutečné přihlášení do nAPI, platební brány a import CSV do Podání Online tyto testy nepokrývají; ověřte je se smluvním účtem.
+* CI kromě unit testů ověřuje minimální i aktuální testovací kombinaci WordPressu a WooCommerce (CPT i HPOS, MariaDB, PHP 7.4 a 8.5) a browserové end-to-end testy klasické i blokové pokladny. Skutečné přihlášení do nAPI, platební brány a import CSV do Podání Online tyto testy nepokrývají; ověřte je se smluvním účtem.
 
 == Roadmap ==
 
