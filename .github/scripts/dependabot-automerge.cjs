@@ -2,7 +2,10 @@ const { execFileSync } = require('node:child_process');
 
 const allowedDependencies = {
   github_actions: new Set([
+    'actions/cache',
     'actions/checkout',
+    'actions/setup-node',
+    'actions/upload-artifact',
     'dependabot/fetch-metadata',
     'googleapis/release-please-action',
     'shivammathur/setup-php',

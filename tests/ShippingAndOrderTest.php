@@ -78,6 +78,31 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertNull( $method->resolve( '5|-10', 1 ) );
 	}
 
+	public function test_shipping_settings_action_calls_the_boolean_saver_once(): void {
+		$method = new class() extends Shipping_Method_Base {
+			public $title = '';
+			public $tax_status = '';
+			public $method_title = 'Hook fixture';
+			public $save_calls = 0;
+			public function __construct() {
+				$this->id = 'balikovna_hook_fixture';
+				$this->service = Balikovna_WC\Services::get( 'balikovna' );
+				$this->init();
+			}
+			public function init_form_fields() {}
+			public function init_settings() {}
+			public function process_admin_options() { ++$this->save_calls; return true; }
+		};
+		$hook = 'woocommerce_update_options_shipping_balikovna_hook_fixture';
+		try {
+			do_action( $hook );
+			$this->assertSame( 1, $method->save_calls );
+			$this->assertTrue( $method->process_admin_options() );
+		} finally {
+			remove_all_filters( $hook );
+		}
+	}
+
 	public function test_invalid_weight_table_is_reported_to_the_zone_modal(): void {
 		$method = new Balikovna_Test_Shipping_Method();
 		$this->assertSame( "5.000|79.00\n10.000|119.00", $method->validate_textarea_field( 'weight_table', "10|119\n5,0|79" ) );

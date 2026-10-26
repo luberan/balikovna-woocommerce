@@ -70,7 +70,11 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		$this->parcel_type       = $this->get_option( 'parcel_type', $this->service['service_code'] ?? '' );
 		$this->max_weight_kg     = $this->get_option( 'max_weight_kg', $this->service['max_weight_kg'] ?? '' );
 
-		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
+		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options_action' ) );
+	}
+
+	public function process_admin_options_action(): void {
+		$this->process_admin_options();
 	}
 
 	public function init_form_fields() {
@@ -374,7 +378,14 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 	 */
 	protected function parse_weight_table( $table ) {
 		$lines = preg_split( '/\r?\n/', trim( (string) $table ) );
-		$lines = array_values( array_filter( array_map( 'trim', (array) $lines ), 'strlen' ) );
+		$lines = array_values(
+			array_filter(
+				array_map( 'trim', (array) $lines ),
+				static function ( $line ) {
+					return '' !== $line;
+				}
+			)
+		);
 		if ( ! $lines ) {
 			return new \WP_Error( 'balikovna_empty_weight_table', __( 'Tabulka hmotností nesmí být prázdná.', 'balikovna-wc' ) );
 		}

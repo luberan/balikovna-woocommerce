@@ -228,6 +228,25 @@ final class WorkflowRegressionTest extends TestCase {
 		}
 	}
 
+	public function test_reinitializing_a_shipping_method_keeps_one_settings_action_callback(): void {
+		$method = new class() extends Balikovna_WC\Shipping_Method_Base {
+			protected static $service_id = 'balikovna';
+			public $save_calls = 0;
+			public function process_admin_options() { ++$this->save_calls; return true; }
+		};
+		remove_action( 'woocommerce_update_options_shipping_balikovna', array( $method, 'process_admin_options_action' ) );
+		$method->id = 'balikovna_reentrant_fixture';
+		$hook = 'woocommerce_update_options_shipping_' . $method->id;
+		try {
+			$method->init();
+			$method->init();
+			do_action( $hook );
+			$this->assertSame( 1, $method->save_calls );
+		} finally {
+			remove_action( $hook, array( $method, 'process_admin_options_action' ) );
+		}
+	}
+
 	public function test_block_picker_loads_wherever_the_checkout_block_renders(): void {
 		if ( ! WC()->cart ) {
 			wc_load_cart();

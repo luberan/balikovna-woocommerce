@@ -33,7 +33,7 @@ Otevřete issue typu „Feature request" s popisem use-case a alternativ, které
 
 ## Spuštění lokálně
 
-Runtime plugin nemá kompilaci assetů – stačí jej naklonovat do `wp-content/plugins/`. Release staging se skládá příkazem `composer build`.
+Runtime plugin nemá kompilaci assetů – stačí jej naklonovat do `wp-content/plugins/`. `composer build` vytvoří staging i distribuční ZIP; vývojové prostředí proto potřebuje PHP rozšíření `zip`.
 
 Doporučená lokální stack (libovolná z nich):
 - [wp-env](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) (`npx wp-env start`)
@@ -62,15 +62,20 @@ Regresní testy a blokující WordPress/PHPCompatibility kontrola:
 ```
 composer test
 composer lint
+composer analyse
 ```
+
+PHPStan běží na úrovni 5 nad vlastním pluginovým PHP kódem s cílovým PHP 7.4.33 a WordPress/WooCommerce stuby, bez baseline a plošného ignorování chyb. Matice minimálních verzí, test ZIP upgradu a práce s diagnostickými artefakty jsou popsané v [tests/README.md](tests/README.md).
 
 ## Automatizace údržby a vydávání
 
 - Dependabot kontroluje GitHub Actions, Composer a npm v režimu `daily`, tedy každý pracovní den v 05:17 v časové zóně `Europe/Prague`. Bezpečnostní aktualizace reagují na nalezené zranitelnosti nezávisle na tomto rozvrhu. Minor/patch aktualizace se seskupují po ekosystému; major aktualizace zůstávají oddělené.
 - Automatické squash sloučení je omezené na minor/patch aktualizace explicitně povolených Actions a vývojových Playwright závislostí v [pravidlech auto-merge](.github/scripts/dependabot-automerge.cjs). Při každé změně PR se předchozí auto-merge vypne a ověří se nové změny; ruční push ani selhání ověření jej znovu nepovolí. Composer, major aktualizace, neznámé závislosti a změny upravené maintainerem vyžadují ruční posouzení. Bot neobchází ochranu větve ani neschvaluje vlastní PR.
 - Hlavní větev vyžaduje PR a úspěšný check `CI result` z GitHub Actions nad aktuální větví. Tento souhrnný check selže také při přeskočení nebo zrušení některé povinné sady testů. Pravidla se nastavují v GitHub repository rulesetu; samotná změna YAML ochranu větve nezapíná.
+- Starší CI běhy stejného PR se ruší, jednotlivé joby mají časové limity a cache obsahují pouze stažené Composer/npm balíčky podle lock souborů. Při selhání integračních/browserových testů se screenshoty, traces a PHP logy uchovají sedm dní. Release workflow se při novém commitu neruší.
 - Release Please připraví verze, normalizovaný changelog i jeho převod do [readme.txt](readme.txt) přímo v release PR. Otevřený release PR se vyhledává i při nezměněných release notes, aby opakovaný běh dokončil případnou přerušenou přípravu. GitHub u PR vytvořených nebo aktualizovaných přes `GITHUB_TOKEN` vyžaduje ruční schválení PR workflow: po dokončení přípravy otevřete release PR, zvolte **Approve workflows to run** a počkejte na úspěšný `CI result`. Samostatný `workflow_dispatch` tento schvalovací krok nenahrazuje. **Release PR se poté slučuje ručně**. Následně workflow vytvoří tag a GitHub Release a přiloží distribuční ZIP. Z vydávání se již nezapisuje přímo do hlavní větve a není potřeba PAT, GitHub App ani výjimka z jejích ochran.
 - Sloučení provedené přes `GITHUB_TOKEN` samo nespouští další workflow. Denní běh Release Please v 08:41 UTC proto doplní release PR i po automaticky sloučených aktualizacích. Pro okamžitou kontrolu lze Release Please spustit ručně; vstup `release_tag` zůstává určený k doplnění chybějícího ZIPu existujícího vydání.
+- CI i publikování používají jediný [balicí skript](.github/scripts/build-plugin.php). ZIP má kořenovou složku `balikovna-woocommerce`, obsahuje distribuční allowlist, licence a normalizovaný changelog; Composer, npm, testy ani konfigurace CI se nebalí.
 - Denní kontrola adresáře poboček při selhání založí nebo aktualizuje jediné incident issue s odkazem na běh. Po zotavení je uzavře a při opakování znovu otevře. Souběžné kontroly se řadí do fronty, aby nevznikala duplicitní hlášení; podrobnosti zůstávají v logu Actions.
 
 ## Licence

@@ -1,5 +1,16 @@
 {
-  "wordpress": "7.1",
-  "woocommerce": "11.1.0",
-  "woocommerce_sha256": "ab56c02b4e0b0685702408624822d8f598ba8f9a9333bcc3673b5da24e03e4f1"
+  "current": {
+    "wordpress": "7.1",
+    "woocommerce": "11.1.0",
+    "woocommerce_sha256": "ab56c02b4e0b0685702408624822d8f598ba8f9a9333bcc3673b5da24e03e4f1"
+  },
+  "minimum": {
+    "wordpress": "6.9",
+    "woocommerce": "10.8.0",
+    "woocommerce_sha256": "43d4294807ab97df44323363262e41b91b8a9374e02a464c7050562869ab5f06"
+  },
+  "upgrade": {
+    "version": "1.29.2",
+    "sha256": "bc920727e6a4db4f3085cc93081c51fbab2733cf5c6ce1618e0e1b41ddb2adb0"
+  }
 }

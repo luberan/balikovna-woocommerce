@@ -1,6 +1,6 @@
 <?php
 /**
- * Build the release staging directory from an explicit allowlist.
+ * Build the release staging directory and ZIP from an explicit allowlist.
  *
  * Usage: php .github/scripts/build-plugin.php
  */
@@ -28,6 +28,24 @@ $allowlist = array(
 function fail( string $message ): void {
 	fwrite( STDERR, $message . PHP_EOL );
 	exit( 1 );
+}
+
+function runBuildScript( string $script, array $arguments ): void {
+	$process = proc_open(
+		array_merge( array( PHP_BINARY, __DIR__ . '/' . $script ), $arguments ),
+		array( 0 => STDIN, 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ),
+		$pipes
+	);
+	if ( ! is_resource( $process ) ) {
+		throw new RuntimeException( 'Unable to start release preparation: ' . $script );
+	}
+	fwrite( STDOUT, stream_get_contents( $pipes[1] ) );
+	fwrite( STDERR, stream_get_contents( $pipes[2] ) );
+	fclose( $pipes[1] );
+	fclose( $pipes[2] );
+	if ( 0 !== proc_close( $process ) ) {
+		throw new RuntimeException( 'Release preparation failed: ' . $script );
+	}
 }
 
 function removeTree( string $path ): void {
@@ -137,4 +155,43 @@ if ( ! is_array( $parserManifest ) || version_compare( $parserManifest['version'
 	fail( 'Bundled Parsedown version, checksum or license is invalid.' );
 }
 
+if ( is_file( $root . '/CHANGELOG.md' ) ) {
+	$changelog = tempnam( $buildRoot, 'changelog-' );
+	if ( false === $changelog ) {
+		fail( 'Unable to create a temporary release changelog.' );
+	}
+	try {
+		if ( ! copy( $root . '/CHANGELOG.md', $changelog ) ) {
+			throw new RuntimeException( 'Unable to copy the release changelog.' );
+		}
+		runBuildScript( 'normalize-changelog.php', array( $changelog ) );
+		runBuildScript( 'changelog-to-readme.php', array( $changelog, $target . '/readme.txt' ) );
+	} finally {
+		if ( ! unlink( $changelog ) ) {
+			throw new RuntimeException( 'Unable to remove the temporary release changelog.' );
+		}
+	}
+}
+
+$archivePath = $buildRoot . DIRECTORY_SEPARATOR . $slug . '.zip';
+$archive = new ZipArchive();
+if ( true !== $archive->open( $archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE ) || ! $archive->addEmptyDir( $slug ) ) {
+	fail( 'Unable to create the plugin ZIP.' );
+}
+$files = new RecursiveIteratorIterator(
+	new RecursiveDirectoryIterator( $target, FilesystemIterator::SKIP_DOTS ),
+	RecursiveIteratorIterator::SELF_FIRST
+);
+foreach ( $files as $file ) {
+	$name = $slug . '/' . str_replace( '\\', '/', substr( $file->getPathname(), strlen( $target ) + 1 ) );
+	$added = $file->isDir() ? $archive->addEmptyDir( $name ) : $archive->addFile( $file->getPathname(), $name );
+	if ( ! $added ) {
+		fail( 'Unable to add a plugin ZIP entry: ' . $name );
+	}
+}
+if ( ! $archive->close() ) {
+	fail( 'Unable to finish the plugin ZIP.' );
+}
+
 fwrite( STDOUT, 'Staged ' . $slug . ' ' . $headerVersion . ' in ' . $target . PHP_EOL );
+fwrite( STDOUT, 'Built ' . $archivePath . PHP_EOL );

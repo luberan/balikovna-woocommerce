@@ -6,6 +6,12 @@ if ( 'cli' !== PHP_SAPI ) {
 	exit( 1 );
 }
 $root = dirname( __DIR__, 2 );
+require_once $root . '/tests/version-profiles.php';
+$versions = balikovna_test_versions();
+$baseline = 2 === $argc && '--baseline' === $argv[1];
+if ( $argc > 2 || ( 2 === $argc && ! $baseline ) ) {
+	throw new RuntimeException( 'Usage: setup-integration.php [--baseline]' );
+}
 $site = rtrim( (string) getenv( 'BALIKOVNA_TEST_SITE' ), '/\\' );
 $database = (string) getenv( 'BALIKOVNA_TEST_DB_NAME' );
 $host = getenv( 'BALIKOVNA_TEST_DB_HOST' ) ?: '127.0.0.1';
@@ -20,8 +26,6 @@ if ( ! is_dir( $site ) && ! mkdir( $site, 0777, true ) ) {
 	throw new RuntimeException( 'Unable to create the test directory.' );
 }
 file_put_contents( $site . '/.balikovna-integration-site', "Isolated Balikovna integration fixture.\n" );
-$versions = json_decode( file_get_contents( $root . '/tests/versions.json' ), true, 512, JSON_THROW_ON_ERROR );
-
 function integration_download( string $url, string $target ): void {
 	if ( is_file( $target ) ) {
 		return;
@@ -76,6 +80,7 @@ function integration_extract( string $archive, string $destination, string $pref
 	if ( ! $zip->extractTo( $destination ) ) {
 		throw new RuntimeException( 'Fixture ZIP extraction failed.' );
 	}
+	$zip->close();
 }
 
 $wordpress_archive = getenv( 'BALIKOVNA_TEST_WP_ARCHIVE' ) ?: $site . '/.wordpress.zip';
@@ -88,11 +93,19 @@ if ( ! hash_equals( $versions['woocommerce_sha256'], hash_file( 'sha256', $wooco
 integration_extract( $wordpress_archive, $site . '/.source', 'wordpress' );
 integration_copy( $site . '/.source/wordpress', $site );
 integration_extract( $woocommerce_archive, $site . '/wp-content/plugins', 'woocommerce' );
-$plugin_source = $root . '/build/balikovna-woocommerce';
-if ( ! is_file( $plugin_source . '/uninstall.php' ) ) {
-	throw new RuntimeException( 'Run composer build before preparing the integration site.' );
+$plugin_archive = $root . '/build/balikovna-woocommerce.zip';
+if ( $baseline ) {
+	$release = balikovna_test_upgrade_baseline();
+	$plugin_archive = $site . '/.plugin-baseline.zip';
+	integration_download( 'https://github.com/luberan/balikovna-woocommerce/releases/download/v' . $release['version'] . '/balikovna-woocommerce.zip', $plugin_archive );
+	if ( ! hash_equals( $release['sha256'], hash_file( 'sha256', $plugin_archive ) ) ) {
+		throw new RuntimeException( 'Plugin baseline archive checksum does not match the pinned release.' );
+	}
 }
-integration_copy( $plugin_source, $site . '/wp-content/plugins/balikovna-woocommerce' );
+if ( ! is_file( $plugin_archive ) ) {
+	throw new RuntimeException( 'Run composer build to create the plugin ZIP before preparing the integration site.' );
+}
+integration_extract( $plugin_archive, $site . '/wp-content/plugins', 'balikovna-woocommerce' );
 integration_copy( $root . '/tests/integration/wp-config.php', $site . '/wp-config.php' );
 integration_copy( $root . '/tests/integration/fixtures.php', $site . '/wp-content/mu-plugins/balikovna-test-fixtures.php' );
 

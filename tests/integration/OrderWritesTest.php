@@ -111,7 +111,7 @@ final class OrderWritesTest extends TestCase {
 	}
 
 	public function test_runtime_versions_and_bootstrap_have_no_plugin_diagnostics(): void {
-		$versions = json_decode( file_get_contents( dirname( __DIR__ ) . '/versions.json' ), true );
+		$versions = balikovna_test_versions();
 		$this->assertSame( $versions['wordpress'], get_bloginfo( 'version' ) );
 		$this->assertSame( $versions['woocommerce'], WC_VERSION );
 		$this->assertSame( 'hpos' === getenv( 'BALIKOVNA_TEST_STORAGE' ), Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() );

@@ -137,29 +137,11 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: "8.5"
+          extensions: zip
           coverage: none
 
       - name: Build plugin ZIP
-        run: |
-          PLUGIN_SLUG="balikovna-woocommerce"
-          if [ -f source/CHANGELOG.md ]; then
-            php tooling/.github/scripts/normalize-changelog.php source/CHANGELOG.md
-          fi
-          php tooling/.github/scripts/build-plugin.php source
-
-          # Replace the static '== Changelog ==' section in readme.txt with
-          # the full history converted from CHANGELOG.md (managed by
-          # release-please). Plugin Update Checker reads this section and
-          # displays it under "View version details" in WP admin.
-          if [ -f source/CHANGELOG.md ]; then
-            php tooling/.github/scripts/changelog-to-readme.php \
-              source/CHANGELOG.md "source/build/${PLUGIN_SLUG}/readme.txt"
-          fi
-
-          cd source/build
-          rm -f "${PLUGIN_SLUG}.zip"
-          zip -r "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
-          ls -la
+        run: php tooling/.github/scripts/build-plugin.php source
 
       - name: Upload ZIP to GitHub Release
         env:
