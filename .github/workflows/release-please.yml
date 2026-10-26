@@ -27,7 +27,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      actions: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -100,20 +99,16 @@ jobs:
             git push origin "HEAD:$RELEASE_BRANCH"
           fi
 
-      - name: Ensure CI runs on the final release pull request commit
+      - name: Explain manual approval of the prepared release pull request
         if: steps.release-pr.outputs.number != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.release-pr.outputs.number }}
-          RELEASE_BRANCH: ${{ steps.release-pr.outputs.branch }}
         run: |
-          set -e
-          head=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
-          checked=$(gh api "repos/$GITHUB_REPOSITORY/commits/$head/check-runs?check_name=CI%20result" \
-            --jq 'any(.check_runs[]; .app.slug == "github-actions" and (.status != "completed" or .conclusion == "success"))')
-          if [ "$checked" != true ]; then
-            gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_BRANCH"
-          fi
+          printf '## Release PR #%s\n\n' "$PR_NUMBER" >> "$GITHUB_STEP_SUMMARY"
+          printf '[Open release PR](%s/%s/pull/%s)\n\n' \
+            "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$PR_NUMBER" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Select **Approve workflows to run** on the prepared release PR, wait for **CI result**, then squash-merge the PR manually.' \
+            >> "$GITHUB_STEP_SUMMARY"
 
   build-zip:
     name: Build plugin ZIP and attach to release
