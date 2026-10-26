@@ -7,7 +7,7 @@ Requires PHP: 7.4
 WC requires at least: 10.8
 WC tested up to: 11.2
 <!-- x-release-please-start-version -->
-Stable tag: 1.29.2
+Stable tag: 1.29.3
 <!-- x-release-please-end -->
 License: GPLv3 or later
 
@@ -113,6 +113,13 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 * Akceptační testy skutečných platebních bran, nAPI a importu Podání Online.
 
 == Changelog ==
+
+= 1.29.3 =
+* 🔧 Kompatibilita: test WordPress 7.1.2 and WooCommerce 11.2
+* 🛠 CI: automate dependency maintenance and protected releases
+* 🛠 CI: bump shivammathur/setup-php from 2.37.2 to 2.40.0 in the actions-minor-and-patch group ([#59](https://github.com/luberan/balikovna-woocommerce/issues/59))
+* 🛠 CI: require native approval for release pull request workflows
+* 🛠 CI: test minimum runtimes, ZIP upgrades and PHP types
 
 = 1.29.2 =
 * 🐛 Opravy chyb: render version headings and release notes in update details
