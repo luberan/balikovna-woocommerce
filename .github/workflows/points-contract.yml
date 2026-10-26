@@ -8,8 +8,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pickup-directory-contract
+  cancel-in-progress: false
+
 jobs:
   directory:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -20,3 +25,22 @@ jobs:
           coverage: none
       - name: Verify current directory format and response size
         run: php .github/scripts/check-points-api.php
+
+  report:
+    needs: directory
+    if: always() && (needs.directory.result == 'success' || needs.directory.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Open, update or resolve the directory incident
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIRECTORY_RESULT: ${{ needs.directory.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+        run: node .github/scripts/report-points-contract.cjs
