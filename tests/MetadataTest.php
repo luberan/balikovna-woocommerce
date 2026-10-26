@@ -229,7 +229,7 @@ final class MetadataTest extends TestCase {
 	public function test_required_ci_gate_checks_all_jobs_even_after_failure(): void {
 		$ci = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/ci.yml' ) ) );
 		$gate = $ci['jobs']['ci-result'];
-		$this->assertArrayHasKey( 'workflow_dispatch', $ci['on'] );
+		$this->assertArrayNotHasKey( 'workflow_dispatch', $ci['on'] );
 		$this->assertSame( 'CI result', $gate['name'] );
 		$this->assertSame( 'always()', $gate['if'] );
 		$this->assertSame( array( 'php-lint', 'quality', 'integration' ), $gate['needs'] );
@@ -258,15 +258,17 @@ final class MetadataTest extends TestCase {
 		$this->assertTrue( $workflow['concurrency']['cancel-in-progress'] );
 	}
 
-	public function test_release_changelog_and_ci_are_prepared_before_manual_merge(): void {
+	public function test_release_changelog_is_prepared_before_manual_ci_approval_and_merge(): void {
 		$release = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/release-please.yml' ) ) );
 		$this->assertNotEmpty( $release['on']['schedule'] );
 		$this->assertFalse( $release['concurrency']['cancel-in-progress'] );
-		$this->assertSame( 'write', $release['jobs']['release-please']['permissions']['actions'] );
+		$this->assertArrayNotHasKey( 'actions', $release['jobs']['release-please']['permissions'] );
 		$commands = implode( "\n", array_column( $release['jobs']['release-please']['steps'], 'run' ) );
 		$this->assertStringContainsString( 'changelog-to-readme.php CHANGELOG.md readme.txt', $commands );
 		$this->assertStringContainsString( 'git push origin "HEAD:$RELEASE_BRANCH"', $commands );
-		$this->assertStringContainsString( 'gh workflow run ci.yml', $commands );
+		$this->assertStringNotContainsString( 'gh workflow run ci.yml', $commands );
+		$this->assertStringContainsString( 'Approve workflows to run', $commands );
+		$this->assertStringContainsString( 'GITHUB_STEP_SUMMARY', $commands );
 		$this->assertStringContainsString( 'gh api --method GET', $commands );
 		$this->assertStringContainsString( 'head=$GITHUB_REPOSITORY_OWNER:$RELEASE_BRANCH', $commands );
 		$this->assertStringNotContainsString( 'steps.release.outputs.pr', json_encode( $release ) );
