@@ -114,6 +114,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.29.4 =
+* 🛠 CI: bump phpstan/phpstan from 2.3.2 to 2.3.4 in the composer-minor-and-patch group ([#64](https://github.com/luberan/balikovna-woocommerce/issues/64))
+
 = 1.29.3 =
 * 🔧 Kompatibilita: test WordPress 7.1.2 and WooCommerce 11.2
 * 🛠 CI: automate dependency maintenance and protected releases
