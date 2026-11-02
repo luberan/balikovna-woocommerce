@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.29.4](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.3...v1.29.4) (2026-11-02)
+
+### 🛠 CI
+
+* bump phpstan/phpstan from 2.3.2 to 2.3.4 in the composer-minor-and-patch group ([#64](https://github.com/luberan/balikovna-woocommerce/issues/64)) ([7f779eb](https://github.com/luberan/balikovna-woocommerce/commit/7f779ebc4d58d2865a92f4858cea1bb299da3f86))
+
 ## [1.29.3](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.2...v1.29.3) (2026-10-26)
 
 ### 🔧 Kompatibilita
