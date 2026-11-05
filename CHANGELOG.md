@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.29.5](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.4...v1.29.5) (2026-11-05)
+
+### 🛠 CI
+
+* bump php-stubs/woocommerce-stubs from 11.2.0 to 11.2.1 in the composer-minor-and-patch group ([#66](https://github.com/luberan/balikovna-woocommerce/issues/66)) ([6b87af9](https://github.com/luberan/balikovna-woocommerce/commit/6b87af975023a5621434f0940ac6619aaabcfd2a))
+
 ## [1.29.4](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.3...v1.29.4) (2026-11-02)
 
 ### 🛠 CI
