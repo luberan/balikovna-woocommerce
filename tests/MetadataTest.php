@@ -26,7 +26,7 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( 'WC tested up to: 11.2', $plugin );
 		$this->assertStringContainsString( 'WC requires at least: 10.8', $readme );
 		$this->assertStringContainsString( 'WC tested up to: 11.2', $readme );
-		$this->assertStringContainsString( '| WooCommerce | 10.8 | 11.2.0 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
+		$this->assertStringContainsString( '| WooCommerce | 10.8 | 11.2.1 |', file_get_contents( $this->rootPath( 'README.md' ) ) );
 		$profiles = json_decode( file_get_contents( $this->rootPath( 'tests/versions.json' ) ), true );
 		$versions = $profiles['current'];
 		$composer = json_decode( file_get_contents( $this->rootPath( 'composer.json' ) ), true );
@@ -171,7 +171,7 @@ final class MetadataTest extends TestCase {
 	}
 
 	public function test_workflows_are_valid_and_actions_are_immutable(): void {
-		foreach ( array( '.github/workflows/ci.yml', '.github/workflows/release-please.yml', '.github/workflows/points-contract.yml', '.github/workflows/dependabot-automerge.yml' ) as $path ) {
+		foreach ( array( '.github/workflows/ci.yml', '.github/workflows/release-please.yml', '.github/workflows/points-contract.yml', '.github/workflows/dependabot-automerge.yml', '.github/workflows/composer-audit.yml' ) as $path ) {
 			$contents = file_get_contents( $this->rootPath( $path ) );
 			$this->assertIsArray( Yaml::parse( $contents ) );
 			preg_match_all( '/uses:\s*[^@\s]+@([^\s#]+)/', $contents, $matches );
@@ -234,6 +234,35 @@ final class MetadataTest extends TestCase {
 				$this->assertSame( array( 'minor', 'patch' ), $group['update-types'] );
 			}
 		}
+	}
+
+	public function test_dependabot_keeps_framework_stubs_with_their_integration_profiles(): void {
+		$config = Yaml::parse( file_get_contents( $this->rootPath( '.github/dependabot.yml' ) ) );
+		$updates = array_values( array_filter( $config['updates'], function ( $update ) {
+			return 'composer' === $update['package-ecosystem'];
+		} ) );
+		$this->assertCount( 1, $updates );
+		$this->assertSame( array( array( 'dependency-name' => 'php-stubs/*' ) ), $updates[0]['ignore'] );
+	}
+
+	public function test_composer_security_audit_checks_the_lockfile_daily_without_installing_dependencies(): void {
+		$workflow = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/composer-audit.yml' ) ) );
+		$this->assertArrayHasKey( 'workflow_dispatch', $workflow['on'] );
+		$this->assertCount( 1, $workflow['on']['schedule'] );
+		$this->assertMatchesRegularExpression( '/^\d+ \d+ \* \* \*$/', $workflow['on']['schedule'][0]['cron'] );
+		$this->assertSame( array( 'contents' => 'read' ), $workflow['permissions'] );
+		$job = $workflow['jobs']['audit'];
+		$this->assertSame( 10, $job['timeout-minutes'] );
+		$this->assertArrayNotHasKey( 'continue-on-error', $job );
+		foreach ( $job['steps'] as $step ) {
+			$this->assertArrayNotHasKey( 'continue-on-error', $step );
+		}
+		$commands = implode( "\n", array_column( $job['steps'], 'run' ) );
+		$this->assertStringContainsString( 'composer validate --strict', $commands );
+		$this->assertStringContainsString( 'composer audit --locked', $commands );
+		$this->assertStringNotContainsString( 'composer install', $commands );
+		$this->assertStringNotContainsString( 'composer update', $commands );
+		$this->assertStringNotContainsString( '--no-dev', $commands );
 	}
 
 	public function test_required_ci_gate_checks_all_jobs_even_after_failure(): void {

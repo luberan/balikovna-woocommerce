@@ -19,6 +19,9 @@ updates:
       time: "05:17"
       timezone: "Europe/Prague"
     open-pull-requests-limit: 5
+    # Framework stubs must match the pinned integration profiles and metadata.
+    ignore:
+      - dependency-name: "php-stubs/*"
     groups:
       composer-minor-and-patch:
         update-types: ["minor", "patch"]

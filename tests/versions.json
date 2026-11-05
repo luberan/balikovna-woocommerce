@@ -1,8 +1,8 @@
 {
   "current": {
     "wordpress": "7.1.2",
-    "woocommerce": "11.2.0",
-    "woocommerce_sha256": "14e7539a4988c3654c637804301b430b30530d3421558313949cd2998d57cfa5"
+    "woocommerce": "11.2.1",
+    "woocommerce_sha256": "3066f85e46d1c1f6451296da0300b459963b504fd0d2f75869701ee744833aaf"
   },
   "minimum": {
     "wordpress": "6.9",
