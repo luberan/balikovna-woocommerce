@@ -19,6 +19,10 @@ Po úpravě translatovatelných řetězců spusťte `composer pot`. Při aktuali
 
 `composer build` vytvoří `build/balikovna-woocommerce/` i `build/balikovna-woocommerce.zip` stejným postupem jako release workflow. Normalizace changelogu mění jen balíček, nikoli zdrojové soubory. Regresní testy kontrolují obsah a kořen ZIPu, licence, vyloučení vývojových souborů, přestavění bez pozůstatků a odmítnutí nesouhlasících verzí.
 
+## Bezpečnost vývojových závislostí
+
+`composer audit --locked` kontroluje uzamčené závislosti včetně vývojových nástrojů a zůstává blokující součástí PR kontrol. Samostatný [Composer security audit](../.github/workflows/composer-audit.yml) běží denně a lze jej spustit ručně; neinstaluje ani nemění závislosti. Zachytí tak nová upozornění Packagistu i bez otevřeného PR a nezávisle na dostupnosti Dependabot security alertu. Při nálezu aktualizujte dotčený balíček a lock soubor, neignorujte advisory ani nevypínejte audit.
+
 ## Statická analýza
 
 `composer analyse` spouští PHPStan na úrovni 5 s cílovým PHP 7.4.33 nad vstupním souborem pluginu, odinstalací a vlastními třídami. Přibalené knihovny slouží pro objevování symbolů, ale jejich implementace se tímto nástrojem neaudituje. WordPress extension a WooCommerce stuby poskytují frameworkové typy.
@@ -31,10 +35,12 @@ Potřebujete PHP s `mysqli`, `pdo_mysql`, `curl`, `zip`, `mbstring`, `openssl` a
 
 | Profil | WordPress | WooCommerce | PHP v CI | Úložiště |
 |---|---|---|---|---|
-| `current` (výchozí) | 7.1.2 | 11.2.0 | 7.4, 8.5 | CPT, HPOS |
+| `current` (výchozí) | 7.1.2 | 11.2.1 | 7.4, 8.5 | CPT, HPOS |
 | `minimum` | 6.9 | 10.8.0 | 7.4 | CPT, HPOS |
 
 Profil se vybírá přes `BALIKOVNA_TEST_VERSION_PROFILE`. Integrační test porovnává skutečně načtené verze a režim úložiště s vybraným profilem, nestačí tedy pouze označení jobu. Pro jiný profil nebo režim úložiště použijte nový testovací adresář a databázi.
+
+Frameworkové stuby `php-stubs/*` se neaktualizují samostatnými Dependabot PR. Při změně aktuálního WordPressu/WooCommerce aktualizujte společně Composer stuby a lock, profil v [versions.json](versions.json), SHA-256 odpovídajícího WooCommerce GitHub release ZIPu, metadata, dokumentaci a regresní testy. Minimální profil se tím nemění.
 
 Příklad pro Bash:
 

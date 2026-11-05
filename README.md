@@ -64,7 +64,7 @@ Komunikace s výdejními místy probíhá přes oficiální widget České pošt
 | | Minimum | Testováno |
 |---|---|---|
 | WordPress | 6.9 | 7.1.2 |
-| WooCommerce | 10.8 | 11.2.0 |
+| WooCommerce | 10.8 | 11.2.1 |
 | PHP | 7.4 | 8.5 |
 
 CI ověřuje minimální i aktuální kombinaci WordPressu/WooCommerce pro CPT i HPOS. Instalace používá skutečný distribuční ZIP; na PHP 8.5 se ověřuje také upgrade z připnutého vydání se zachováním nastavení a dat objednávek. Podrobnosti a lokální příkazy jsou v [testovací dokumentaci](tests/README.md).
