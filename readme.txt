@@ -114,6 +114,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.29.6 =
+* 🛠 CI: bump phpstan/phpstan from 2.3.4 to 2.3.5 in the composer-minor-and-patch group ([#68](https://github.com/luberan/balikovna-woocommerce/issues/68))
+
 = 1.29.5 =
 * 🛠 CI: bump php-stubs/woocommerce-stubs from 11.2.0 to 11.2.1 in the composer-minor-and-patch group ([#66](https://github.com/luberan/balikovna-woocommerce/issues/66))
 
