@@ -7,7 +7,7 @@ Requires PHP: 7.4
 WC requires at least: 10.8
 WC tested up to: 11.2
 <!-- x-release-please-start-version -->
-Stable tag: 1.29.7
+Stable tag: 1.29.8
 <!-- x-release-please-end -->
 License: GPLv3 or later
 
@@ -113,6 +113,9 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 * Akceptační testy skutečných platebních bran, nAPI a importu Podání Online.
 
 == Changelog ==
+
+= 1.29.8 =
+* 🛠 CI: bump phpstan/phpstan from 2.3.6 to 2.3.7 in the composer-minor-and-patch group ([#74](https://github.com/luberan/balikovna-woocommerce/issues/74))
 
 = 1.29.7 =
 * 🛠 CI: bump phpstan/phpstan from 2.3.5 to 2.3.6 in the composer-minor-and-patch group ([#72](https://github.com/luberan/balikovna-woocommerce/issues/72))
