@@ -90,6 +90,7 @@ function wc_get_weight( $weight, $unit ) { return (float) $weight; }
 function wc_get_dimension( $dimension, $unit ) { return (float) $dimension; }
 function wc_get_order_statuses() { return $GLOBALS['balikovna_test_order_statuses']; }
 function wc_get_orders( $args ) { return is_callable( $GLOBALS['balikovna_test_order_query'] ) ? call_user_func( $GLOBALS['balikovna_test_order_query'], $args ) : (object) array( 'orders' => array(), 'total' => 0, 'max_num_pages' => 0 ); }
+function wc_get_order_item_meta( $item_id, $key, $single = true ) { return $GLOBALS['balikovna_test_item_meta'][ (int) $item_id ][ $key ] ?? ''; }
 function wc_get_order( $order_id ) { $order = $GLOBALS['balikovna_test_orders'][ $order_id ] ?? false; if ( $order instanceof Throwable ) { throw $order; } return $order; }
 function wp_json_encode( $value ) { return json_encode( $value ); }
 function maybe_serialize( $value ) { return is_array( $value ) || is_object( $value ) ? serialize( $value ) : $value; }
@@ -136,9 +137,10 @@ class WC_Shipping_Method {
 }
 class WC_Shipping_Zones { public static function get_shipping_method( $instance_id ) { return $GLOBALS['balikovna_test_shipping_methods'][ (int) $instance_id ] ?? false; } }
 class WC_Order_Item_Shipping {
-	private $method_id; private $instance_id; private $meta; private $id; public $save_count = 0;
-	public function __construct( $method_id = '', $instance_id = '', array $meta = array(), $id = 0 ) { $this->method_id = $method_id; $this->instance_id = $instance_id; $this->meta = $meta; $this->id = $id; }
+	private $method_id; private $instance_id; private $meta; private $id; private $order_id; public $save_count = 0;
+	public function __construct( $method_id = '', $instance_id = '', array $meta = array(), $id = 0, $order_id = 0 ) { $this->method_id = $method_id; $this->instance_id = $instance_id; $this->meta = $meta; $this->id = $id; $this->order_id = $order_id; }
 	public function get_id() { return $this->id; }
+	public function get_order_id() { return $this->order_id; }
 	public function get_method_id() { return $this->method_id; }
 	public function get_instance_id() { return $this->instance_id; }
 	public function get_meta( $key, $single = true ) { return $this->meta[ $key ] ?? ''; }
@@ -165,6 +167,7 @@ class WC_Order {
 	public function get_status() { return $this->status; }
 	public function get_date_created() { return new DateTimeImmutable( '@' . $this->date_created ); }
 	public function get_date_modified() { return new DateTimeImmutable( '@' . $this->date_modified ); }
+	public function set_date_modified( $timestamp ) { $this->date_modified = (int) $timestamp; }
 	public function update_status( $status ) { if ( false === $this->status_update_result ) return false; if ( $status !== $this->status ) { $this->status_updates[] = $status; $this->status = $status; } return true; }
 	public function add_order_note( $note, $customer = false ) { $this->notes[] = array( $note, $customer ); }
 	public function get_shipping_methods() { return $this->shipping_methods; }

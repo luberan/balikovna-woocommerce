@@ -102,7 +102,7 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
 5. Pro automatické stavy otevřete **WooCommerce → Nastavení → Doprava → Sledování stavu zásilek**:
   - v uživatelské aplikaci Pošta Online si vygenerujte přihlašovací údaje `Api-Token` a `secretKey` pro B2B nAPI; uložené hodnoty se v administraci znovu nezobrazují,
   - zvolte produkční nebo oficiální testovací prostředí, údaje uložte a klikněte na **Otestovat připojení**; test ověří přístup k CIS a načtení číselníku, nikoli ZSK stav konkrétní zásilky,
-  - zapněte sledování, nastavte počet objednávek na běh (výchozí 100), počet dnů sledování zásilky (výchozí 14 dní) a stavy objednávek, které mají být sledovány; lhůta běží od uložení podacího čísla k zásilce, u zásilek s číslem uloženým před verzí se záznamem tohoto okamžiku od vytvoření objednávky,
+  - zapněte sledování, nastavte počet objednávek na běh (výchozí 100), počet dnů sledování zásilky (výchozí 14 dní) a stavy objednávek, které mají být sledovány; lhůta běží od uložení podacího čísla k zásilce (uložení nového čísla zároveň označí objednávku jako změněnou), u zásilek s číslem uloženým před verzí se záznamem tohoto okamžiku od vytvoření objednávky,
   - zvolte agregované stavy ČP, které se mají dál dotazovat; nový reason kód známého agregovaného stavu bezpečně převezme pouze jednomyslné nastavení skupiny, při nejednoznačnosti se dál kontroluje bez automaticky odhadnutého mapování,
   - volitelně zapněte změny stavů objednávek a nastavte mapování **Česká pošta status → WooCommerce status**.
 6. Doporučené stavy `wc-shipped` a `wc-ready-pickup` plugin sám neregistruje. Pokud existují, objeví se automaticky ve volbách a bezpečných výchozích mapováních. Totéž platí pro jakýkoli jiný stav vrácený `wc_get_order_statuses()`.

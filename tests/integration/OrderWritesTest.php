@@ -185,6 +185,64 @@ final class OrderWritesTest extends TestCase {
 		$this->assertNull( $committed, 'The outer transaction was not committed.' );
 	}
 
+	public function test_tracking_number_saved_on_the_item_alone_makes_an_old_order_trackable(): void {
+		global $wpdb;
+		$order = wc_create_order( array( 'status' => 'processing' ) );
+		$this->created[] = $order->get_id();
+		$item = new WC_Order_Item_Shipping();
+		$item->set_method_id( 'balikovna' );
+		$item->set_instance_id( 4 );
+		$order->add_item( $item );
+		$order->save();
+		$item_id = $item->get_id();
+		$this->assertGreaterThan( 0, $item_id );
+
+		// Saving cannot backdate a modification, so the fixture is aged in the database.
+		$old  = gmdate( 'Y-m-d H:i:s', time() - 60 * DAY_IN_SECONDS );
+		$hpos = Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+		if ( $hpos ) {
+			$wpdb->update( $wpdb->prefix . 'wc_orders', array( 'date_created_gmt' => $old, 'date_updated_gmt' => $old ), array( 'id' => $order->get_id() ) );
+		} else {
+			$wpdb->update( $wpdb->posts, array( 'post_date' => $old, 'post_date_gmt' => $old, 'post_modified' => $old, 'post_modified_gmt' => $old ), array( 'ID' => $order->get_id() ) );
+		}
+		wp_cache_flush();
+		$settings = array_merge( $this->settings(), array( 'order_statuses' => array( 'wc-processing' ), 'tracking_days' => 14 ) );
+		$orders   = new \Balikovna_WC\Eligible_Orders();
+		$recent   = function () use ( $order ) {
+			return in_array(
+				$order->get_id(),
+				array_map( 'intval', wc_get_orders( array( 'status' => array( 'wc-processing' ), 'date_modified' => '>' . ( time() - 14 * DAY_IN_SECONDS ), 'limit' => -1, 'return' => 'ids' ) ) ),
+				true
+			);
+		};
+		$this->assertFalse( $orders->is_order_eligible( new WC_Order( $order->get_id() ), $settings ), 'Fixture: the order is older than the tracking window.' );
+		$this->assertFalse( $recent(), 'Fixture: the tracking query does not select the old order.' );
+
+		// A number written straight to the metadata, as before the window was recorded, keeps the order-date window.
+		wc_update_order_item_meta( $item_id, Order::META_TRACKING_NUMBER, 'BA1234567890A' );
+		$legacy = new WC_Order_Item_Shipping( $item_id );
+		$legacy->update_meta_data( Order::META_STATUS_TRACKING_NUMBER, 'BA1234567890A' );
+		$legacy->update_meta_data( Order::META_STATUS_CODE, '44/01' );
+		$legacy->save();
+		$reloaded = new WC_Order_Item_Shipping( $item_id );
+		$this->assertSame( '44/01', $reloaded->get_meta( Order::META_STATUS_CODE ) );
+		$this->assertSame( '', (string) $reloaded->get_meta( Order::META_TRACKING_SINCE ), 'A status-only save does not start a new window.' );
+		$this->assertFalse( $recent() );
+
+		// An integration that knows only the shipping item replaces the number.
+		$shipment = new WC_Order_Item_Shipping( $item_id );
+		$shipment->update_meta_data( Order::META_TRACKING_NUMBER, 'BA0000000000A' );
+		$shipment->save();
+
+		$fresh = new WC_Order( $order->get_id() );
+		$this->assertTrue( $recent(), 'The tracking query selects the order again.' );
+		$this->assertTrue( $orders->is_order_eligible( $fresh, $settings ) );
+		$this->assertTrue( $orders->has_work( $fresh, $settings ) );
+		$saved = array_values( $fresh->get_shipping_methods() )[0];
+		$this->assertSame( 'BA0000000000A', $saved->get_meta( Order::META_TRACKING_SINCE_NUMBER ) );
+		$this->assertGreaterThan( time() - MINUTE_IN_SECONDS, (int) $saved->get_meta( Order::META_TRACKING_SINCE ) );
+	}
+
 	public function test_innodb_lock_blocks_a_competing_connection_during_the_write(): void {
 		global $wpdb;
 		$order = $this->order();

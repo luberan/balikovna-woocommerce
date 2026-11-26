@@ -41,6 +41,13 @@ class Order {
 
 	private static $instance = null;
 
+	/**
+	 * Orders whose shipment received a new tracking number in the item save in progress.
+	 *
+	 * @var array<int,bool>
+	 */
+	private static $orders_to_touch = array();
+
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -52,6 +59,7 @@ class Order {
 		add_action( 'woocommerce_checkout_create_order_shipping_item', array( $this, 'add_shipping_item_metadata' ), 10, 4 );
 		add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'snapshot_line_item_weight' ), 10, 4 );
 		add_action( 'woocommerce_before_order_item_object_save', array( $this, 'remove_stale_shipping_metadata' ), 10, 2 );
+		add_action( 'woocommerce_after_order_item_object_save', array( $this, 'touch_order_after_tracking_change' ), 10, 1 );
 		add_action( 'woocommerce_before_save_order_items', array( $this, 'capture_order_contents' ), 10, 1 );
 		add_action( 'woocommerce_saved_order_items', array( $this, 'refresh_order_summary' ), 10, 1 );
 
@@ -148,10 +156,52 @@ class Order {
 			$item->delete_meta_data( self::META_TRACKING_SINCE_NUMBER );
 			return;
 		}
-		if ( (string) $item->get_meta( self::META_TRACKING_SINCE_NUMBER, true ) !== $tracking_number ) {
-			$item->update_meta_data( self::META_TRACKING_SINCE, time() );
-			$item->update_meta_data( self::META_TRACKING_SINCE_NUMBER, $tracking_number );
+		if ( (string) $item->get_meta( self::META_TRACKING_SINCE_NUMBER, true ) === $tracking_number ) {
+			return;
 		}
+		// A number stored before this record existed keeps its order-date window:
+		// saving its status must not start a new one.
+		$item_id   = absint( $item->get_id() );
+		$persisted = $item_id ? self::sanitize_tracking_number( wc_get_order_item_meta( $item_id, self::META_TRACKING_NUMBER, true ) ) : '';
+		if ( $persisted === $tracking_number ) {
+			return;
+		}
+		$item->update_meta_data( self::META_TRACKING_SINCE, time() );
+		$item->update_meta_data( self::META_TRACKING_SINCE_NUMBER, $tracking_number );
+		$order_id = absint( $item->get_order_id() );
+		if ( $order_id ) {
+			self::$orders_to_touch[ $order_id ] = true;
+		}
+	}
+
+	/**
+	 * Mark an order as modified once its shipment received a new tracking number.
+	 *
+	 * Tracking selects orders by their modification date, and saving a shipping
+	 * item alone does not modify its order.
+	 *
+	 * @param mixed $item Saved order item.
+	 */
+	public function touch_order_after_tracking_change( $item ) {
+		if ( ! $item instanceof \WC_Order_Item_Shipping ) {
+			return;
+		}
+		$order_id = absint( $item->get_order_id() );
+		if ( ! $order_id || empty( self::$orders_to_touch[ $order_id ] ) ) {
+			return;
+		}
+		unset( self::$orders_to_touch[ $order_id ] );
+		$order = wc_get_order( $order_id );
+		if ( ! $order instanceof \WC_Order ) {
+			return;
+		}
+		// An order that is being saved together with its items is already modified.
+		$modified = $order->get_date_modified();
+		if ( $modified && time() - (int) $modified->getTimestamp() < MINUTE_IN_SECONDS ) {
+			return;
+		}
+		$order->set_date_modified( time() );
+		$order->save();
 	}
 
 	/**
