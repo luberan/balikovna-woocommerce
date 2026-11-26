@@ -7,6 +7,7 @@ if ( 'cli' !== PHP_SAPI ) {
 }
 $root = dirname( __DIR__, 2 );
 require_once $root . '/tests/version-profiles.php';
+require_once __DIR__ . '/integration-download.php';
 $versions = balikovna_test_versions();
 $baseline = 2 === $argc && '--baseline' === $argv[1];
 if ( $argc > 2 || ( 2 === $argc && ! $baseline ) ) {
@@ -26,23 +27,6 @@ if ( ! is_dir( $site ) && ! mkdir( $site, 0777, true ) ) {
 	throw new RuntimeException( 'Unable to create the test directory.' );
 }
 file_put_contents( $site . '/.balikovna-integration-site', "Isolated Balikovna integration fixture.\n" );
-function integration_download( string $url, string $target ): void {
-	if ( is_file( $target ) ) {
-		return;
-	}
-	$stream = fopen( $target . '.part', 'wb' );
-	$curl = curl_init( $url );
-	curl_setopt_array( $curl, array( CURLOPT_FILE => $stream, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3, CURLOPT_PROTOCOLS => CURLPROTO_HTTPS, CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS, CURLOPT_TIMEOUT => 180, CURLOPT_FAILONERROR => true, CURLOPT_USERAGENT => 'Balikovna-Integration-Tests' ) );
-	$success = curl_exec( $curl );
-	$error = curl_error( $curl );
-	fclose( $stream );
-	if ( ! $success ) {
-		unlink( $target . '.part' );
-		throw new RuntimeException( 'Fixture download failed: ' . $error );
-	}
-	rename( $target . '.part', $target );
-}
-
 function integration_copy( string $source, string $destination ): void {
 	if ( is_link( $source ) ) {
 		throw new RuntimeException( 'Symlinks are not supported in fixture source.' );
