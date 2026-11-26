@@ -62,6 +62,8 @@ function wp_script_is( $handle, $status = 'enqueued' ) { return isset( $GLOBALS[
 function wp_localize_script( $handle, $name, $data ) { $GLOBALS['balikovna_test_localized_scripts'][ $handle ][ $name ] = $data; return true; }
 function wp_enqueue_style( $handle, $src = '', $dependencies = array(), $version = false ) { $GLOBALS['balikovna_test_enqueued_styles'][ $handle ] = compact( 'src', 'dependencies', 'version' ); }
 function wp_create_nonce( $action ) { return 'valid-nonce'; }
+function wp_kses_post( $content ) { return $content; }
+function wp_add_privacy_policy_content( $plugin_name, $policy_text ) { $GLOBALS['balikovna_test_privacy_policy'][ $plugin_name ] = $policy_text; }
 function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
 class Balikovna_Test_Json_Response extends Exception {
 	public $success; public $data; public $status;
@@ -94,7 +96,9 @@ function wc_get_order_item_meta( $item_id, $key, $single = true ) { return $GLOB
 function wc_get_order( $order_id ) { $order = $GLOBALS['balikovna_test_orders'][ $order_id ] ?? false; if ( $order instanceof Throwable ) { throw $order; } return $order; }
 function wp_json_encode( $value ) { return json_encode( $value ); }
 function maybe_serialize( $value ) { return is_array( $value ) || is_object( $value ) ? serialize( $value ) : $value; }
-function wp_cache_delete( $key, $group = '' ) { return true; }
+function wp_cache_get( $key, $group = '' ) { return $GLOBALS['balikovna_test_cache'][ $group ][ $key ] ?? false; }
+function wp_cache_set( $key, $value, $group = '' ) { $GLOBALS['balikovna_test_cache'][ $group ][ $key ] = $value; return true; }
+function wp_cache_delete( $key, $group = '' ) { unset( $GLOBALS['balikovna_test_cache'][ $group ][ $key ] ); return true; }
 class Balikovna_Test_Lock_Database {
 	public $options = 'wp_options';
 	public $prefix = 'wp_';
@@ -128,6 +132,7 @@ function as_schedule_single_action( $timestamp, $hook, $args = array(), $group =
 function as_get_scheduled_actions( $query, $format = 'OBJECT' ) { return array_keys( array_filter( $GLOBALS['balikovna_test_scheduled_actions'], function ( $action ) use ( $query ) { return $query['hook'] === $action['hook'] && $query['group'] === $action['group'] && $query['status'] === ( $action['status'] ?? 'pending' ); } ) ); }
 function as_unschedule_all_actions( $hook, $args = array(), $group = '' ) { $GLOBALS['balikovna_test_scheduled_actions'] = array_values( array_filter( $GLOBALS['balikovna_test_scheduled_actions'], function ( $action ) use ( $hook, $args, $group ) { if ( array() === $args && '' === $group ) { return $hook !== $action['hook']; } return $hook !== $action['hook'] || $group !== $action['group'] || $args !== $action['args']; } ) ); }
 
+class WC_Admin_Meta_Boxes { public static $errors = array(); public static function add_error( $text ) { self::$errors[] = $text; } }
 class WC_Admin_Settings { public static $errors = array(); public static $messages = array(); public static function add_error( $message ) { self::$errors[] = $message; } public static function add_message( $message ) { self::$messages[] = $message; } }
 class WC_Shipping_Method {
 	public $id = '';

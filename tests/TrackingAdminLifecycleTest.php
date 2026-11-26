@@ -216,6 +216,33 @@ final class TrackingAdminLifecycleTest extends TestCase {
 		$this->assertStringContainsString( 'name="balikovna_tracking[clear_secret]"', $output );
 	}
 
+	public function test_diagnostics_report_a_dictionary_without_a_recognized_delivery(): void {
+		$render = function ( $delivered_name ) {
+			$dictionary = array(
+				'21/00' => array( 'code' => '21/00', 'status' => '21', 'reason' => '00', 'name' => 'PODÁNO' ),
+				'91/00' => array( 'code' => '91/00', 'status' => '91', 'reason' => '00', 'name' => $delivered_name ),
+			);
+			$GLOBALS['balikovna_test_options'][ Tracking_Settings::OPTION_NAME ] = Tracking_Settings::defaults( $dictionary );
+			$GLOBALS['balikovna_test_options'][ Status_Dictionary::OPTION_NAME ] = array(
+				'updated_at' => time(),
+				'statuses'   => $dictionary,
+				'last_error' => array(),
+			);
+			ob_start();
+			( new Tracking_Admin( new Tracking() ) )->render_panel();
+			return ob_get_clean();
+		};
+
+		$this->assertStringNotContainsString( 'Rozpoznání doručení', $render( 'DORUČENO' ) );
+		// The carrier renamed its label, so completion would stop without any error.
+		$this->assertStringContainsString( 'Rozpoznání doručení', $render( 'PŘEDÁNO ADRESÁTOVI' ) );
+
+		$GLOBALS['balikovna_test_options'][ Status_Dictionary::OPTION_NAME ] = array();
+		ob_start();
+		( new Tracking_Admin( new Tracking() ) )->render_panel();
+		$this->assertStringNotContainsString( 'Rozpoznání doručení', ob_get_clean(), 'An empty dictionary is reported elsewhere.' );
+	}
+
 	public function test_admin_section_uses_requested_name(): void {
 		$admin    = new Tracking_Admin( new Tracking() );
 		$sections = $admin->add_section( array() );

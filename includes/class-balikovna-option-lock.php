@@ -72,6 +72,12 @@ class Option_Lock {
 
 	private static function forget( $name ) {
 		wp_cache_delete( $name, 'options' );
-		wp_cache_delete( 'notoptions', 'options' );
+		// Drop only this lock from the list of missing options, as add_option() does;
+		// deleting the whole list would make every other missing option hit the database again.
+		$notoptions = wp_cache_get( 'notoptions', 'options' );
+		if ( is_array( $notoptions ) && isset( $notoptions[ $name ] ) ) {
+			unset( $notoptions[ $name ] );
+			wp_cache_set( 'notoptions', $notoptions, 'options' );
+		}
 	}
 }

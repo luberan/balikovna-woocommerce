@@ -297,8 +297,29 @@ class Tracking_Admin {
 		if ( $dict_error && $dictionary->get() ) {
 			$this->diagnostic_row( __( 'Upozornění číselníku', 'balikovna-wc' ), __( 'Poslední obnovení selhalo; používá se dříve uložený číselník.', 'balikovna-wc' ) );
 		}
+		if ( $dictionary->get() && ! self::recognizes_delivery( $dictionary->get() ) ) {
+			$this->diagnostic_row(
+				__( 'Rozpoznání doručení', 'balikovna-wc' ),
+				__( 'Číselník neobsahuje stav rozpoznaný jako „Doručeno“. Objednávky se proto automaticky nedokončí; zkontrolujte názvy stavů České pošty a jejich mapování.', 'balikovna-wc' )
+			);
+		}
 		echo '</tbody></table>';
 		echo '<p><button type="submit" class="button" name="balikovna_tracking_action" value="synchronize_now">' . esc_html__( 'Synchronizovat nyní', 'balikovna-wc' ) . '</button></p>';
+	}
+
+	/**
+	 * Whether any carrier status is still recognized as a delivery.
+	 *
+	 * Completion is tied to the wording of the carrier label, so a renamed
+	 * label stops it silently unless this is reported.
+	 */
+	private static function recognizes_delivery( array $dictionary ) {
+		foreach ( $dictionary as $row ) {
+			if ( is_array( $row ) && Shipment_Status::SEMANTIC_DELIVERED === Shipment_Status::semantic_for_label( $row['name'] ?? '' ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private function expand_status_groups( array $posted, array $dictionary, array $existing ) {
