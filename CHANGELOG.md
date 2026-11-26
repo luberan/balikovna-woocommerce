@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.29.9](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.8...v1.29.9) (2026-11-26)
+
+
+### 🐛 Opravy chyb
+
+* count the tracking window from the saved tracking number ([217f134](https://github.com/luberan/balikovna-woocommerce/commit/217f134e72e36368503a839c19b30bf64cbaa2ff))
+* ignore non-order objects in email and order detail hooks ([217f134](https://github.com/luberan/balikovna-woocommerce/commit/217f134e72e36368503a839c19b30bf64cbaa2ff))
+* keep contract service codes out of Store API shipping rates ([217f134](https://github.com/luberan/balikovna-woocommerce/commit/217f134e72e36368503a839c19b30bf64cbaa2ff))
+* keep the CSV export in Windows-1250 when iconv cannot convert ([217f134](https://github.com/luberan/balikovna-woocommerce/commit/217f134e72e36368503a839c19b30bf64cbaa2ff))
+* resolve audit findings in tracking, export and release automation ([#76](https://github.com/luberan/balikovna-woocommerce/issues/76)) ([217f134](https://github.com/luberan/balikovna-woocommerce/commit/217f134e72e36368503a839c19b30bf64cbaa2ff))
+* warn in the administration when stored nAPI credentials cannot be read ([217f134](https://github.com/luberan/balikovna-woocommerce/commit/217f134e72e36368503a839c19b30bf64cbaa2ff))
+
 ## [1.29.8](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.7...v1.29.8) (2026-11-23)
 
 ### 🛠 CI
