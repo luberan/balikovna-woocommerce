@@ -7,7 +7,7 @@ Requires PHP: 7.4
 WC requires at least: 10.8
 WC tested up to: 11.2
 <!-- x-release-please-start-version -->
-Stable tag: 1.29.8
+Stable tag: 1.29.9
 <!-- x-release-please-end -->
 License: GPLv3 or later
 
@@ -113,6 +113,14 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 * Akceptační testy skutečných platebních bran, nAPI a importu Podání Online.
 
 == Changelog ==
+
+= 1.29.9 =
+* 🐛 Opravy chyb: count the tracking window from the saved tracking number
+* 🐛 Opravy chyb: ignore non-order objects in email and order detail hooks
+* 🐛 Opravy chyb: keep contract service codes out of Store API shipping rates
+* 🐛 Opravy chyb: keep the CSV export in Windows-1250 when iconv cannot convert
+* 🐛 Opravy chyb: resolve audit findings in tracking, export and release automation ([#76](https://github.com/luberan/balikovna-woocommerce/issues/76))
+* 🐛 Opravy chyb: warn in the administration when stored nAPI credentials cannot be read
 
 = 1.29.8 =
 * 🛠 CI: bump phpstan/phpstan from 2.3.6 to 2.3.7 in the composer-minor-and-patch group ([#74](https://github.com/luberan/balikovna-woocommerce/issues/74))
