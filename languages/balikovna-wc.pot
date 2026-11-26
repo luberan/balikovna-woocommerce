@@ -1,14 +1,14 @@
 # Translation template for Balíkovna for WooCommerce.
 msgid ""
 msgstr ""
-"Project-Id-Version: Balíkovna for WooCommerce 1.29.8\n"
+"Project-Id-Version: Balíkovna for WooCommerce 1.29.9\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/balikovna-woocommerce\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-26T18:14:58+00:00\n"
+"POT-Creation-Date: 2026-11-26T19:36:56+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: balikovna-wc\n"
@@ -88,6 +88,7 @@ msgstr ""
 
 #: includes/class-balikovna-checkout.php:162
 #: includes/class-balikovna-checkout.php:163
+#: includes/class-balikovna-privacy.php:51
 msgid "Výdejní místo"
 msgstr ""
 
@@ -212,51 +213,58 @@ msgstr ""
 msgid "Česká pošta odmítla požadavek na stav zásilky."
 msgstr ""
 
-#: includes/class-balikovna-order.php:568
-#: includes/class-balikovna-order.php:714
-#: includes/class-balikovna-order.php:753
+#: includes/class-balikovna-order.php:618
+#: includes/class-balikovna-order.php:786
+#: includes/class-balikovna-order.php:825
 msgid "Česká pošta - zásilky"
 msgstr ""
 
 #. translators: 1: shipping service name, 2: shipment sequence number.
-#: includes/class-balikovna-order.php:572
+#: includes/class-balikovna-order.php:622
 #, php-format
 msgid "%1$s - zásilka %2$d"
 msgstr ""
 
-#: includes/class-balikovna-order.php:583
-#: includes/class-balikovna-order.php:721
-#: includes/class-balikovna-order.php:763
+#: includes/class-balikovna-order.php:633
+#: includes/class-balikovna-order.php:793
+#: includes/class-balikovna-order.php:835
+#: includes/class-balikovna-privacy.php:57
 msgid "Podací číslo"
 msgstr ""
 
-#: includes/class-balikovna-order.php:588
+#: includes/class-balikovna-order.php:638
 msgid "Stav zásilky"
 msgstr ""
 
-#: includes/class-balikovna-order.php:592
+#: includes/class-balikovna-order.php:642
 msgid "Čas poslední změny"
 msgstr ""
 
-#: includes/class-balikovna-order.php:596
+#: includes/class-balikovna-order.php:646
 msgid "Naposledy zkontrolováno"
 msgstr ""
 
-#: includes/class-balikovna-order.php:599
-#: includes/class-balikovna-order.php:764
+#: includes/class-balikovna-order.php:649
+#: includes/class-balikovna-order.php:836
 msgid "Sledovat zásilku"
 msgstr ""
 
-#: includes/class-balikovna-order.php:652
+#: includes/class-balikovna-order.php:703
 msgid "Podací číslo smí obsahovat pouze písmena a číslice."
 msgstr ""
 
-#: includes/class-balikovna-order.php:669
-#: includes/class-balikovna-order.php:673
+#. translators: %s: parcel tracking number.
+#: includes/class-balikovna-order.php:730
+#, php-format
+msgid "Podací číslo %s je uložené, ale jeho stav se nesleduje: rozhraní České pošty přijímá nejvýše 13 znaků."
+msgstr ""
+
+#: includes/class-balikovna-order.php:741
+#: includes/class-balikovna-order.php:745
 msgid "Česká pošta"
 msgstr ""
 
-#: includes/class-balikovna-order.php:722
+#: includes/class-balikovna-order.php:794
 msgid "Sledování zásilky"
 msgstr ""
 
@@ -270,6 +278,14 @@ msgstr ""
 
 #: includes/class-balikovna-points.php:392
 msgid "Seznam výdejních míst se nyní nepodařilo ověřit. Zkuste výběr prosím znovu."
+msgstr ""
+
+#: includes/class-balikovna-privacy.php:28
+msgid "Při výběru výdejního místa se v pokladně načítá mapa České pošty z adresy b2c.cpost.cz. Česká pošta při tom zpracovává technické údaje o vašem zařízení a, pokud to povolíte, také vaši polohu."
+msgstr ""
+
+#: includes/class-balikovna-privacy.php:29
+msgid "K objednávce ukládáme vybrané výdejní místo, podací číslo zásilky a její poslední stav. Podací číslo předáváme České poště, když zjišťujeme stav zásilky."
 msgstr ""
 
 #: includes/class-balikovna-services.php:29
@@ -347,104 +363,124 @@ msgstr ""
 msgid "Zpracování objednávky bylo přerušeno chybou %1$s: %2$s"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:83
+#: includes/class-balikovna-shipping-method-base.php:87
 msgid "Název"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:85
+#: includes/class-balikovna-shipping-method-base.php:89
 msgid "Název zobrazený zákazníkovi v košíku."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:90
+#: includes/class-balikovna-shipping-method-base.php:94
 msgid "DPH"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:93
+#: includes/class-balikovna-shipping-method-base.php:97
 msgid "Zdaněno"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:94
+#: includes/class-balikovna-shipping-method-base.php:98
 msgid "Nezdaněno"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:99
+#: includes/class-balikovna-shipping-method-base.php:103
 msgid "Typ ceny"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:102
-#: includes/class-balikovna-shipping-method-base.php:108
+#: includes/class-balikovna-shipping-method-base.php:106
+#: includes/class-balikovna-shipping-method-base.php:112
 msgid "Fixní cena"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:103
+#: includes/class-balikovna-shipping-method-base.php:107
 msgid "Podle hmotnosti (tabulka)"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:110
+#: includes/class-balikovna-shipping-method-base.php:114
 msgid "Použije se při typu „Fixní cena\"."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:115
+#: includes/class-balikovna-shipping-method-base.php:119
 msgid "Tabulka hmotností"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:117
+#: includes/class-balikovna-shipping-method-base.php:121
 msgid "Jeden řádek = \"max_hmotnost_kg|cena\". Příklad: 5|79 znamená do 5 kg cena 79. Nad nejvyšším limitem se doprava nenabídne."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:123
+#: includes/class-balikovna-shipping-method-base.php:127
 msgid "Zdarma od částky"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:125
+#: includes/class-balikovna-shipping-method-base.php:129
 msgid "Mezisoučet košíku (bez dopravy), od kterého je doprava zdarma. Prázdné = vypnuto."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:130
+#: includes/class-balikovna-shipping-method-base.php:134
 msgid "Kódy služeb ČP (CSV sloupec I)"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:132
+#: includes/class-balikovna-shipping-method-base.php:136
 msgid "Při exportu pro Podání Online se použije jako hodnota sloupce „Služby“. Formát dle označení služeb ve vaší smlouvě s ČP, např. <code>7+45+S+41</code>. Prázdné = nevyplnit."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:143
+#: includes/class-balikovna-shipping-method-base.php:147
 msgid "Typ zásilky ČP"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:145
+#: includes/class-balikovna-shipping-method-base.php:149
 msgid "Prefix produktu pro Podání Online. Zvolte DR, DV nebo DE podle smlouvy s Českou poštou."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:157
+#: includes/class-balikovna-shipping-method-base.php:158
+msgid "Produkty bez hmotnosti nebo rozměrů"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:160
+msgid "Limity služby lze ověřit jen u produktů s vyplněnou hmotností a rozměry. Bez nich se doprava ve výchozím nastavení nabídne a překročení limitu se projeví až při exportu pro Podání Online."
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:162
+msgid "Dopravu nabízet"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:163
+msgid "Nenabízet, když chybí hmotnost"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:164
+msgid "Nenabízet, když chybí hmotnost nebo rozměry"
+msgstr ""
+
+#: includes/class-balikovna-shipping-method-base.php:176
 msgid "Smluvní limit hmotnosti"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:159
+#: includes/class-balikovna-shipping-method-base.php:178
 msgid "Limit 50 kg zvolte pouze v případě, že jej máte sjednaný ve smlouvě s Českou poštou."
 msgstr ""
 
 #. translators: %s: standard weight limit in kilograms.
-#: includes/class-balikovna-shipping-method-base.php:162
+#: includes/class-balikovna-shipping-method-base.php:181
 #, php-format
 msgid "Standardně %s kg"
 msgstr ""
 
 #. translators: %s: contracted weight limit in kilograms.
-#: includes/class-balikovna-shipping-method-base.php:164
+#: includes/class-balikovna-shipping-method-base.php:183
 #, php-format
 msgid "Smluvně %s kg"
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:401
+#: includes/class-balikovna-shipping-method-base.php:422
 msgid "Tabulka hmotností nesmí být prázdná."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:408
+#: includes/class-balikovna-shipping-method-base.php:429
 msgid "Každý řádek tabulky musí mít formát „kladná hmotnost|nezáporná cena“."
 msgstr ""
 
-#: includes/class-balikovna-shipping-method-base.php:414
+#: includes/class-balikovna-shipping-method-base.php:435
 msgid "Hmotnostní limity musí být kladné a nesmí se opakovat."
 msgstr ""
 
@@ -622,48 +658,56 @@ msgstr ""
 msgid "Poslední obnovení selhalo; používá se dříve uložený číselník."
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:301
+#: includes/class-balikovna-tracking-admin.php:302
+msgid "Rozpoznání doručení"
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:303
+msgid "Číselník neobsahuje stav rozpoznaný jako „Doručeno“. Objednávky se proto automaticky nedokončí; zkontrolujte názvy stavů České pošty a jejich mapování."
+msgstr ""
+
+#: includes/class-balikovna-tracking-admin.php:307
 msgid "Synchronizovat nyní"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:342
+#: includes/class-balikovna-tracking-admin.php:363
 msgid "Nejprve vyplňte Api-Token a secretKey."
 msgstr ""
 
 #. translators: %s: sanitized API error.
-#: includes/class-balikovna-tracking-admin.php:350
+#: includes/class-balikovna-tracking-admin.php:371
 #, php-format
 msgid "Připojení k nAPI CIS selhalo: %s"
 msgstr ""
 
 #. translators: %d: number of carrier status codes.
-#: includes/class-balikovna-tracking-admin.php:359
+#: includes/class-balikovna-tracking-admin.php:380
 #, php-format
 msgid "Připojení k nAPI CIS je funkční a číselník stavů byl úspěšně načten (%d kódů)."
 msgstr ""
 
 #. translators: %s: sanitized synchronization error.
-#: includes/class-balikovna-tracking-admin.php:371
+#: includes/class-balikovna-tracking-admin.php:392
 #, php-format
 msgid "Synchronizace se nepodařila: %s"
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:378
+#: includes/class-balikovna-tracking-admin.php:399
 msgid "Synchronizace je vypnutá nebo nejsou vyplněné přihlašovací údaje."
 msgstr ""
 
-#: includes/class-balikovna-tracking-admin.php:382
+#: includes/class-balikovna-tracking-admin.php:403
 msgid "Část zásilek byla zpracována. Zbývající synchronizace bude pokračovat na pozadí."
 msgstr ""
 
 #. translators: 1: number of orders, 2: number of parcel lookups.
-#: includes/class-balikovna-tracking-admin.php:388
+#: includes/class-balikovna-tracking-admin.php:409
 #, php-format
 msgid "Synchronizace dokončena. Objednávky: %1$d, zásilky: %2$d."
 msgstr ""
 
 #. translators: 1: aggregate carrier status label, 2: number of API status/reason codes.
-#: includes/class-balikovna-tracking-admin.php:426
+#: includes/class-balikovna-tracking-admin.php:447
 #, php-format
 msgid "%1$s (%2$d kódů API)"
 msgstr ""

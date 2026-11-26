@@ -67,6 +67,7 @@ require_once dirname( __DIR__ ) . '/includes/class-balikovna-shipment-synchroniz
 require_once dirname( __DIR__ ) . '/includes/class-balikovna-tracking-scheduler.php';
 require_once dirname( __DIR__ ) . '/includes/class-balikovna-tracking-admin.php';
 require_once dirname( __DIR__ ) . '/includes/class-balikovna-tracking.php';
+require_once dirname( __DIR__ ) . '/includes/class-balikovna-privacy.php';
 require_once dirname( __DIR__ ) . '/includes/class-balikovna-export.php';
 require_once dirname( __DIR__ ) . '/includes/class-balikovna-shipping-method-base.php';
 require_once dirname( __DIR__ ) . '/includes/class-balikovna-blocks.php';

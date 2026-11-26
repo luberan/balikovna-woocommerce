@@ -23,6 +23,27 @@ final class OptionLockTest extends TestCase {
 		$this->assertSame( $other, get_option( 'balikovna_test_lock' ) );
 	}
 
+	public function test_lock_changes_keep_the_cached_list_of_other_missing_options(): void {
+		$GLOBALS['balikovna_test_cache'] = array(
+			'options' => array(
+				'notoptions' => array(
+					'balikovna_test_lock' => true,
+					'unrelated_missing'   => true,
+				),
+			),
+		);
+		try {
+			$token = Option_Lock::acquire( 'balikovna_test_lock', 1000, 60 );
+
+			$this->assertNotFalse( $token );
+			$this->assertSame( array( 'unrelated_missing' => true ), wp_cache_get( 'notoptions', 'options' ), 'Only the lock leaves the list of missing options.' );
+			Option_Lock::release( 'balikovna_test_lock', $token );
+			$this->assertSame( array( 'unrelated_missing' => true ), wp_cache_get( 'notoptions', 'options' ) );
+		} finally {
+			unset( $GLOBALS['balikovna_test_cache'] );
+		}
+	}
+
 	public function test_expired_or_corrupted_lock_is_replaced_once(): void {
 		update_option(
 			'balikovna_test_lock',

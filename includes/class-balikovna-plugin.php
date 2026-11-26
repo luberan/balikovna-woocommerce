@@ -27,6 +27,7 @@ require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-shipment-synchronizer
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-scheduler.php';
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking-admin.php';
 require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-tracking.php';
+require_once BALIKOVNA_WC_PATH . 'includes/class-balikovna-privacy.php';
 
 class Plugin {
 
@@ -51,6 +52,7 @@ class Plugin {
 		Export::instance()->init();
 		Blocks::instance()->init();
 		Tracking::instance()->init();
+		Privacy::init();
 	}
 
 	public function load_shipping_methods() {

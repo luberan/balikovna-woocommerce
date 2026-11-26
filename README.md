@@ -98,7 +98,7 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
     - U produktů používaných s Balíkovnou vyplňte hmotnost, délku, šířku a výšku pro úplnou automatickou kontrolu. Známý nadlimitní parametr dopravu vždy skryje; neznámý údaj ji u fixní ceny sám o sobě neskryje.
     - U Balíkovny plus vyberte smluvní **typ zásilky DR/DV/DE** a limit 31,5 nebo 50 kg. Limit 50 kg zapněte pouze při sjednané smlouvě; žádná strana nesmí překročit 200 cm a součet tří rozměrů 300 cm.
 3. Zákazníci ve checkoutu uvidí novou shipping metodu; u Balíkovny a Balíku Na poštu kliknou „Vybrat výdejní místo" → vybere v iframe widgetu → potvrdí objednávku.
-4. V detailu objednávky lze ke každému shipping itemu České pošty zadat **podací číslo**. Uloží se před změnou stavu objednávky, takže jej následně odeslaný e-mail obsahuje spolu s odkazem Track & Trace.
+4. V detailu objednávky lze ke každému shipping itemu České pošty zadat **podací číslo**. Uloží se před změnou stavu objednávky, takže jej následně odeslaný e-mail obsahuje spolu s odkazem Track & Trace. Uložit je může každý, kdo smí upravovat objednávky (`edit_shop_orders`). Číslo delší než 13 znaků se uloží, ale rozhraní České pošty jej nepřijímá; při zapnutém sledování na to administrace upozorní.
 5. Pro automatické stavy otevřete **WooCommerce → Nastavení → Doprava → Sledování stavu zásilek**:
   - v uživatelské aplikaci Pošta Online si vygenerujte přihlašovací údaje `Api-Token` a `secretKey` pro B2B nAPI; uložené hodnoty se v administraci znovu nezobrazují,
   - zvolte produkční nebo oficiální testovací prostředí, údaje uložte a klikněte na **Otestovat připojení**; test ověří přístup k CIS a načtení číselníku, nikoli ZSK stav konkrétní zásilky,
@@ -116,7 +116,7 @@ Výchozí automatické mapování používá pouze jednoznačné agregované vý
 |---|---|
 | `balikovna_wc_services` | Konfigurace služeb včetně `countries`, `max_weight_kg`, `max_dimensions_cm` a požadavků na kontakt |
 | `balikovna_wc_package_metrics` | Úprava vypočtené hmotnosti, rozměrů a objemu shipping package |
-| `balikovna_wc_require_complete_package_metrics` | `true` = skrýt Balíkovnu také při chybějící hmotnosti nebo rozměru (výchozí `false`) |
+| `balikovna_wc_require_complete_package_metrics` | `true` = skrýt Balíkovnu také při chybějící hmotnosti nebo rozměru. Výchozí hodnotu určuje volba „Produkty bez hmotnosti nebo rozměrů“ v nastavení instance dopravy (standardně `false`) |
 | `balikovna_wc_widget_url` | URL widgetu výběru pobočky (`$url, $type`) |
 | `balikovna_wc_widget_phone` | `true` = zobrazit pole pro telefon; platný výsledek doplní chybějící `billing_phone` (default `false`) |
 | `balikovna_wc_free_shipping_subtotal` | Úprava mezisoučtu celého košíku použitého pro práh dopravy zdarma |
@@ -199,6 +199,12 @@ Přibalený Plugin Update Checker 5.7 obsahuje lokální úpravy, které upstrea
 Picker otevírá iframe `https://b2c.cpost.cz/locations/`, takže Česká pošta obdrží běžná HTTP metadata návštěvy. Polohu pro funkci „Moje poloha“ předá prohlížeč widgetu pouze po souhlasu zákazníka. Pokud správce zapne `phone=true`, zákazník zadává telefon přímo ve widgetu České pošty; plugin jej následně převezme a může uložit jako WooCommerce `billing_phone`. Server pluginu stahuje z téhož hostu veřejně dostupný JSON seznam poboček pro ověření výběru; do tohoto požadavku neposílá údaje zákazníka ani objednávky. Endpoint seznamu nemá zveřejněný verzovaný integrační kontrakt, proto lze zdroj nahradit filtry `balikovna_wc_points_api_url` nebo `balikovna_wc_points_directory` a nouzová data se přijímají nejvýše 30 dní.
 
 Při zapnutém nAPI sledování server e-shopu posílá na výše uvedený pevný ZSK host pouze podací číslo potřebné pro `statusInfo` a autentizační hlavičky (`Api-Token`, timestamp, nonce a podpis). Uložené přihlašovací údaje se v HTML nevypisují. V databázi jsou chráněné AES-256-GCM; původní plaintext se automaticky migruje jen při dostupném platném klíči a OpenSSL, s atomickou kontrolou proti souběžnému uložení. `secretKey` se používá lokálně jako HMAC klíč a neposílá se. CIS `statusesOverview` neposílá podací číslo ani údaje zákazníka. Plugin ukládá jen aktuální kód/název stavu, čas události a časy kontroly ke konkrétnímu WooCommerce shipping itemu; neukládá kompletní API odpověď. Podmínky zpracování provozovatele jsou na [webu České pošty](https://www.ceskaposta.cz/ochrana-osobnich-udaju).
+
+### Osobní údaje zákazníků
+
+- Plugin nabízí odstavec do zásad ochrany soukromí (Nastavení → Soukromí → průvodce zásadami): načítání mapy z `b2c.cpost.cz`, uložené výdejní místo a podací číslo.
+- Export osobních údajů WooCommerce obsahuje u objednávky výdejní místo a podací číslo každé zásilky České pošty.
+- Při anonymizaci objednávky nástrojem WordPressu pro výmaz osobních údajů se z jejích zásilek odstraní výdejní místo, podací číslo a stav zásilky. Služba, hmotnost a hodnota obsahu zůstávají, zákazníka neidentifikují.
 
 ### Ochrana přihlašovacích údajů
 

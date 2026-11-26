@@ -672,7 +672,8 @@ class Order {
 		if ( ! $nonce || ! wp_verify_nonce( $nonce, self::TRACKING_NONCE_ACTION ) ) {
 			return;
 		}
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+		// Whoever may edit the order may record its tracking numbers.
+		if ( ! current_user_can( 'edit_shop_orders' ) ) {
 			return;
 		}
 
@@ -708,7 +709,28 @@ class Order {
 			}
 			$item->update_meta_data( self::META_TRACKING_NUMBER, $tracking_number );
 			$item->save();
+			self::warn_about_untracked_number( $tracking_number );
 		}
+	}
+
+	/**
+	 * Tell the administrator when a saved number can never be synchronized.
+	 *
+	 * The carrier API accepts parcel IDs of at most 13 characters; longer numbers
+	 * are kept for the customer and the export only.
+	 */
+	private static function warn_about_untracked_number( $tracking_number ) {
+		$settings = get_option( Tracking_Settings::OPTION_NAME, array() );
+		if ( ! is_array( $settings ) || empty( $settings['enabled'] ) || Napi_Client::is_valid_parcel_id( $tracking_number ) || ! class_exists( '\WC_Admin_Meta_Boxes' ) ) {
+			return;
+		}
+		\WC_Admin_Meta_Boxes::add_error(
+			sprintf(
+				/* translators: %s: parcel tracking number. */
+				__( 'Podací číslo %s je uložené, ale jeho stav se nesleduje: rozhraní České pošty přijímá nejvýše 13 znaků.', 'balikovna-wc' ),
+				$tracking_number
+			)
+		);
 	}
 
 	public function add_orders_column( $columns ) {

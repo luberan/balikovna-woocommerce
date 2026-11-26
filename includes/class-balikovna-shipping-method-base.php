@@ -40,6 +40,9 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 	/** @var string Efektivní smluvní hmotnostní limit. */
 	protected $max_weight_kg = '';
 
+	/** @var string Chování u produktů bez hmotnosti nebo rozměrů: `allow`, `weight` nebo `all`. */
+	protected $missing_metrics = 'allow';
+
 	public function __construct( $instance_id = 0 ) {
 		$this->id          = static::$service_id;
 		$this->instance_id = absint( $instance_id );
@@ -69,6 +72,7 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		$this->service_codes     = $this->get_option( 'service_codes', '' );
 		$this->parcel_type       = $this->get_option( 'parcel_type', $this->service['service_code'] ?? '' );
 		$this->max_weight_kg     = $this->get_option( 'max_weight_kg', $this->service['max_weight_kg'] ?? '' );
+		$this->missing_metrics   = $this->get_option( 'missing_metrics', 'allow' );
 
 		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options_action' ) );
 	}
@@ -145,6 +149,21 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 				'description' => __( 'Prefix produktu pro Podání Online. Zvolte DR, DV nebo DE podle smlouvy s Českou poštou.', 'balikovna-wc' ),
 				'options'     => $options,
 				'default'     => $this->service['service_code'],
+				'desc_tip'    => true,
+			);
+		}
+
+		if ( isset( $this->service['max_weight_kg'] ) || isset( $this->service['max_dimensions_cm'] ) ) {
+			$this->instance_form_fields['missing_metrics'] = array(
+				'title'       => __( 'Produkty bez hmotnosti nebo rozměrů', 'balikovna-wc' ),
+				'type'        => 'select',
+				'description' => __( 'Limity služby lze ověřit jen u produktů s vyplněnou hmotností a rozměry. Bez nich se doprava ve výchozím nastavení nabídne a překročení limitu se projeví až při exportu pro Podání Online.', 'balikovna-wc' ),
+				'options'     => array(
+					'allow'  => __( 'Dopravu nabízet', 'balikovna-wc' ),
+					'weight' => __( 'Nenabízet, když chybí hmotnost', 'balikovna-wc' ),
+					'all'    => __( 'Nenabízet, když chybí hmotnost nebo rozměry', 'balikovna-wc' ),
+				),
+				'default'     => 'allow',
 				'desc_tip'    => true,
 			);
 		}
@@ -252,14 +271,16 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 		$country           = isset( $package['destination']['country'] )
 			? strtoupper( (string) $package['destination']['country'] )
 			: '';
-		$require_complete  = (bool) apply_filters( 'balikovna_wc_require_complete_package_metrics', false, $package, $this->id );
+		// The instance setting chooses the default; the filter can still decide per package.
+		$require_complete = (bool) apply_filters( 'balikovna_wc_require_complete_package_metrics', 'all' === $this->missing_metrics, $package, $this->id );
+		$require_weight   = $require_complete || 'weight' === $this->missing_metrics;
 		if ( $allowed_countries && ! in_array( $country, $allowed_countries, true ) ) {
 			return false;
 		}
 
 		if ( isset( $this->service['max_weight_kg'] ) ) {
 			$max_weight = Services::weight_limit_kg( $this->id, $this->max_weight_kg );
-			if ( $metrics['weightKg'] > $max_weight || ( $require_complete && empty( $metrics['weightComplete'] ) ) ) {
+			if ( $metrics['weightKg'] > $max_weight || ( $require_weight && empty( $metrics['weightComplete'] ) ) ) {
 				return false;
 			}
 		}

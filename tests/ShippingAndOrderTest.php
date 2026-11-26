@@ -17,6 +17,11 @@ final class Balikovna_Test_Shipping_Method extends Shipping_Method_Base {
 		return $this->resolve_weight_cost( $weight );
 	}
 
+	public function missing_metrics( $mode ) {
+		$this->missing_metrics = $mode;
+		return $this;
+	}
+
 	public function configure( $service_id, $service_codes, $parcel_type, $max_weight_kg ) {
 		$this->id            = $service_id;
 		$this->service       = Balikovna_WC\Services::get( $service_id );
@@ -280,6 +285,77 @@ final class ShippingAndOrderTest extends TestCase {
 		$this->assertNull( $method->cost_for( $package( 50.1, array( 150, 80, 60 ) ), 'balikovna_plus', '', '50' ) );
 		$this->assertNull( $method->cost_for( $package( 20, array( 180, 80, 50 ) ), 'balikovna_plus' ) );
 		$this->assertNull( $method->cost_for( $package( 20, array( 201, 50, 40 ) ), 'balikovna_plus' ) );
+	}
+
+	public function test_instance_can_refuse_products_without_weight_or_dimensions(): void {
+		$package = function ( $weight, array $dimensions ) {
+			return array(
+				'destination' => array( 'country' => 'CZ' ),
+				'contents'    => array(
+					array(
+						'data'     => new Balikovna_Test_Product( $weight, $dimensions ),
+						'quantity' => 1,
+					),
+				),
+			);
+		};
+		$complete   = $package( 2, array( 20, 15, 10 ) );
+		$no_weight  = $package( '', array( 20, 15, 10 ) );
+		$no_size    = $package( 2, array( '', '', '' ) );
+		$method     = new Balikovna_Test_Shipping_Method();
+		$expected   = array(
+			'allow'  => array( 79.0, 79.0, 79.0 ),
+			'weight' => array( 79.0, null, 79.0 ),
+			'all'    => array( 79.0, null, null ),
+		);
+		foreach ( $expected as $mode => $costs ) {
+			$method->missing_metrics( $mode );
+			$this->assertSame(
+				$costs,
+				array( $method->cost_for( $complete ), $method->cost_for( $no_weight ), $method->cost_for( $no_size ) ),
+				$mode
+			);
+		}
+
+		// The filter still has the last word for a single package.
+		add_filter(
+			'balikovna_wc_require_complete_package_metrics',
+			function () {
+				return true;
+			}
+		);
+		try {
+			$this->assertNull( $method->missing_metrics( 'allow' )->cost_for( $no_size ) );
+		} finally {
+			remove_all_filters( 'balikovna_wc_require_complete_package_metrics' );
+		}
+	}
+
+	public function test_untracked_long_tracking_number_is_reported_when_tracking_is_enabled(): void {
+		$save = function ( $number ) {
+			$item  = new WC_Order_Item_Shipping( 'cp_do_ruky', '5', array(), 12 );
+			$_POST = array(
+				Order::TRACKING_NONCE_NAME   => 'valid-nonce',
+				'balikovna_tracking_numbers' => array( '12' => $number ),
+			);
+			WC_Admin_Meta_Boxes::$errors = array();
+			Order::instance()->save_tracking_numbers( 123, new WC_Order( array( $item ) ) );
+			$this->assertSame( $number, $item->get_meta( Order::META_TRACKING_NUMBER ), 'The number is saved either way.' );
+			return WC_Admin_Meta_Boxes::$errors;
+		};
+		try {
+			$GLOBALS['balikovna_test_options'][ Balikovna_WC\Tracking_Settings::OPTION_NAME ] = array( 'enabled' => true );
+			$this->assertSame( array(), $save( 'DR1234567890E' ) );
+			$errors = $save( 'DR12345678901234567E' );
+			$this->assertCount( 1, $errors );
+			$this->assertStringContainsString( 'DR12345678901234567E', $errors[0] );
+
+			$GLOBALS['balikovna_test_options'][ Balikovna_WC\Tracking_Settings::OPTION_NAME ] = array( 'enabled' => false );
+			$this->assertSame( array(), $save( 'DR12345678901234567E' ), 'Nothing is reported while tracking is off.' );
+		} finally {
+			unset( $GLOBALS['balikovna_test_options'][ Balikovna_WC\Tracking_Settings::OPTION_NAME ] );
+			WC_Admin_Meta_Boxes::$errors = array();
+		}
 	}
 
 	public function test_rate_snapshots_the_effective_contract_weight_limit(): void {

@@ -314,10 +314,12 @@ class Export {
 			return array( 'Balíkova', $point['id'] ?? '', '' );
 		}
 		if ( 'NP' === $service_code ) {
+			// Stored points always carry every key, so an empty value has to fall back as well.
+			$name = (string) ( $point['name'] ?? '' );
 			return array(
-				$point['street'] ?? ( $point['name'] ?? '' ),
+				! empty( $point['street'] ) ? $point['street'] : $name,
 				! empty( $point['zip'] ) ? $point['zip'] : preg_replace( '/^P/', '', $point['id'] ?? '' ),
-				$point['city'] ?? ( $point['name'] ?? '' ),
+				! empty( $point['city'] ) ? $point['city'] : $name,
 			);
 		}
 

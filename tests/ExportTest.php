@@ -107,6 +107,9 @@ final class ExportTest extends TestCase {
 		$point  = array( 'id' => 'P10003', 'name' => 'Depo Praha 701', 'street' => 'Sazecska 7', 'zip' => '10003', 'city' => 'Praha' );
 		$this->assertSame( array( 'Sazecska 7', '10003', 'Praha' ), $export->destination( $order, $point, 'NP' ) );
 		$this->assertSame( array( 'Balíkova', 'B10000', '' ), $export->destination( $order, array( 'id' => 'B10000' ), 'NB' ) );
+		// A stored point has every key; an empty street or city falls back to the post office name.
+		$without_address = Balikovna_WC\Points::sanitize( array( 'id' => 'P10003', 'name' => 'Praha 103', 'type' => 'POST_OFFICE' ) );
+		$this->assertSame( array( 'Praha 103', '10003', 'Praha 103' ), $export->destination( $order, $without_address, 'NP' ) );
 		$this->assertSame( array( 'Customer street', '60200', 'Brno' ), $export->destination( $order, array(), 'DR' ) );
 	}
 
