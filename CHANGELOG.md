@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.30.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.9...v1.30.0) (2026-11-26)
+
+
+### 🚀 Nové funkce
+
+* export and erase pickup points and tracking numbers with personal data ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
+* let a shipping instance refuse products without weight or dimensions ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
+
+
+### 🐛 Opravy chyb
+
+* fall back to the post office name when its address is empty in the export ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
+* let everyone who may edit orders save tracking numbers ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
+* report a status dictionary without a recognized delivery ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
+* report tracking numbers the carrier API cannot follow ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
+* resolve the remaining audit findings in shipping, privacy and tracking ([#78](https://github.com/luberan/balikovna-woocommerce/issues/78)) ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
+
 ## [1.29.9](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.8...v1.29.9) (2026-11-26)
 
 ### 🐛 Opravy chyb
