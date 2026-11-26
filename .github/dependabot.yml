@@ -10,8 +10,12 @@ updates:
     groups:
       actions-minor-and-patch:
         update-types: ["minor", "patch"]
+    # Give a broken or compromised release time to be noticed; security updates are not delayed.
+    cooldown:
+      default-days: 7
+    # Development-only updates must not trigger a plugin release.
     commit-message:
-      prefix: "ci"
+      prefix: "chore"
   - package-ecosystem: "composer"
     directory: "/"
     schedule:
@@ -25,8 +29,12 @@ updates:
     groups:
       composer-minor-and-patch:
         update-types: ["minor", "patch"]
+    # Give a broken or compromised release time to be noticed; security updates are not delayed.
+    cooldown:
+      default-days: 7
+    # Development-only updates must not trigger a plugin release.
     commit-message:
-      prefix: "ci"
+      prefix: "chore"
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -37,5 +45,9 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: ["minor", "patch"]
+    # Give a broken or compromised release time to be noticed; security updates are not delayed.
+    cooldown:
+      default-days: 7
+    # Development-only updates must not trigger a plugin release.
     commit-message:
-      prefix: "ci"
+      prefix: "chore"

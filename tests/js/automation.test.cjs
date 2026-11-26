@@ -9,21 +9,32 @@ const { marker, reportContract } = require('../../.github/scripts/report-points-
 const metadata = {
   ecosystem: 'github_actions',
   updateType: 'version-update:semver-patch',
-  dependencyNames: 'actions/checkout',
+  dependencyNames: 'actions/cache',
   dependencyType: 'direct:production',
   maintainerChanges: 'false',
 };
 
-test('Only allowlisted minor/patch GitHub Actions and development Playwright updates auto-merge', () => {
+test('Only allowlisted minor/patch CI-only GitHub Actions and development Playwright updates auto-merge', () => {
   for (const updateType of ['version-update:semver-minor', 'version-update:semver-patch']) {
     assert.equal(autoMergeDecision({
       ...metadata, updateType,
-      dependencyNames: 'actions/cache,actions/checkout,actions/setup-node,actions/upload-artifact,dependabot/fetch-metadata,googleapis/release-please-action,shivammathur/setup-php',
+      dependencyNames: 'actions/cache,actions/setup-node',
     }).allowed, true);
     assert.equal(autoMergeDecision({
       ...metadata, updateType, ecosystem: 'npm_and_yarn', dependencyType: 'direct:development',
       dependencyNames: '@playwright/test,playwright,playwright-core',
     }).allowed, true);
+  }
+});
+
+test('Actions that run with write access or build and carry the release ZIP stay manual', () => {
+  const workflows = '../../.github/workflows/';
+  const used = name => [...fs.readFileSync(path.join(__dirname, workflows, name), 'utf8').matchAll(/uses:\s*([^@\s]+)@/g)].map(match => match[1]);
+  const privileged = new Set([...used('release-please.yml'), ...used('dependabot-automerge.yml')]);
+  assert.ok(privileged.has('shivammathur/setup-php') && privileged.has('actions/checkout'));
+  for (const name of privileged) {
+    assert.equal(autoMergeDecision({ ...metadata, dependencyNames: name }).allowed, false, name);
+    assert.equal(autoMergeDecision({ ...metadata, dependencyNames: `actions/cache,${name}` }).allowed, false, name);
   }
 });
 
@@ -36,8 +47,8 @@ test('Major, Composer, unknown, mixed, production and maintainer-modified update
     { ecosystem: 'npm' },
     { ecosystem: '__proto__' },
     { dependencyNames: '' },
-    { dependencyNames: 'actions/checkout,unknown/action' },
-    { dependencyNames: 'actions/checkout@v7' },
+    { dependencyNames: 'actions/cache,unknown/action' },
+    { dependencyNames: 'actions/cache@v6' },
     { maintainerChanges: 'true' },
     { maintainerChanges: '' },
     { ecosystem: 'npm_and_yarn', dependencyNames: '@playwright/test', dependencyType: 'direct:production' },
@@ -55,7 +66,7 @@ function runPolicy(overrides = {}, execute = () => {}, args = []) {
   const main = { exports: {} };
   const env = {
     ECOSYSTEM: 'github_actions', UPDATE_TYPE: metadata.updateType,
-    DEPENDENCY_NAMES: 'actions/checkout', DEPENDENCY_TYPE: 'direct:production',
+    DEPENDENCY_NAMES: 'actions/cache', DEPENDENCY_TYPE: 'direct:production',
     MAINTAINER_CHANGES: 'false', PR_NUMBER: '123', PR_HEAD_SHA: 'a'.repeat(40),
     GITHUB_REPOSITORY: 'owner/repo', ...overrides,
   };
