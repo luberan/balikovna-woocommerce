@@ -295,6 +295,13 @@ final class MetadataTest extends TestCase {
 		$this->assertIsInt( $attached );
 		$this->assertIsInt( $published );
 		$this->assertLessThan( $published, $attached, 'The release is published after the ZIP is attached.' );
+
+		// A retry reuses an identical attached ZIP, stops on a different one and publishes only a draft.
+		$this->assertStringContainsString( 'sha256sum artifact/balikovna-woocommerce.zip', $commands );
+		$this->assertStringContainsString( 'if [ -z "$attached" ]; then', $commands );
+		$this->assertStringContainsString( 'elif [ "$attached" = "$built" ]; then', $commands );
+		$this->assertStringContainsString( 'exit 1', $commands );
+		$this->assertLessThan( $published, strpos( $commands, '--json isDraft' ) );
 	}
 
 	public function test_dependabot_keeps_framework_stubs_with_their_integration_profiles(): void {

@@ -187,6 +187,20 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag || needs.release-please.outputs.tag_name }}
         run: |
           set -e
-          gh release upload "$RELEASE_TAG" artifact/balikovna-woocommerce.zip \
-            --repo "$GITHUB_REPOSITORY"
-          gh release edit "$RELEASE_TAG" --draft=false --repo "$GITHUB_REPOSITORY"
+          # A retry after an interrupted publication finds the ZIP already
+          # attached: reuse it when it is the same file, never replace it.
+          built="sha256:$(sha256sum artifact/balikovna-woocommerce.zip | cut -d ' ' -f 1)"
+          attached=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[] | select(.name == "balikovna-woocommerce.zip") | .digest // "unknown"')
+          if [ -z "$attached" ]; then
+            gh release upload "$RELEASE_TAG" artifact/balikovna-woocommerce.zip \
+              --repo "$GITHUB_REPOSITORY"
+          elif [ "$attached" = "$built" ]; then
+            echo "The same ZIP is already attached to $RELEASE_TAG."
+          else
+            echo "::error::$RELEASE_TAG already has a different balikovna-woocommerce.zip ($attached, built $built). Re-run the failed job of the run that attached it, or remove the asset from the draft."
+            exit 1
+          fi
+          if [ "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = "true" ]; then
+            gh release edit "$RELEASE_TAG" --draft=false --repo "$GITHUB_REPOSITORY"
+          fi
