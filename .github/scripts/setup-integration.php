@@ -86,6 +86,9 @@ function integration_extract( string $archive, string $destination, string $pref
 $wordpress_archive = getenv( 'BALIKOVNA_TEST_WP_ARCHIVE' ) ?: $site . '/.wordpress.zip';
 $woocommerce_archive = getenv( 'BALIKOVNA_TEST_WC_ARCHIVE' ) ?: $site . '/.woocommerce.zip';
 integration_download( 'https://downloads.wordpress.org/release/wordpress-' . $versions['wordpress'] . '.zip', $wordpress_archive );
+if ( ! hash_equals( $versions['wordpress_sha1'], hash_file( 'sha1', $wordpress_archive ) ) ) {
+	throw new RuntimeException( 'WordPress archive checksum does not match the pinned release.' );
+}
 integration_download( 'https://github.com/woocommerce/woocommerce/releases/download/' . $versions['woocommerce'] . '/woocommerce.zip', $woocommerce_archive );
 if ( ! hash_equals( $versions['woocommerce_sha256'], hash_file( 'sha256', $woocommerce_archive ) ) ) {
 	throw new RuntimeException( 'WooCommerce archive checksum does not match the pinned release.' );

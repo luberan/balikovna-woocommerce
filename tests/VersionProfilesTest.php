@@ -14,7 +14,16 @@ final class VersionProfilesTest extends TestCase {
 		$this->assertSame( '11.2.1', $current['woocommerce'] );
 		foreach ( array( $minimum, $current ) as $profile ) {
 			$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/', $profile['woocommerce_sha256'] );
+			$this->assertMatchesRegularExpression( '/^[a-f0-9]{40}$/', $profile['wordpress_sha1'] );
 		}
+		$this->assertNotSame( $minimum['wordpress_sha1'], $current['wordpress_sha1'] );
+	}
+
+	public function test_wordpress_archive_is_verified_before_it_is_extracted(): void {
+		$setup    = file_get_contents( dirname( __DIR__ ) . '/.github/scripts/setup-integration.php' );
+		$verified = strpos( $setup, "hash_equals( \$versions['wordpress_sha1'], hash_file( 'sha1', \$wordpress_archive ) )" );
+		$this->assertIsInt( $verified );
+		$this->assertLessThan( strpos( $setup, 'integration_extract( $wordpress_archive' ), $verified );
 	}
 
 	public function test_unknown_profile_is_rejected_instead_of_running_another_version(): void {

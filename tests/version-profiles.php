@@ -17,6 +17,10 @@ function balikovna_test_versions( ?string $profile = null ): array {
 	if ( ! isset( $versions['woocommerce_sha256'] ) || ! is_string( $versions['woocommerce_sha256'] ) || ! preg_match( '/^[a-f0-9]{64}$/', $versions['woocommerce_sha256'] ) ) {
 		throw new RuntimeException( 'The integration WooCommerce archive needs a SHA-256 digest.' );
 	}
+	// WordPress.org publishes SHA-1 checksums of its release archives, no SHA-256.
+	if ( ! isset( $versions['wordpress_sha1'] ) || ! is_string( $versions['wordpress_sha1'] ) || ! preg_match( '/^[a-f0-9]{40}$/', $versions['wordpress_sha1'] ) ) {
+		throw new RuntimeException( 'The integration WordPress archive needs a SHA-1 checksum.' );
+	}
 	return $versions;
 }
 

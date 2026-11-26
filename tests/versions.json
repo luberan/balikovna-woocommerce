@@ -1,11 +1,13 @@
 {
   "current": {
     "wordpress": "7.1.2",
+    "wordpress_sha1": "fab6ce3a905a1f4085ffff7fd9920bc693f5dd94",
     "woocommerce": "11.2.1",
     "woocommerce_sha256": "3066f85e46d1c1f6451296da0300b459963b504fd0d2f75869701ee744833aaf"
   },
   "minimum": {
     "wordpress": "6.9",
+    "wordpress_sha1": "964ddc9d491bb662c7dfb21b40aef561210d390c",
     "woocommerce": "10.8.0",
     "woocommerce_sha256": "43d4294807ab97df44323363262e41b91b8a9374e02a464c7050562869ab5f06"
   },

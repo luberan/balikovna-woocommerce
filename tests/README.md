@@ -64,7 +64,7 @@ Případné heslo testovací databáze nastavte lokálně přes `BALIKOVNA_TEST_
 
 Na Windows použijte ekvivalentní `$env:BALIKOVNA_TEST_*` proměnné ve stejné terminálové relaci. Je-li třeba zapnout `mysqli` pouze pro test, nastavte `BALIKOVNA_PHP_ARGS` na JSON `["-d","extension=mysqli"]`. Tato pole argumentů se předávají podprocesům PHP. `BALIKOVNA_PHP_BINARY` dovoluje určit PHP spustitelný soubor pro Playwright.
 
-`BALIKOVNA_TEST_WP_ARCHIVE` a `BALIKOVNA_TEST_WC_ARCHIVE` dovolují použít už stažené oficiální archivy. SHA-256 WooCommerce se vždy kontroluje proti [versions.json](versions.json). Na Windows musí být v PHP nastavený aktuální důvěryhodný CA bundle pro stahování; nevypínejte ověřování TLS.
+`BALIKOVNA_TEST_WP_ARCHIVE` a `BALIKOVNA_TEST_WC_ARCHIVE` dovolují použít už stažené oficiální archivy. SHA-256 WooCommerce a SHA-1 WordPressu se vždy kontrolují proti [versions.json](versions.json). WordPress.org zveřejňuje u svých archivů jen SHA-1 (`https://downloads.wordpress.org/release/wordpress-X.Y.Z.zip.sha1`); při změně verze WordPressu proto aktualizujte i `wordpress_sha1`. Na Windows musí být v PHP nastavený aktuální důvěryhodný CA bundle pro stahování; nevypínejte ověřování TLS.
 
 ## Upgrade distribučního ZIPu
 
