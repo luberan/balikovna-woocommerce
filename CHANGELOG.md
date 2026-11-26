@@ -2,7 +2,6 @@
 
 ## [1.29.9](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.8...v1.29.9) (2026-11-26)
 
-
 ### 🐛 Opravy chyb
 
 * count the tracking window from the saved tracking number ([217f134](https://github.com/luberan/balikovna-woocommerce/commit/217f134e72e36368503a839c19b30bf64cbaa2ff))
