@@ -2,12 +2,10 @@
 
 ## [1.30.0](https://github.com/luberan/balikovna-woocommerce/compare/v1.29.9...v1.30.0) (2026-11-26)
 
-
 ### 🚀 Nové funkce
 
 * export and erase pickup points and tracking numbers with personal data ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
 * let a shipping instance refuse products without weight or dimensions ([9b8c13c](https://github.com/luberan/balikovna-woocommerce/commit/9b8c13c6bed0284246d58e037e811e3b5bfd0d9c))
-
 
 ### 🐛 Opravy chyb
 

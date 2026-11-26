@@ -114,6 +114,15 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 
 == Changelog ==
 
+= 1.30.0 =
+* 🚀 Nové funkce: export and erase pickup points and tracking numbers with personal data
+* 🚀 Nové funkce: let a shipping instance refuse products without weight or dimensions
+* 🐛 Opravy chyb: fall back to the post office name when its address is empty in the export
+* 🐛 Opravy chyb: let everyone who may edit orders save tracking numbers
+* 🐛 Opravy chyb: report a status dictionary without a recognized delivery
+* 🐛 Opravy chyb: report tracking numbers the carrier API cannot follow
+* 🐛 Opravy chyb: resolve the remaining audit findings in shipping, privacy and tracking ([#78](https://github.com/luberan/balikovna-woocommerce/issues/78))
+
 = 1.29.9 =
 * 🐛 Opravy chyb: count the tracking window from the saved tracking number
 * 🐛 Opravy chyb: ignore non-order objects in email and order detail hooks
