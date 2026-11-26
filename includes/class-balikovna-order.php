@@ -22,7 +22,10 @@ class Order {
 	const META_REQUIRES_SHIPPING       = '_balikovna_requires_shipping';
 	const META_DATA_VERSION            = '_balikovna_data_version';
 	const META_PARCEL_TYPE             = 'balikovna_parcel_type';
+	const META_SERVICE_CODES           = 'balikovna_service_codes';
 	const META_TRACKING_NUMBER         = '_balikovna_tracking_number';
+	const META_TRACKING_SINCE          = '_balikovna_tracking_since';
+	const META_TRACKING_SINCE_NUMBER   = '_balikovna_tracking_since_number';
 	const META_STATUS_CODE             = '_balikovna_status_code';
 	const META_STATUS_LABEL            = '_balikovna_status_label';
 	const META_STATUS_EVENT_AT         = '_balikovna_status_event_at';
@@ -38,6 +41,13 @@ class Order {
 
 	private static $instance = null;
 
+	/**
+	 * Orders whose shipment received a new tracking number in the item save in progress.
+	 *
+	 * @var array<int,bool>
+	 */
+	private static $orders_to_touch = array();
+
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -49,6 +59,7 @@ class Order {
 		add_action( 'woocommerce_checkout_create_order_shipping_item', array( $this, 'add_shipping_item_metadata' ), 10, 4 );
 		add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'snapshot_line_item_weight' ), 10, 4 );
 		add_action( 'woocommerce_before_order_item_object_save', array( $this, 'remove_stale_shipping_metadata' ), 10, 2 );
+		add_action( 'woocommerce_after_order_item_object_save', array( $this, 'touch_order_after_tracking_change' ), 10, 1 );
 		add_action( 'woocommerce_before_save_order_items', array( $this, 'capture_order_contents' ), 10, 1 );
 		add_action( 'woocommerce_saved_order_items', array( $this, 'refresh_order_summary' ), 10, 1 );
 
@@ -97,6 +108,9 @@ class Order {
 		$item->update_meta_data( self::META_PACKAGE_VALUE, self::package_contents_value( $package ) );
 		$item->update_meta_data( self::META_CONTENTS_SIGNATURE, self::contents_signature( $order ) );
 		$item->update_meta_data( self::META_DATA_VERSION, self::DATA_VERSION );
+		foreach ( self::method_settings( $item ) as $meta_key => $value ) {
+			$item->update_meta_data( $meta_key, $value );
+		}
 
 		if ( empty( $service['pickup'] ) ) {
 			$item->delete_meta_data( self::META_KEY );
@@ -109,6 +123,85 @@ class Order {
 		} else {
 			$item->delete_meta_data( self::META_KEY );
 		}
+	}
+
+	/**
+	 * Contract settings of the shipping method instance an order item was created from.
+	 *
+	 * They are read here instead of travelling in the shipping rate meta, which
+	 * the Store API returns to every customer.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private static function method_settings( \WC_Order_Item_Shipping $item ) {
+		$instance_id = absint( $item->get_instance_id() );
+		if ( ! $instance_id || ! class_exists( '\WC_Shipping_Zones' ) ) {
+			return array();
+		}
+		$method = \WC_Shipping_Zones::get_shipping_method( $instance_id );
+		return $method instanceof Shipping_Method_Base && (string) $method->id === (string) $item->get_method_id()
+			? $method->order_item_settings()
+			: array();
+	}
+
+	/**
+	 * Remember when the current tracking number was first saved.
+	 *
+	 * The tracking window is counted from this moment, so a parcel handed over
+	 * long after the order was placed is still followed for the full period.
+	 */
+	private static function stamp_tracking_since( \WC_Order_Item_Shipping $item, $tracking_number ) {
+		if ( '' === $tracking_number ) {
+			$item->delete_meta_data( self::META_TRACKING_SINCE );
+			$item->delete_meta_data( self::META_TRACKING_SINCE_NUMBER );
+			return;
+		}
+		if ( (string) $item->get_meta( self::META_TRACKING_SINCE_NUMBER, true ) === $tracking_number ) {
+			return;
+		}
+		// A number stored before this record existed keeps its order-date window:
+		// saving its status must not start a new one.
+		$item_id   = absint( $item->get_id() );
+		$persisted = $item_id ? self::sanitize_tracking_number( wc_get_order_item_meta( $item_id, self::META_TRACKING_NUMBER, true ) ) : '';
+		if ( $persisted === $tracking_number ) {
+			return;
+		}
+		$item->update_meta_data( self::META_TRACKING_SINCE, time() );
+		$item->update_meta_data( self::META_TRACKING_SINCE_NUMBER, $tracking_number );
+		$order_id = absint( $item->get_order_id() );
+		if ( $order_id ) {
+			self::$orders_to_touch[ $order_id ] = true;
+		}
+	}
+
+	/**
+	 * Mark an order as modified once its shipment received a new tracking number.
+	 *
+	 * Tracking selects orders by their modification date, and saving a shipping
+	 * item alone does not modify its order.
+	 *
+	 * @param mixed $item Saved order item.
+	 */
+	public function touch_order_after_tracking_change( $item ) {
+		if ( ! $item instanceof \WC_Order_Item_Shipping ) {
+			return;
+		}
+		$order_id = absint( $item->get_order_id() );
+		if ( ! $order_id || empty( self::$orders_to_touch[ $order_id ] ) ) {
+			return;
+		}
+		unset( self::$orders_to_touch[ $order_id ] );
+		$order = wc_get_order( $order_id );
+		if ( ! $order instanceof \WC_Order ) {
+			return;
+		}
+		// An order that is being saved together with its items is already modified.
+		$modified = $order->get_date_modified();
+		if ( $modified && time() - (int) $modified->getTimestamp() < MINUTE_IN_SECONDS ) {
+			return;
+		}
+		$order->set_date_modified( time() );
+		$order->save();
 	}
 
 	/**
@@ -142,6 +235,9 @@ class Order {
 		if ( $service && ( '' !== $status_code || '' !== $status_tracking ) && $tracking_number !== $status_tracking ) {
 			self::clear_tracking_status( $item );
 		}
+		if ( $service ) {
+			self::stamp_tracking_since( $item, $tracking_number );
+		}
 		if ( ! $service || empty( $service['pickup'] ) || ! is_array( $point ) || ! Points::matches_service( $point, $service_id ) ) {
 			$item->delete_meta_data( self::META_KEY );
 		}
@@ -162,6 +258,7 @@ class Order {
 			$item->delete_meta_data( self::META_CONTENTS_SIGNATURE );
 			$item->delete_meta_data( self::META_PARCEL_TYPE );
 			$item->delete_meta_data( self::META_TRACKING_NUMBER );
+			self::stamp_tracking_since( $item, '' );
 			self::clear_tracking_status( $item );
 			$item->delete_meta_data( self::META_DATA_VERSION );
 		}
@@ -209,6 +306,7 @@ class Order {
 				$item->delete_meta_data( self::META_CONTENTS_SIGNATURE );
 				$item->delete_meta_data( self::META_PARCEL_TYPE );
 				$item->delete_meta_data( self::META_TRACKING_NUMBER );
+				self::stamp_tracking_since( $item, '' );
 				self::clear_tracking_status( $item );
 				$item->delete_meta_data( self::META_DATA_VERSION );
 				$item->save();
@@ -316,7 +414,7 @@ class Order {
 				'statusLabel'     => (string) $item->get_meta( self::META_STATUS_LABEL, true ),
 				'statusEventAt'   => (string) $item->get_meta( self::META_STATUS_EVENT_AT, true ),
 				'statusCheckedAt' => (int) $item->get_meta( self::META_STATUS_CHECKED_AT, true ),
-				'serviceCodes'    => (string) $item->get_meta( 'balikovna_service_codes', true ),
+				'serviceCodes'    => (string) $item->get_meta( self::META_SERVICE_CODES, true ),
 			);
 		}
 
@@ -509,6 +607,9 @@ class Order {
 	}
 
 	public function admin_after_shipping( $order ) {
+		if ( ! $order instanceof \WC_Order ) {
+			return;
+		}
 		$shipments = self::get_shipments( $order );
 		if ( ! $shipments ) {
 			return;
@@ -625,7 +726,7 @@ class Order {
 	}
 
 	public function render_orders_column( $column, $order ) {
-		if ( 'balikovna' !== $column ) {
+		if ( 'balikovna' !== $column || ! $order instanceof \WC_Order ) {
 			return;
 		}
 		$names = array();
@@ -651,6 +752,10 @@ class Order {
 	}
 
 	public function email_after_order_table( $order, $sent_to_admin, $plain_text, $email ) {
+		// Other plugins fire this hook with refunds and their own objects.
+		if ( ! $order instanceof \WC_Order ) {
+			return;
+		}
 		$shipments = self::visible_shipments( $order );
 		if ( ! $shipments ) {
 			return;
@@ -673,6 +778,9 @@ class Order {
 	}
 
 	public function order_details( $order ) {
+		if ( ! $order instanceof \WC_Order ) {
+			return;
+		}
 		$shipments = self::visible_shipments( $order );
 		if ( ! $shipments ) {
 			return;

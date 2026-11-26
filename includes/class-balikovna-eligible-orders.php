@@ -63,14 +63,15 @@ class Eligible_Orders {
 		while ( count( $orders ) < $limit && $scanned < $max_scan_pages ) {
 			$result = $this->query(
 				array(
-					'status'       => array_values( $statuses ),
-					'date_created' => '>' . $this->cutoff_timestamp( $settings ),
-					'limit'        => $limit,
-					'page'         => $page,
-					'paginate'     => true,
-					'orderby'      => 'date',
-					'order'        => 'ASC',
-					'return'       => 'objects',
+					'status'        => array_values( $statuses ),
+					// Saving a tracking number modifies the order, so late shipments of old orders are found.
+					'date_modified' => '>' . $this->cutoff_timestamp( $settings ),
+					'limit'         => $limit,
+					'page'          => $page,
+					'paginate'      => true,
+					'orderby'       => 'date',
+					'order'         => 'ASC',
+					'return'        => 'objects',
 				),
 				$skip
 			);
@@ -197,11 +198,31 @@ class Eligible_Orders {
 			return false;
 		}
 
-		$date_created = $order->get_date_created();
-		if ( ! $date_created || ! is_callable( array( $date_created, 'getTimestamp' ) ) ) {
+		$created = self::timestamp( $order->get_date_created() );
+		if ( $created < 1 ) {
 			return false;
 		}
-		return (int) $date_created->getTimestamp() >= $this->cutoff_timestamp( $settings );
+		return max( $created, self::timestamp( $order->get_date_modified() ) ) >= $this->cutoff_timestamp( $settings );
+	}
+
+	/**
+	 * Whether a parcel is still inside the tracking window.
+	 *
+	 * The window starts when its tracking number was saved. Shipments stored
+	 * before that moment was recorded fall back to the order date.
+	 *
+	 * @param \WC_Order               $order    Order of the shipment.
+	 * @param \WC_Order_Item_Shipping $item     Shipping item.
+	 * @param array                   $settings Tracking settings.
+	 * @return bool
+	 */
+	public function is_shipment_in_window( \WC_Order $order, $item, array $settings ) {
+		$tracking = Order::sanitize_tracking_number( $item->get_meta( Order::META_TRACKING_NUMBER, true ) );
+		$since    = (int) $item->get_meta( Order::META_TRACKING_SINCE, true );
+		if ( $since < 1 || (string) $item->get_meta( Order::META_TRACKING_SINCE_NUMBER, true ) !== $tracking ) {
+			$since = self::timestamp( $order->get_date_created() );
+		}
+		return $since >= $this->cutoff_timestamp( $settings );
 	}
 
 	public function has_work( \WC_Order $order, array $settings ) {
@@ -213,10 +234,11 @@ class Eligible_Orders {
 			$code            = (string) $item->get_meta( Order::META_STATUS_CODE, true );
 			$status_tracking = (string) $item->get_meta( Order::META_STATUS_TRACKING_NUMBER, true );
 			$eligible        = (bool) apply_filters( 'balikovna_wc_tracking_shipment_eligible', true, $shipment, $order, $settings );
-			if ( $eligible && ( '' !== $code || '' !== $status_tracking ) && $status_tracking !== $shipment['trackingNumber'] ) {
+			$pollable        = $eligible && $this->is_shipment_in_window( $order, $item, $settings );
+			if ( $pollable && ( '' !== $code || '' !== $status_tracking ) && $status_tracking !== $shipment['trackingNumber'] ) {
 				return true;
 			}
-			if ( $eligible && Tracking_Settings::should_poll( $code, $settings ) && Shipment_Synchronizer::next_attempt_at( $item ) <= $this->now() ) {
+			if ( $pollable && Tracking_Settings::should_poll( $code, $settings ) && Shipment_Synchronizer::next_attempt_at( $item ) <= $this->now() ) {
 				return true;
 			}
 			if ( $eligible && ! empty( $settings['auto_order_status'] ) && '' !== $code && $this->needs_mapping_evaluation( $item, $code, $settings ) ) {
@@ -229,6 +251,14 @@ class Eligible_Orders {
 	public function needs_mapping_evaluation( \WC_Order_Item_Shipping $item, $code, array $settings ) {
 		return (string) $item->get_meta( Order::META_STATUS_EVALUATED_CODE, true ) !== (string) $code
 			|| (int) $item->get_meta( Order::META_STATUS_MAPPING_REVISION, true ) !== (int) ( $settings['mapping_revision'] ?? 1 );
+	}
+
+	/**
+	 * @param mixed $date WC_DateTime or null.
+	 * @return int Unix timestamp, 0 when unknown.
+	 */
+	private static function timestamp( $date ) {
+		return is_object( $date ) && is_callable( array( $date, 'getTimestamp' ) ) ? (int) $date->getTimestamp() : 0;
 	}
 
 	private function cutoff_timestamp( array $settings ) {

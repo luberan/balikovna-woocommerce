@@ -1,14 +1,14 @@
 const { execFileSync } = require('node:child_process');
 
+// Actions that run in a job with write access, or that build or carry the
+// release ZIP, are reviewed by a person: actions/checkout,
+// actions/upload-artifact, actions/download-artifact,
+// actions/attest-build-provenance, dependabot/fetch-metadata,
+// googleapis/release-please-action and shivammathur/setup-php.
 const allowedDependencies = {
   github_actions: new Set([
     'actions/cache',
-    'actions/checkout',
     'actions/setup-node',
-    'actions/upload-artifact',
-    'dependabot/fetch-metadata',
-    'googleapis/release-please-action',
-    'shivammathur/setup-php',
   ]),
   npm_and_yarn: new Set(['@playwright/test', 'playwright', 'playwright-core']),
 };

@@ -3,6 +3,8 @@
   "release-type": "simple",
   "include-component-in-tag": false,
   "include-v-in-tag": true,
+  "draft": true,
+  "force-tag-creation": true,
   "packages": {
     ".": {
       "package-name": "balikovna-woocommerce",
@@ -27,7 +29,7 @@
     { "type": "refactor",  "section": "♻️ Refaktor" },
     { "type": "docs",      "section": "📚 Dokumentace" },
     { "type": "i18n",      "section": "🌍 Lokalizace" },
-    { "type": "ci",        "section": "🛠 CI", "hidden": false },
+    { "type": "ci",        "section": "🛠 CI", "hidden": true },
     { "type": "build",     "section": "🛠 Build", "hidden": false },
     { "type": "chore",     "section": "🧹 Údržba", "hidden": true },
     { "type": "test",      "section": "✅ Testy", "hidden": true },

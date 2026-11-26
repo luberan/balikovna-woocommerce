@@ -15,6 +15,27 @@ defined( 'ABSPATH' ) || exit;
 
 class Export {
 
+	/**
+	 * Unicode code points of Windows-1250 bytes 0x80-0xFF, four hex digits each;
+	 * 0000 marks an unassigned byte.
+	 */
+	const CP1250_HIGH = '20AC0000201A0000201E202620202021'
+		. '0000203001602039015A0164017D0179'
+		. '000020182019201C201D202220132014'
+		. '000021220161203A015B0165017E017A'
+		. '00A002C702D8014100A4010400A600A7'
+		. '00A800A9015E00AB00AC00AD00AE017B'
+		. '00B000B102DB014200B400B500B600B7'
+		. '00B80105015F00BB013D02DD013E017C'
+		. '015400C100C2010200C40139010600C7'
+		. '010C00C9011800CB011A00CD00CE010E'
+		. '01100143014700D300D4015000D600D7'
+		. '0158016E00DA017000DC00DD016200DF'
+		. '015500E100E2010300E4013A010700E7'
+		. '010D00E9011900EB011B00ED00EE010F'
+		. '01110144014800F300F4015100F600F7'
+		. '0159016F00FA017100FC00FD016302D9';
+
 	private static $instance = null;
 
 	public static function instance() {
@@ -339,20 +360,111 @@ class Export {
 		}
 		$converted = array_map(
 			function ( $v ) {
-				$v = (string) $v;
-				if ( function_exists( 'iconv' ) ) {
-					$c = iconv( 'UTF-8', 'Windows-1250//TRANSLIT//IGNORE', $v );
-					if ( false !== $c ) {
-						$v = $c;
-					}
-				}
-				return $this->escape_csv_value( $v );
+				return $this->escape_csv_value( $this->to_cp1250( (string) $v ) );
 			},
 			$row
 		);
 		// PHP 8.4+ deprecuje spoléhání na výchozí hodnotu parametru $escape.
 		// Prázdný řetězec navíc vypne proprietární "\\" escapování → RFC 4180.
 		fputcsv( $handle, $converted, ';', '"', '' );
+	}
+
+	/**
+	 * Convert UTF-8 text to Windows-1250, the encoding declared for the CSV.
+	 *
+	 * A failed conversion must never pass the UTF-8 bytes through: Podání Online
+	 * would import them as broken diacritics without reporting an error.
+	 *
+	 * @param string $value UTF-8 text.
+	 * @return string
+	 */
+	protected function to_cp1250( $value ) {
+		$value = (string) $value;
+		if ( ! preg_match( '/[^\x00-\x7F]/', $value ) ) {
+			return $value;
+		}
+		$converted = $this->iconv_cp1250( $value );
+		return false === $converted ? $this->cp1250_fallback( $value ) : $converted;
+	}
+
+	/**
+	 * @param string $value UTF-8 text.
+	 * @return string|false
+	 */
+	protected function iconv_cp1250( $value ) {
+		if ( ! function_exists( 'iconv' ) ) {
+			return false;
+		}
+		// musl libc rejects the //TRANSLIT and //IGNORE suffixes with a PHP notice.
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler -- Restored in the finally block.
+		set_error_handler(
+			static function () {
+				return true;
+			}
+		);
+		try {
+			foreach ( array( 'Windows-1250//TRANSLIT//IGNORE', 'Windows-1250' ) as $target ) {
+				$converted = iconv( 'UTF-8', $target, $value );
+				if ( false !== $converted ) {
+					return $converted;
+				}
+			}
+		} finally {
+			restore_error_handler();
+		}
+		return false;
+	}
+
+	/**
+	 * Convert without iconv: mapped characters keep their Windows-1250 byte,
+	 * the rest lose their accents or become a question mark.
+	 *
+	 * @param string $value UTF-8 text.
+	 * @return string
+	 */
+	protected function cp1250_fallback( $value ) {
+		static $map = null;
+		if ( null === $map ) {
+			$map = array();
+			foreach ( str_split( self::CP1250_HIGH, 4 ) as $index => $hex ) {
+				$code_point = hexdec( $hex );
+				if ( $code_point ) {
+					$map[ $code_point ] = chr( 0x80 + $index );
+				}
+			}
+		}
+
+		$converted = preg_replace_callback(
+			'/[^\x00-\x7F]/u',
+			static function ( $found ) use ( $map ) {
+				$code_point = self::code_point( $found[0] );
+				if ( isset( $map[ $code_point ] ) ) {
+					return $map[ $code_point ];
+				}
+				$ascii = function_exists( 'remove_accents' ) ? (string) remove_accents( $found[0] ) : '';
+				return '' !== $ascii && ! preg_match( '/[^\x00-\x7F]/', $ascii ) ? $ascii : '?';
+			},
+			(string) $value
+		);
+		// Invalid UTF-8 makes the pattern fail.
+		return is_string( $converted ) ? $converted : (string) preg_replace( '/[^\x00-\x7F]/', '?', (string) $value );
+	}
+
+	/**
+	 * @param string $character One UTF-8 encoded character.
+	 * @return int Unicode code point.
+	 */
+	private static function code_point( $character ) {
+		$bytes = array_values( (array) unpack( 'C*', $character ) );
+		switch ( count( $bytes ) ) {
+			case 2:
+				return ( ( $bytes[0] & 0x1F ) << 6 ) | ( $bytes[1] & 0x3F );
+			case 3:
+				return ( ( $bytes[0] & 0x0F ) << 12 ) | ( ( $bytes[1] & 0x3F ) << 6 ) | ( $bytes[2] & 0x3F );
+			case 4:
+				return ( ( $bytes[0] & 0x07 ) << 18 ) | ( ( $bytes[1] & 0x3F ) << 12 ) | ( ( $bytes[2] & 0x3F ) << 6 ) | ( $bytes[3] & 0x3F );
+		}
+		return (int) ( $bytes[0] ?? 0 );
 	}
 
 	protected function calc_weight( \WC_Order $order, $decimals = 2 ) {

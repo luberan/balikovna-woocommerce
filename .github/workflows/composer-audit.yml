@@ -1,4 +1,4 @@
-name: Composer security audit
+name: Dependency security audit
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: composer-security-audit
+  group: dependency-security-audit
   cancel-in-progress: false
 
 jobs:
@@ -27,3 +27,14 @@ jobs:
         run: composer validate --strict
       - name: Audit locked dependencies including development tools
         run: composer audit --locked
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24"
+      - name: Audit locked npm development dependencies
+        run: npm audit --package-lock-only

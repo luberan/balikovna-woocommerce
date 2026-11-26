@@ -178,16 +178,27 @@ abstract class Shipping_Method_Base extends \WC_Shipping_Method {
 
 		$this->add_rate(
 			array(
-				'id'        => $this->get_rate_id(),
-				'label'     => $this->title,
-				'cost'      => $cost,
-				'package'   => $package,
-				'meta_data' => array(
-					'balikovna_service_codes' => $this->service_codes,
-					'balikovna_parcel_type'   => $this->parcel_type,
-					'balikovna_max_weight_kg' => Services::weight_limit_kg( $this->id, $this->max_weight_kg ),
-				),
+				'id'      => $this->get_rate_id(),
+				'label'   => $this->title,
+				'cost'    => $cost,
+				'package' => $package,
 			)
+		);
+	}
+
+	/**
+	 * Contract settings stored with every order shipment of this instance.
+	 *
+	 * They are not attached to the rate: the Store API returns rate meta to
+	 * every customer. Order::add_shipping_item_metadata() copies them instead.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function order_item_settings() {
+		return array(
+			Order::META_SERVICE_CODES => $this->service_codes,
+			Order::META_PARCEL_TYPE   => $this->parcel_type,
+			Order::META_MAX_WEIGHT    => Services::weight_limit_kg( $this->id, $this->max_weight_kg ),
 		);
 	}
 

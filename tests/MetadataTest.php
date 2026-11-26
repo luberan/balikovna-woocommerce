@@ -208,11 +208,16 @@ final class MetadataTest extends TestCase {
 		$integration = $ci['jobs']['integration'];
 		$matrix = $integration['strategy']['matrix']['include'];
 		$this->assertSame(
-			array( 'current/7.4/cpt', 'current/7.4/hpos', 'current/8.5/cpt', 'current/8.5/hpos', 'minimum/7.4/cpt', 'minimum/7.4/hpos' ),
-			array_map( function ( $case ) { return $case['profile'] . '/' . $case['php'] . '/' . $case['storage']; }, $matrix )
+			array(
+				'current/7.4/cpt/mariadb', 'current/7.4/hpos/mariadb', 'current/8.5/cpt/mariadb', 'current/8.5/hpos/mariadb',
+				'minimum/7.4/cpt/mariadb', 'minimum/7.4/hpos/mariadb', 'current/8.5/cpt/mysql', 'current/8.5/hpos/mysql',
+			),
+			array_map( function ( $case ) { return $case['profile'] . '/' . $case['php'] . '/' . $case['storage'] . '/' . $case['database']; }, $matrix )
 		);
 		$this->assertSame( '${{ matrix.profile }}', $integration['env']['BALIKOVNA_TEST_VERSION_PROFILE'] );
-		$this->assertSame( 'mariadb:11.4.9', $integration['services']['database']['image'] );
+		$this->assertSame( "\${{ matrix.database == 'mysql' && 'mysql:8.4' || 'mariadb:11.4.9' }}", $integration['services']['database']['image'] );
+		$this->assertStringContainsString( 'matrix.database', $integration['name'] );
+		$this->assertSame( array( '7.4', '8.2', '8.3', '8.4', '8.5' ), $ci['jobs']['quality']['strategy']['matrix']['php'], 'Unit tests run on every supported PHP minor version.' );
 		$commands = implode( "\n", array_column( $integration['steps'], 'run' ) );
 		$this->assertStringContainsString( 'setup-integration.php', $commands );
 		$this->assertStringContainsString( 'phpunit.integration.xml.dist', $commands );
@@ -233,7 +238,70 @@ final class MetadataTest extends TestCase {
 			foreach ( $update['groups'] as $group ) {
 				$this->assertSame( array( 'minor', 'patch' ), $group['update-types'] );
 			}
+			$this->assertSame( array( 'default-days' => 7 ), $update['cooldown'], 'A fresh upstream release is not proposed immediately.' );
 		}
+	}
+
+	public function test_development_only_changes_do_not_trigger_a_plugin_release(): void {
+		$dependabot = Yaml::parse( file_get_contents( $this->rootPath( '.github/dependabot.yml' ) ) );
+		$release    = json_decode( file_get_contents( $this->rootPath( '.release-please-config.json' ) ), true );
+		$hidden     = array();
+		foreach ( $release['changelog-sections'] as $section ) {
+			$hidden[ $section['type'] ] = ! empty( $section['hidden'] );
+		}
+
+		$this->assertTrue( $hidden['ci'] );
+		$this->assertTrue( $hidden['chore'] );
+		$this->assertTrue( $hidden['test'] );
+		$this->assertFalse( $hidden['fix'] );
+		$this->assertFalse( $hidden['feat'] );
+		foreach ( $dependabot['updates'] as $update ) {
+			$this->assertTrue( $hidden[ $update['commit-message']['prefix'] ], $update['package-ecosystem'] );
+		}
+	}
+
+	public function test_release_zip_is_built_without_write_access_and_published_only_when_attached(): void {
+		$config  = json_decode( file_get_contents( $this->rootPath( '.release-please-config.json' ) ), true );
+		$release = Yaml::parse( file_get_contents( $this->rootPath( '.github/workflows/release-please.yml' ) ) );
+		$build   = $release['jobs']['build-zip'];
+		$publish = $release['jobs']['publish-zip'];
+
+		// Sites are offered a release only after the ZIP is attached.
+		$this->assertTrue( $config['draft'] );
+		$this->assertTrue( $config['force-tag-creation'], 'release-please finds the previous release by its tag, which a draft does not create.' );
+
+		$this->assertSame( array( 'contents' => 'read' ), $build['permissions'] );
+		foreach ( $build['steps'] as $step ) {
+			if ( isset( $step['uses'] ) && 0 === strpos( $step['uses'], 'actions/checkout@' ) ) {
+				$this->assertFalse( $step['with']['persist-credentials'] );
+			}
+			$this->assertArrayNotHasKey( 'env', $step, 'The build job receives no token.' );
+		}
+
+		$this->assertSame( array( 'release-please', 'build-zip' ), $publish['needs'] );
+		$this->assertStringContainsString( "needs.build-zip.result == 'success'", $publish['if'] );
+		$this->assertSame( array( 'contents' => 'write', 'id-token' => 'write', 'attestations' => 'write' ), $publish['permissions'] );
+		foreach ( $publish['steps'] as $step ) {
+			if ( isset( $step['uses'] ) ) {
+				$this->assertStringStartsWith( 'actions/', $step['uses'], 'Only first-party actions run with write access.' );
+			}
+		}
+		$uses = implode( "\n", array_column( $publish['steps'], 'uses' ) );
+		$this->assertStringContainsString( 'actions/download-artifact@', $uses );
+		$this->assertStringContainsString( 'actions/attest-build-provenance@', $uses );
+		$commands = implode( "\n", array_column( $publish['steps'], 'run' ) );
+		$attached  = strpos( $commands, 'gh release upload "$RELEASE_TAG" artifact/balikovna-woocommerce.zip' );
+		$published = strpos( $commands, 'gh release edit "$RELEASE_TAG" --draft=false' );
+		$this->assertIsInt( $attached );
+		$this->assertIsInt( $published );
+		$this->assertLessThan( $published, $attached, 'The release is published after the ZIP is attached.' );
+
+		// A retry reuses an identical attached ZIP, stops on a different one and publishes only a draft.
+		$this->assertStringContainsString( 'sha256sum artifact/balikovna-woocommerce.zip', $commands );
+		$this->assertStringContainsString( 'if [ -z "$attached" ]; then', $commands );
+		$this->assertStringContainsString( 'elif [ "$attached" = "$built" ]; then', $commands );
+		$this->assertStringContainsString( 'exit 1', $commands );
+		$this->assertLessThan( $published, strpos( $commands, '--json isDraft' ) );
 	}
 
 	public function test_dependabot_keeps_framework_stubs_with_their_integration_profiles(): void {
@@ -263,6 +331,9 @@ final class MetadataTest extends TestCase {
 		$this->assertStringNotContainsString( 'composer install', $commands );
 		$this->assertStringNotContainsString( 'composer update', $commands );
 		$this->assertStringNotContainsString( '--no-dev', $commands );
+		$npm = $workflow['jobs']['npm-audit'];
+		$this->assertSame( 10, $npm['timeout-minutes'] );
+		$this->assertStringContainsString( 'npm audit --package-lock-only', implode( "\n", array_column( $npm['steps'], 'run' ) ) );
 	}
 
 	public function test_required_ci_gate_checks_all_jobs_even_after_failure(): void {

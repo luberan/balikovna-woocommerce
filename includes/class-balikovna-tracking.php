@@ -49,6 +49,33 @@ class Tracking {
 		$this->admin->init();
 
 		add_action( 'admin_init', array( $this, 'maintain_admin' ) );
+		add_action( 'admin_notices', array( $this, 'credential_notice' ) );
+	}
+
+	/**
+	 * Warn when tracking is enabled but its stored credentials cannot be read.
+	 *
+	 * This happens after the encryption key or the WordPress salts change. The
+	 * recurring synchronization is then unscheduled, which nothing else reports
+	 * outside the tracking settings screen.
+	 */
+	public function credential_notice() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		$stored = get_option( Tracking_Settings::OPTION_NAME, array() );
+		if ( ! is_array( $stored ) || empty( $stored['enabled'] ) ) {
+			return;
+		}
+		$error = Tracking_Settings::credential_error();
+		if ( ! $error ) {
+			return;
+		}
+		$url = admin_url( 'admin.php?page=wc-settings&tab=shipping&section=' . Tracking_Admin::SECTION );
+		echo '<div class="notice notice-error"><p><strong>'
+			. esc_html__( 'Balíkovna: sledování stavu zásilek je pozastavené.', 'balikovna-wc' )
+			. '</strong> ' . esc_html( $error->get_error_message() )
+			. ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Otevřít nastavení sledování', 'balikovna-wc' ) . '</a></p></div>';
 	}
 
 	public function maintain_admin() {

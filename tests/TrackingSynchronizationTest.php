@@ -497,7 +497,7 @@ final class TrackingSynchronizationTest extends TestCase {
 		$this->assertSame( array( 102 ), array_map( function ( $order ) { return $order->get_id(); }, $second_batch ) );
 		$this->assertSame( array( 1, 2 ), array_column( $queries, 'page' ) );
 		$this->assertSame( $settings['order_statuses'], $queries[0]['status'] );
-		$this->assertStringStartsWith( '>', $queries[0]['date_created'] );
+		$this->assertStringStartsWith( '>', $queries[0]['date_modified'] );
 		$this->assertSame( true, $queries[0]['paginate'] );
 		$this->assertSame( 'objects', $queries[0]['return'] );
 	}
@@ -599,13 +599,59 @@ final class TrackingSynchronizationTest extends TestCase {
 			$this->assertTrue( $repository->is_order_eligible( $recent, $settings ) );
 			$this->assertFalse( $repository->is_order_eligible( $old, $settings ) );
 			$this->assertSame( array( $recent ), $repository->find( $settings ) );
-			$this->assertSame( '>' . $cutoff, $queries[0]['date_created'] );
+			$this->assertSame( '>' . $cutoff, $queries[0]['date_modified'] );
 
 			$now += 2;
 			$this->assertFalse( $repository->is_order_eligible( $recent, $settings ) );
 			$this->assertSame( array(), $repository->find( $settings ) );
-			$this->assertSame( '>' . ( $cutoff + 2 ), $queries[1]['date_created'] );
+			$this->assertSame( '>' . ( $cutoff + 2 ), $queries[1]['date_modified'] );
 		}
+	}
+
+	public function test_late_parcel_of_an_old_order_is_tracked_from_its_tracking_number(): void {
+		$now        = 1786521600;
+		$repository = new Eligible_Orders( function () use ( $now ) { return $now; } );
+		$settings   = $this->settings( array( 'tracking_days' => 14 ) );
+		$state      = array(
+			'id'            => 100,
+			'status'        => 'processing',
+			'date_created'  => $now - 60 * DAY_IN_SECONDS,
+			'date_modified' => $now - DAY_IN_SECONDS,
+		);
+		$stamped    = function ( $since, $number = 'BA1234567890A' ) use ( $state ) {
+			$item = $this->item( 'BA1234567890A', array( Order::META_TRACKING_SINCE => $since, Order::META_TRACKING_SINCE_NUMBER => $number ) );
+			return new WC_Order( array( $item ), array(), array(), array(), $state );
+		};
+
+		$late = $stamped( $now - DAY_IN_SECONDS );
+		$this->assertTrue( $repository->is_order_eligible( $late, $settings ), 'An old order modified recently is examined.' );
+		$this->assertTrue( $repository->has_work( $late, $settings ) );
+		$this->assertFalse( $repository->has_work( $stamped( $now - 15 * DAY_IN_SECONDS ), $settings ), 'The window ends 14 days after the number was saved.' );
+		$this->assertFalse( $repository->has_work( $stamped( $now - DAY_IN_SECONDS, 'BA0000000000A' ), $settings ), 'A stamp of another number falls back to the order date.' );
+
+		$unstamped = new WC_Order( array( $this->item( 'BA1234567890A' ) ), array(), array(), array(), $state );
+		$this->assertFalse( $repository->has_work( $unstamped, $settings ), 'Shipments without a stamp keep the order-date window.' );
+
+		$untouched = new WC_Order( array(), array(), array(), array(), array( 'date_created' => $now - 60 * DAY_IN_SECONDS ) );
+		$this->assertFalse( $repository->is_order_eligible( $untouched, $settings ) );
+	}
+
+	public function test_parcel_outside_its_tracking_window_is_not_polled(): void {
+		$item  = $this->item(
+			'BA1234567890A',
+			array(
+				Order::META_TRACKING_SINCE        => 1786521600 - 15 * DAY_IN_SECONDS,
+				Order::META_TRACKING_SINCE_NUMBER => 'BA1234567890A',
+			)
+		);
+		$order = $this->order( array( $item ) );
+		$sync  = $this->synchronizer( array( $this->response( '44', '01', 'V přepravě' ) ), $transport );
+
+		$result = $sync->sync_order( $order, $this->settings() );
+
+		$this->assertSame( 0, $result['checked'] );
+		$this->assertCount( 0, $transport->requests );
+		$this->assertSame( '', $item->get_meta( Order::META_STATUS_CODE ) );
 	}
 
 	public function test_order_age_defaults_to_the_system_clock(): void {
@@ -627,8 +673,12 @@ final class TrackingSynchronizationTest extends TestCase {
 			)
 		);
 		$order = $this->order( array( $item ) );
+		// The fixture order is dated relative to this fixed clock.
+		$clock = function () {
+			return 1786521600;
+		};
 
-		$this->assertTrue( ( new Eligible_Orders() )->has_work( $order, $this->settings() ) );
+		$this->assertTrue( ( new Eligible_Orders( $clock ) )->has_work( $order, $this->settings() ) );
 	}
 
 	public function test_api_incompatible_legacy_tracking_number_is_not_endless_work(): void {

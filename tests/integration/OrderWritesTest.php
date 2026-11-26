@@ -57,12 +57,20 @@ final class OrderWritesTest extends TestCase {
 		$table = $hpos ? $wpdb->prefix . 'wc_orders' : $wpdb->posts;
 		$id    = $hpos ? 'id' : 'ID';
 		$sql   = $wpdb->prepare( 'UPDATE %i SET %i = %i WHERE %i = %d', $table, $id, $id, $id, $order->get_id() );
-		$probe = function () use ( $wpdb, $connection, $sql, &$observed ) {
-			$observed['hook']      = (string) $wpdb->get_var( 'SELECT @@SESSION.in_transaction' );
-			$observed['competing'] = $connection->exec( $sql );
+		$read  = $wpdb->prepare( 'SELECT %i FROM %i WHERE %i = %d', $hpos ? 'status' : 'post_status', $table, $id, $order->get_id() );
+		// Seen from a second connection: it reads only committed data and waits for row locks.
+		// MySQL has no @@in_transaction, so the open transaction is observed by its effects.
+		$outside = function () use ( $connection, $sql, $read ) {
+			return array(
+				'committed' => (string) $connection->query( $read )->fetchColumn(),
+				'unlocked'  => $connection->exec( $sql ),
+			);
 		};
-		$mail  = function ( $result ) use ( $wpdb, &$observed ) {
-			$observed['mail'][] = (string) $wpdb->get_var( 'SELECT @@SESSION.in_transaction' );
+		$probe = function () use ( $outside, &$observed ) {
+			$observed['hook'] = $outside();
+		};
+		$mail  = function ( $result ) use ( $outside, &$observed ) {
+			$observed['mail'][] = $outside();
 			return $result;
 		};
 		add_action( 'woocommerce_order_status_completed', $probe, 1 );
@@ -73,10 +81,15 @@ final class OrderWritesTest extends TestCase {
 			remove_action( 'woocommerce_order_status_completed', $probe, 1 );
 			remove_filter( 'pre_wp_mail', $mail, 5 );
 		}
-		$this->assertSame( '0', $observed['hook'], 'Status hooks must not run inside the guard transaction.' );
-		$this->assertSame( 0, $observed['competing'], 'A concurrent writer is not blocked by status hooks.' );
+		$after_commit = array(
+			'committed' => 'wc-completed',
+			'unlocked'  => 0,
+		);
+		$this->assertSame( $after_commit, $observed['hook'], 'Status hooks must not run inside the guard transaction.' );
 		$this->assertNotEmpty( $observed['mail'] );
-		$this->assertSame( array( '0' ), array_unique( $observed['mail'] ) );
+		foreach ( $observed['mail'] as $state ) {
+			$this->assertSame( $after_commit, $state, 'E-mails are sent after the commit, without row locks.' );
+		}
 		$this->assertSame( 'wc-completed', $this->database_status( $order->get_id() ) );
 	}
 
@@ -155,14 +168,79 @@ final class OrderWritesTest extends TestCase {
 
 	public function test_guard_never_commits_or_rolls_back_an_outer_transaction(): void {
 		global $wpdb;
-		$order = $this->order();
+		$order  = $this->order();
+		$marker = 'balikovna_test_outer_transaction';
+		$read   = $wpdb->prepare( 'SELECT option_value FROM %i WHERE option_name = %s', $wpdb->options, $marker );
 		$wpdb->query( 'START TRANSACTION' );
 		try {
+			// An uncommitted row shows what happened to the outer transaction on MySQL and MariaDB alike.
+			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (option_name, option_value, autoload) VALUES (%s, '1', 'off')", $wpdb->options, $marker ) );
 			$this->assertFalse( ( new Order_Write_Guard() )->run( $order, function () { $this->fail( 'Must not enter an existing transaction.' ); } ) );
-			$this->assertSame( '1', (string) $wpdb->get_var( 'SELECT @@SESSION.in_transaction' ) );
+			$this->assertSame( '1', (string) $wpdb->get_var( $read ), 'The outer transaction was not rolled back.' );
 		} finally {
 			$wpdb->query( 'ROLLBACK' );
+			$committed = $wpdb->get_var( $read );
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE option_name = %s', $wpdb->options, $marker ) );
 		}
+		$this->assertNull( $committed, 'The outer transaction was not committed.' );
+	}
+
+	public function test_tracking_number_saved_on_the_item_alone_makes_an_old_order_trackable(): void {
+		global $wpdb;
+		$order = wc_create_order( array( 'status' => 'processing' ) );
+		$this->created[] = $order->get_id();
+		$item = new WC_Order_Item_Shipping();
+		$item->set_method_id( 'balikovna' );
+		$item->set_instance_id( 4 );
+		$order->add_item( $item );
+		$order->save();
+		$item_id = $item->get_id();
+		$this->assertGreaterThan( 0, $item_id );
+
+		// Saving cannot backdate a modification, so the fixture is aged in the database.
+		$old  = gmdate( 'Y-m-d H:i:s', time() - 60 * DAY_IN_SECONDS );
+		$hpos = Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+		if ( $hpos ) {
+			$wpdb->update( $wpdb->prefix . 'wc_orders', array( 'date_created_gmt' => $old, 'date_updated_gmt' => $old ), array( 'id' => $order->get_id() ) );
+		} else {
+			$wpdb->update( $wpdb->posts, array( 'post_date' => $old, 'post_date_gmt' => $old, 'post_modified' => $old, 'post_modified_gmt' => $old ), array( 'ID' => $order->get_id() ) );
+		}
+		wp_cache_flush();
+		$settings = array_merge( $this->settings(), array( 'order_statuses' => array( 'wc-processing' ), 'tracking_days' => 14 ) );
+		$orders   = new \Balikovna_WC\Eligible_Orders();
+		$recent   = function () use ( $order ) {
+			return in_array(
+				$order->get_id(),
+				array_map( 'intval', wc_get_orders( array( 'status' => array( 'wc-processing' ), 'date_modified' => '>' . ( time() - 14 * DAY_IN_SECONDS ), 'limit' => -1, 'return' => 'ids' ) ) ),
+				true
+			);
+		};
+		$this->assertFalse( $orders->is_order_eligible( new WC_Order( $order->get_id() ), $settings ), 'Fixture: the order is older than the tracking window.' );
+		$this->assertFalse( $recent(), 'Fixture: the tracking query does not select the old order.' );
+
+		// A number written straight to the metadata, as before the window was recorded, keeps the order-date window.
+		wc_update_order_item_meta( $item_id, Order::META_TRACKING_NUMBER, 'BA1234567890A' );
+		$legacy = new WC_Order_Item_Shipping( $item_id );
+		$legacy->update_meta_data( Order::META_STATUS_TRACKING_NUMBER, 'BA1234567890A' );
+		$legacy->update_meta_data( Order::META_STATUS_CODE, '44/01' );
+		$legacy->save();
+		$reloaded = new WC_Order_Item_Shipping( $item_id );
+		$this->assertSame( '44/01', $reloaded->get_meta( Order::META_STATUS_CODE ) );
+		$this->assertSame( '', (string) $reloaded->get_meta( Order::META_TRACKING_SINCE ), 'A status-only save does not start a new window.' );
+		$this->assertFalse( $recent() );
+
+		// An integration that knows only the shipping item replaces the number.
+		$shipment = new WC_Order_Item_Shipping( $item_id );
+		$shipment->update_meta_data( Order::META_TRACKING_NUMBER, 'BA0000000000A' );
+		$shipment->save();
+
+		$fresh = new WC_Order( $order->get_id() );
+		$this->assertTrue( $recent(), 'The tracking query selects the order again.' );
+		$this->assertTrue( $orders->is_order_eligible( $fresh, $settings ) );
+		$this->assertTrue( $orders->has_work( $fresh, $settings ) );
+		$saved = array_values( $fresh->get_shipping_methods() )[0];
+		$this->assertSame( 'BA0000000000A', $saved->get_meta( Order::META_TRACKING_SINCE_NUMBER ) );
+		$this->assertGreaterThan( time() - MINUTE_IN_SECONDS, (int) $saved->get_meta( Order::META_TRACKING_SINCE ) );
 	}
 
 	public function test_innodb_lock_blocks_a_competing_connection_during_the_write(): void {
