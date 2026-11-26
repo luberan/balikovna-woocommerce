@@ -57,12 +57,20 @@ final class OrderWritesTest extends TestCase {
 		$table = $hpos ? $wpdb->prefix . 'wc_orders' : $wpdb->posts;
 		$id    = $hpos ? 'id' : 'ID';
 		$sql   = $wpdb->prepare( 'UPDATE %i SET %i = %i WHERE %i = %d', $table, $id, $id, $id, $order->get_id() );
-		$probe = function () use ( $wpdb, $connection, $sql, &$observed ) {
-			$observed['hook']      = (string) $wpdb->get_var( 'SELECT @@SESSION.in_transaction' );
-			$observed['competing'] = $connection->exec( $sql );
+		$read  = $wpdb->prepare( 'SELECT %i FROM %i WHERE %i = %d', $hpos ? 'status' : 'post_status', $table, $id, $order->get_id() );
+		// Seen from a second connection: it reads only committed data and waits for row locks.
+		// MySQL has no @@in_transaction, so the open transaction is observed by its effects.
+		$outside = function () use ( $connection, $sql, $read ) {
+			return array(
+				'committed' => (string) $connection->query( $read )->fetchColumn(),
+				'unlocked'  => $connection->exec( $sql ),
+			);
 		};
-		$mail  = function ( $result ) use ( $wpdb, &$observed ) {
-			$observed['mail'][] = (string) $wpdb->get_var( 'SELECT @@SESSION.in_transaction' );
+		$probe = function () use ( $outside, &$observed ) {
+			$observed['hook'] = $outside();
+		};
+		$mail  = function ( $result ) use ( $outside, &$observed ) {
+			$observed['mail'][] = $outside();
 			return $result;
 		};
 		add_action( 'woocommerce_order_status_completed', $probe, 1 );
@@ -73,10 +81,15 @@ final class OrderWritesTest extends TestCase {
 			remove_action( 'woocommerce_order_status_completed', $probe, 1 );
 			remove_filter( 'pre_wp_mail', $mail, 5 );
 		}
-		$this->assertSame( '0', $observed['hook'], 'Status hooks must not run inside the guard transaction.' );
-		$this->assertSame( 0, $observed['competing'], 'A concurrent writer is not blocked by status hooks.' );
+		$after_commit = array(
+			'committed' => 'wc-completed',
+			'unlocked'  => 0,
+		);
+		$this->assertSame( $after_commit, $observed['hook'], 'Status hooks must not run inside the guard transaction.' );
 		$this->assertNotEmpty( $observed['mail'] );
-		$this->assertSame( array( '0' ), array_unique( $observed['mail'] ) );
+		foreach ( $observed['mail'] as $state ) {
+			$this->assertSame( $after_commit, $state, 'E-mails are sent after the commit, without row locks.' );
+		}
 		$this->assertSame( 'wc-completed', $this->database_status( $order->get_id() ) );
 	}
 
@@ -155,14 +168,21 @@ final class OrderWritesTest extends TestCase {
 
 	public function test_guard_never_commits_or_rolls_back_an_outer_transaction(): void {
 		global $wpdb;
-		$order = $this->order();
+		$order  = $this->order();
+		$marker = 'balikovna_test_outer_transaction';
+		$read   = $wpdb->prepare( 'SELECT option_value FROM %i WHERE option_name = %s', $wpdb->options, $marker );
 		$wpdb->query( 'START TRANSACTION' );
 		try {
+			// An uncommitted row shows what happened to the outer transaction on MySQL and MariaDB alike.
+			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (option_name, option_value, autoload) VALUES (%s, '1', 'off')", $wpdb->options, $marker ) );
 			$this->assertFalse( ( new Order_Write_Guard() )->run( $order, function () { $this->fail( 'Must not enter an existing transaction.' ); } ) );
-			$this->assertSame( '1', (string) $wpdb->get_var( 'SELECT @@SESSION.in_transaction' ) );
+			$this->assertSame( '1', (string) $wpdb->get_var( $read ), 'The outer transaction was not rolled back.' );
 		} finally {
 			$wpdb->query( 'ROLLBACK' );
+			$committed = $wpdb->get_var( $read );
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE option_name = %s', $wpdb->options, $marker ) );
 		}
+		$this->assertNull( $committed, 'The outer transaction was not committed.' );
 	}
 
 	public function test_innodb_lock_blocks_a_competing_connection_during_the_write(): void {
