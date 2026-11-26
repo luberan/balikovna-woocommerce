@@ -7,7 +7,7 @@ Requires PHP: 7.4
 WC requires at least: 10.8
 WC tested up to: 11.2
 <!-- x-release-please-start-version -->
-Stable tag: 1.29.9
+Stable tag: 1.30.0
 <!-- x-release-please-end -->
 License: GPLv3 or later
 
@@ -113,6 +113,15 @@ Při nAPI sledování server posílá podací číslo a autentizační hlavičky
 * Akceptační testy skutečných platebních bran, nAPI a importu Podání Online.
 
 == Changelog ==
+
+= 1.30.0 =
+* 🚀 Nové funkce: export and erase pickup points and tracking numbers with personal data
+* 🚀 Nové funkce: let a shipping instance refuse products without weight or dimensions
+* 🐛 Opravy chyb: fall back to the post office name when its address is empty in the export
+* 🐛 Opravy chyb: let everyone who may edit orders save tracking numbers
+* 🐛 Opravy chyb: report a status dictionary without a recognized delivery
+* 🐛 Opravy chyb: report tracking numbers the carrier API cannot follow
+* 🐛 Opravy chyb: resolve the remaining audit findings in shipping, privacy and tracking ([#78](https://github.com/luberan/balikovna-woocommerce/issues/78))
 
 = 1.29.9 =
 * 🐛 Opravy chyb: count the tracking window from the saved tracking number
