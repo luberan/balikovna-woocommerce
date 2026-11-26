@@ -102,7 +102,7 @@ git clone https://github.com/luberan/balikovna-woocommerce.git
 5. Pro automatické stavy otevřete **WooCommerce → Nastavení → Doprava → Sledování stavu zásilek**:
   - v uživatelské aplikaci Pošta Online si vygenerujte přihlašovací údaje `Api-Token` a `secretKey` pro B2B nAPI; uložené hodnoty se v administraci znovu nezobrazují,
   - zvolte produkční nebo oficiální testovací prostředí, údaje uložte a klikněte na **Otestovat připojení**; test ověří přístup k CIS a načtení číselníku, nikoli ZSK stav konkrétní zásilky,
-  - zapněte sledování, nastavte počet objednávek na běh (výchozí 100), stáří objednávek (výchozí 14 dní) a stavy objednávek, které mají být sledovány,
+  - zapněte sledování, nastavte počet objednávek na běh (výchozí 100), počet dnů sledování zásilky (výchozí 14 dní) a stavy objednávek, které mají být sledovány; lhůta běží od uložení podacího čísla k zásilce, u zásilek s číslem uloženým před verzí se záznamem tohoto okamžiku od vytvoření objednávky,
   - zvolte agregované stavy ČP, které se mají dál dotazovat; nový reason kód známého agregovaného stavu bezpečně převezme pouze jednomyslné nastavení skupiny, při nejednoznačnosti se dál kontroluje bez automaticky odhadnutého mapování,
   - volitelně zapněte změny stavů objednávek a nastavte mapování **Česká pošta status → WooCommerce status**.
 6. Doporučené stavy `wc-shipped` a `wc-ready-pickup` plugin sám neregistruje. Pokud existují, objeví se automaticky ve volbách a bezpečných výchozích mapováních. Totéž platí pro jakýkoli jiný stav vrácený `wc_get_order_statuses()`.
@@ -188,7 +188,7 @@ composer build  # čistý staging do build/balikovna-woocommerce
 
 CI běží PHP lint matrix 7.4–8.5 a blokující QA na PHP 7.4 i 8.5. Release ZIP se skládá stejným reprodukovatelným build skriptem.
 
-Jednotkové testy používají izolované runtime stuby. Samostatná integrační CI matice ověřuje profily `minimum` a `current` nad MariaDB 11.4.9 s CPT i HPOS. Playwright dokončuje Classic/Block Checkout s jedním i dvěma balíky a ověřuje trvalá metadata i CSV. Náhrada widgetu v těchto testech nepředstavuje autentizovaný import do Podání Online. Postup lokálního spuštění, přesné verze a rozsah jsou v [tests/README.md](tests/README.md).
+Jednotkové testy používají izolované runtime stuby. Samostatná integrační CI matice ověřuje profily `minimum` a `current` nad MariaDB 11.4.9 s CPT i HPOS a profil `current` také nad MySQL 8.4. Playwright dokončuje Classic/Block Checkout s jedním i dvěma balíky a ověřuje trvalá metadata i CSV. Náhrada widgetu v těchto testech nepředstavuje autentizovaný import do Podání Online. Postup lokálního spuštění, přesné verze a rozsah jsou v [tests/README.md](tests/README.md).
 
 PHPCompatibility je připnuté na 10.0.0-alpha2 a PHPCompatibilityWP na 3.0.0-alpha2, protože stabilní řada 9 nezná moderní PHP. Jde pouze o vývojové nástroje; nedistribuují se s pluginem. Rozšíření kontroly PHP nenahrazuje integrační a browserové testy. Přibalený Parsedown 1.8.0 je namespacovaný, běží v safe mode a jeho zdroj i licence se kontrolují proti Composer locku příkazem `composer vendor:check`.
 
@@ -203,8 +203,8 @@ Při zapnutém nAPI sledování server e-shopu posílá na výše uvedený pevn�
 ### Ochrana přihlašovacích údajů
 
 - `BALIKOVNA_WC_API_TOKEN` a `BALIKOVNA_WC_SECRET_KEY` lze definovat jako konstanty v konfiguraci WordPressu nebo proměnné prostředí. Mají přednost před databází a jejich hodnoty se do ní nekopírují. Prázdná explicitní hodnota daný údaj vypne.
-- Volitelný `BALIKOVNA_WC_ENCRYPTION_KEY` obsahuje Base64 zápis 32 náhodných bajtů. Bez něj se šifrovací klíč odvozuje z platných `AUTH_KEY` a `AUTH_SALT` WordPressu pomocí HKDF. Klíč uchovávejte odděleně od databázových záloh a nikdy jej necommitujte.
-- Změna šifrovacího klíče nebo použitých WordPress salts zneplatní dříve uložené šifrované hodnoty. Obnovte původní klíč nebo zadejte nAPI údaje znovu. Plugin nečitelné hodnoty sám nepřepíše prázdným řetězcem a zobrazí chybu v nastavení.
+- Doporučený `BALIKOVNA_WC_ENCRYPTION_KEY` obsahuje Base64 zápis 32 náhodných bajtů. Bez něj se šifrovací klíč odvozuje z platných `AUTH_KEY` a `AUTH_SALT` WordPressu pomocí HKDF, takže rotace salts (bezpečnostním pluginem, hostingem nebo příkazem `wp config shuffle-salts`) uložené údaje zneplatní. Klíč uchovávejte odděleně od databázových záloh a nikdy jej necommitujte.
+- Změna šifrovacího klíče nebo použitých WordPress salts zneplatní dříve uložené šifrované hodnoty. Obnovte původní klíč nebo zadejte nAPI údaje znovu. Plugin nečitelné hodnoty sám nepřepíše prázdným řetězcem. Dokud je sledování zapnuté a údaje nejdou přečíst, je synchronizace pozastavená a správcům s oprávněním `manage_woocommerce` se na všech stránkách administrace zobrazuje upozornění s odkazem na nastavení.
 - Bez použitelného šifrovacího klíče a OpenSSL se nové databázové údaje neuloží v plaintextu. Existující nechráněné údaje zůstanou zachované pro řízenou migraci, ale nAPI z nich neběží, dokud není ochrana dostupná. Externě definované údaje šifrování databáze nepotřebují.
 - Odinstalace přes WordPress smaže API nastavení, pracovní dávky, zámky a cache na všech webech multisite. Objednávky, jejich výdejní místa, tracking a nastavení dopravních zón zůstávají zachované. Samotná deaktivace údaje nemaže, jen zruší naplánované úlohy a kontrolu aktualizací; deaktivace v celé síti to provede na všech webech. Smazání adresáře mimo WordPress odinstalační postup nespustí.
 

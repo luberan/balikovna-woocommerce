@@ -17,6 +17,14 @@ final class Balikovna_Test_Shipping_Method extends Shipping_Method_Base {
 		return $this->resolve_weight_cost( $weight );
 	}
 
+	public function configure( $service_id, $service_codes, $parcel_type, $max_weight_kg ) {
+		$this->id            = $service_id;
+		$this->service       = Balikovna_WC\Services::get( $service_id );
+		$this->service_codes = $service_codes;
+		$this->parcel_type   = $parcel_type;
+		$this->max_weight_kg = $max_weight_kg;
+	}
+
 	public function cost_for( $package, $service_id = 'balikovna', $free_shipping_min = '', $max_weight_kg = '', $cost_type = 'flat' ) {
 		$this->id                = $service_id;
 		$this->service           = Balikovna_WC\Services::get( $service_id );
@@ -279,7 +287,8 @@ final class ShippingAndOrderTest extends TestCase {
 		$package = array( 'destination' => array( 'country' => 'CZ' ), 'contents' => array( array( 'data' => new Balikovna_Test_Product( 40, array( 100, 50, 40 ) ), 'quantity' => 1 ) ) );
 		$method->cost_for( $package, 'balikovna_plus', '', '50' );
 		$method->calculate_shipping( $package );
-		$this->assertSame( 50.0, $method->rates[0]['meta_data'][ Order::META_MAX_WEIGHT ] );
+		$this->assertSame( 50.0, $method->order_item_settings()[ Order::META_MAX_WEIGHT ] );
+		$this->assertArrayNotHasKey( 'meta_data', $method->rates[0], 'Contract settings stay out of the rate returned by the Store API.' );
 		$this->assertNull( $method->cost_for( $package, 'balikovna_na_adresu', '', '500' ) );
 	}
 
@@ -403,6 +412,65 @@ final class ShippingAndOrderTest extends TestCase {
 
 		$this->assertSame( '', $item->get_meta( Order::META_PACKAGE_WEIGHT ) );
 		$this->assertSame( '', $item->get_meta( Order::META_PACKAGE_VALUE ) );
+	}
+
+	public function test_order_item_takes_contract_settings_from_its_shipping_instance(): void {
+		$method = new Balikovna_Test_Shipping_Method();
+		$method->configure( 'balikovna_plus', '7+45+S', 'DE', '50' );
+		$GLOBALS['balikovna_test_shipping_methods'] = array( 4 => $method );
+		$package = array( 'contents' => array() );
+		try {
+			$item = new WC_Order_Item_Shipping( 'balikovna_plus', '4' );
+			Order::instance()->add_shipping_item_metadata( $item, '0', $package, new WC_Order() );
+			$this->assertSame( '7+45+S', $item->get_meta( Order::META_SERVICE_CODES ) );
+			$this->assertSame( 'DE', $item->get_meta( Order::META_PARCEL_TYPE ) );
+			$this->assertSame( 50.0, $item->get_meta( Order::META_MAX_WEIGHT ) );
+
+			$other_service = new WC_Order_Item_Shipping( 'cp_do_ruky', '4' );
+			Order::instance()->add_shipping_item_metadata( $other_service, '0', $package, new WC_Order() );
+			$this->assertSame( '', $other_service->get_meta( Order::META_SERVICE_CODES ), 'Settings of another service are never copied.' );
+
+			$unknown_instance = new WC_Order_Item_Shipping( 'balikovna_plus', '9' );
+			Order::instance()->add_shipping_item_metadata( $unknown_instance, '0', $package, new WC_Order() );
+			$this->assertSame( '', $unknown_instance->get_meta( Order::META_PARCEL_TYPE ) );
+		} finally {
+			unset( $GLOBALS['balikovna_test_shipping_methods'] );
+		}
+	}
+
+	public function test_tracking_window_starts_when_the_tracking_number_is_saved(): void {
+		$item   = new WC_Order_Item_Shipping( 'cp_do_ruky', '4', array( Order::META_TRACKING_NUMBER => 'DR1234567890E' ) );
+		$before = time();
+
+		Order::instance()->remove_stale_shipping_metadata( $item, null );
+		$this->assertGreaterThanOrEqual( $before, $item->get_meta( Order::META_TRACKING_SINCE ) );
+		$this->assertSame( 'DR1234567890E', $item->get_meta( Order::META_TRACKING_SINCE_NUMBER ) );
+
+		$item->update_meta_data( Order::META_TRACKING_SINCE, 1000 );
+		Order::instance()->remove_stale_shipping_metadata( $item, null );
+		$this->assertSame( 1000, $item->get_meta( Order::META_TRACKING_SINCE ), 'Saving the same number again keeps the window.' );
+
+		$item->update_meta_data( Order::META_TRACKING_NUMBER, 'DR0000000000E' );
+		Order::instance()->remove_stale_shipping_metadata( $item, null );
+		$this->assertGreaterThanOrEqual( $before, $item->get_meta( Order::META_TRACKING_SINCE ) );
+		$this->assertSame( 'DR0000000000E', $item->get_meta( Order::META_TRACKING_SINCE_NUMBER ) );
+
+		$item->delete_meta_data( Order::META_TRACKING_NUMBER );
+		Order::instance()->remove_stale_shipping_metadata( $item, null );
+		$this->assertSame( '', $item->get_meta( Order::META_TRACKING_SINCE ) );
+		$this->assertSame( '', $item->get_meta( Order::META_TRACKING_SINCE_NUMBER ) );
+	}
+
+	public function test_order_hooks_ignore_objects_that_are_not_orders(): void {
+		ob_start();
+		foreach ( array( new stdClass(), false, null ) as $not_an_order ) {
+			Order::instance()->email_after_order_table( $not_an_order, false, false, null );
+			Order::instance()->email_after_order_table( $not_an_order, false, true, null );
+			Order::instance()->order_details( $not_an_order );
+			Order::instance()->admin_after_shipping( $not_an_order );
+			Order::instance()->render_orders_column( 'balikovna', $not_an_order );
+		}
+		$this->assertSame( '', ob_get_clean() );
 	}
 
 	public function test_stale_plus_parcel_type_is_removed_after_shipping_method_change(): void {

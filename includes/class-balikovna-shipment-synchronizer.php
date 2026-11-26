@@ -242,8 +242,9 @@ class Shipment_Synchronizer {
 			}
 
 			$eligible     = (bool) apply_filters( 'balikovna_wc_tracking_shipment_eligible', true, $shipment, $order, $settings );
+			$pollable     = $eligible && $this->orders->is_shipment_in_window( $order, $item, $settings );
 			$progress_key = $item->get_id() . ':' . $tracking_number;
-			if ( $eligible && empty( $this->pending['done'][ $progress_key ] ) && Tracking_Settings::should_poll( $stored_code, $settings )
+			if ( $pollable && empty( $this->pending['done'][ $progress_key ] ) && Tracking_Settings::should_poll( $stored_code, $settings )
 				&& self::next_attempt_at( $item ) <= $this->now() ) {
 				if ( ! $this->can_continue( true ) ) {
 					return array(

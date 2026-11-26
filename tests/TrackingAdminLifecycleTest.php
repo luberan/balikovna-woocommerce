@@ -77,6 +77,34 @@ final class TrackingAdminLifecycleTest extends TestCase {
 		$this->assertSame( 1, $tracking->reads, 'Maintenance runs once per administration request.' );
 	}
 
+	public function test_unreadable_credentials_are_reported_on_every_admin_screen(): void {
+		$tracking = new Tracking();
+		$notice   = function () use ( $tracking ) {
+			ob_start();
+			$tracking->credential_notice();
+			return ob_get_clean();
+		};
+		$tracking->initialize();
+		$this->assertArrayHasKey( 'admin_notices', $GLOBALS['balikovna_test_actions'] );
+		$this->assertSame( '', $notice(), 'Nothing is reported before tracking is configured.' );
+
+		// A value encrypted with a key that is no longer available, e.g. after the WordPress salts were rotated.
+		$unreadable = \Balikovna_WC\Credentials::PREFIX . base64_encode( str_repeat( 'x', 48 ) );
+		$GLOBALS['balikovna_test_options'][ Tracking_Settings::OPTION_NAME ] = array(
+			'enabled'    => true,
+			'api_token'  => $unreadable,
+			'secret_key' => $unreadable,
+		);
+		$this->assertFalse( $tracking->should_schedule(), 'Unreadable credentials stop the recurring synchronization.' );
+		$html = $notice();
+		$this->assertStringContainsString( 'notice-error', $html );
+		$this->assertStringContainsString( 'section=' . Tracking_Admin::SECTION, $html );
+		$this->assertStringNotContainsString( $unreadable, $html );
+
+		$GLOBALS['balikovna_test_options'][ Tracking_Settings::OPTION_NAME ]['enabled'] = false;
+		$this->assertSame( '', $notice(), 'Disabled tracking is not reported.' );
+	}
+
 	public function test_schedule_follows_enabled_and_configured_settings_in_admin(): void {
 		$GLOBALS['balikovna_test_is_admin']                             = true;
 		$GLOBALS['balikovna_test_did_actions']['init']                  = 1;

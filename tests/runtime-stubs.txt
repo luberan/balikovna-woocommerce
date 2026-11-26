@@ -62,6 +62,7 @@ function wp_script_is( $handle, $status = 'enqueued' ) { return isset( $GLOBALS[
 function wp_localize_script( $handle, $name, $data ) { $GLOBALS['balikovna_test_localized_scripts'][ $handle ][ $name ] = $data; return true; }
 function wp_enqueue_style( $handle, $src = '', $dependencies = array(), $version = false ) { $GLOBALS['balikovna_test_enqueued_styles'][ $handle ] = compact( 'src', 'dependencies', 'version' ); }
 function wp_create_nonce( $action ) { return 'valid-nonce'; }
+function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
 class Balikovna_Test_Json_Response extends Exception {
 	public $success; public $data; public $status;
 	public function __construct( $success, $data, $status ) { parent::__construct( 'JSON response sent.' ); $this->success = $success; $this->data = $data; $this->status = $status; }
@@ -133,6 +134,7 @@ class WC_Shipping_Method {
 	public function validate_textarea_field( $key, $value ) { return (string) $value; }
 	public function get_option( $key, $default = '' ) { return $this->options[ $key ] ?? $default; }
 }
+class WC_Shipping_Zones { public static function get_shipping_method( $instance_id ) { return $GLOBALS['balikovna_test_shipping_methods'][ (int) $instance_id ] ?? false; } }
 class WC_Order_Item_Shipping {
 	private $method_id; private $instance_id; private $meta; private $id; public $save_count = 0;
 	public function __construct( $method_id = '', $instance_id = '', array $meta = array(), $id = 0 ) { $this->method_id = $method_id; $this->instance_id = $instance_id; $this->meta = $meta; $this->id = $id; }
@@ -157,11 +159,12 @@ class WC_Order_Item_Product {
 	public function get_total_tax() { return $this->total_tax; }
 }
 class WC_Order {
-	private $shipping_methods; private $meta; private $address; private $items; private $id; private $status; private $date_created; public $status_updates = array(); public $notes = array(); public $status_update_result = true;
-	public function __construct( array $shipping_methods = array(), array $meta = array(), array $address = array(), array $items = array(), array $state = array() ) { $this->shipping_methods = $shipping_methods; $this->meta = $meta; $this->address = $address; $this->items = $items; $this->id = $state['id'] ?? 1; $this->status = $state['status'] ?? 'processing'; $this->date_created = $state['date_created'] ?? time(); }
+	private $shipping_methods; private $meta; private $address; private $items; private $id; private $status; private $date_created; private $date_modified; public $status_updates = array(); public $notes = array(); public $status_update_result = true;
+	public function __construct( array $shipping_methods = array(), array $meta = array(), array $address = array(), array $items = array(), array $state = array() ) { $this->shipping_methods = $shipping_methods; $this->meta = $meta; $this->address = $address; $this->items = $items; $this->id = $state['id'] ?? 1; $this->status = $state['status'] ?? 'processing'; $this->date_created = $state['date_created'] ?? time(); $this->date_modified = $state['date_modified'] ?? $this->date_created; }
 	public function get_id() { return $this->id; }
 	public function get_status() { return $this->status; }
 	public function get_date_created() { return new DateTimeImmutable( '@' . $this->date_created ); }
+	public function get_date_modified() { return new DateTimeImmutable( '@' . $this->date_modified ); }
 	public function update_status( $status ) { if ( false === $this->status_update_result ) return false; if ( $status !== $this->status ) { $this->status_updates[] = $status; $this->status = $status; } return true; }
 	public function add_order_note( $note, $customer = false ) { $this->notes[] = array( $note, $customer ); }
 	public function get_shipping_methods() { return $this->shipping_methods; }

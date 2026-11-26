@@ -214,7 +214,7 @@ class Tracking_Admin {
 		);
 		$this->number_row(
 			'tracking_days',
-			__( 'Počet dnů, kdy bude stav objednávky kontrolován', 'balikovna-wc' ),
+			__( 'Počet dnů od uložení podacího čísla, kdy bude stav zásilky kontrolován', 'balikovna-wc' ),
 			(int) $settings['tracking_days'],
 			1,
 			Tracking_Settings::MAX_TRACKING_DAYS

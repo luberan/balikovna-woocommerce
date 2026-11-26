@@ -4,6 +4,16 @@ use Balikovna_WC\Export;
 use PHPUnit\Framework\TestCase;
 
 final class Balikovna_Test_Export extends Export {
+	public $iconv_available = true;
+
+	protected function iconv_cp1250( $value ) {
+		return $this->iconv_available ? parent::iconv_cp1250( $value ) : false;
+	}
+
+	public function fallback( $value ) {
+		return $this->cp1250_fallback( $value );
+	}
+
 	public function encodeRow( array $row ) {
 		$stream = fopen( 'php://memory', 'w+' );
 		$this->fputcsv_cp1250( $stream, $row );
@@ -27,6 +37,27 @@ final class Balikovna_Test_Export extends Export {
 final class ExportTest extends TestCase {
 	protected function setUp(): void {
 		remove_all_filters();
+	}
+
+	public function test_csv_stays_windows_1250_when_iconv_cannot_convert(): void {
+		$export = new Balikovna_Test_Export();
+		$text   = 'Příliš žluťoučký kůň úpěl ďábelské ódy – „ČŘŽ“ €';
+		$bytes  = iconv( 'UTF-8', 'Windows-1250', $text );
+
+		$this->assertSame( $bytes, $export->fallback( $text ) );
+		foreach ( array_map( 'hexdec', str_split( Export::CP1250_HIGH, 4 ) ) as $index => $code_point ) {
+			$byte      = chr( 0x80 + $index );
+			$character = @iconv( 'Windows-1250', 'UTF-8', $byte );
+			$this->assertSame( 0 !== $code_point, is_string( $character ) && '' !== $character, sprintf( 'Byte 0x%02X', 0x80 + $index ) );
+			if ( $code_point ) {
+				$this->assertSame( $byte, $export->fallback( $character ), sprintf( 'Byte 0x%02X', 0x80 + $index ) );
+			}
+		}
+		$this->assertSame( 'A?B', $export->fallback( 'A日B' ), 'An unmapped character never passes through as UTF-8 bytes.' );
+		$this->assertSame( 'A??B', $export->fallback( "A\xFF\xFEB" ), 'Invalid UTF-8 is replaced as well.' );
+
+		$export->iconv_available = false;
+		$this->assertSame( '"' . $bytes . '";Novak' . "\n", $export->encodeRow( array( $text, 'Novak' ) ) );
 	}
 
 	public function test_formula_prefixes_are_escaped_after_transliteration(): void {
